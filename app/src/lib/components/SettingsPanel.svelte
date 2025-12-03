@@ -78,7 +78,7 @@
 
 <div class="settings-panel retro-theme">
 	<section>
-		<h3>Custom Auth Proxy Server</h3>
+		<h3>Auth Proxy Server</h3>
 		<p class="desc">
 			A CORS-friendly proxy server that forwards login requests to the official Furacadia auth
 			server (terra.furcadia.com). Be careful! Your password will be transmitted to this address. By
