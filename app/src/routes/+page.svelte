@@ -55,7 +55,7 @@
 			>
 			<span class="separator">•</span>
 			<a
-				href="https://github.com/furnarchy/furnarchy-zero/issues"
+				href="https://github.com/merklejerk/furnarchy-zero/issues"
 				target="_blank"
 				rel="noopener noreferrer">Report Issue</a
 			>
