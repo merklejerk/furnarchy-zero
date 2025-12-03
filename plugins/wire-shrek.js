@@ -10,13 +10,21 @@ Furnarchy.register({
 
     function log(type, text, sourceId, tag) {
         if (popup && !popup.closed) {
+            const logContainer = popup.document.getElementById('log');
+            if (!logContainer) return;
+
             const div = popup.document.createElement('div');
-            div.style.fontFamily = 'monospace';
-            div.style.borderBottom = '1px solid #ccc';
-            div.style.padding = '4px';
+            div.className = 'log-entry';
             div.style.backgroundColor = type === 'IN' ? '#e6ffe6' : '#ffe6e6';
-            div.style.whiteSpace = 'pre-wrap';
-            div.style.wordBreak = 'break-all';
+            div.title = 'Click to copy raw text';
+
+            div.onclick = () => {
+                popup.navigator.clipboard.writeText(text).then(() => {
+                    const originalBg = div.style.backgroundColor;
+                    div.style.backgroundColor = '#ffffcc';
+                    setTimeout(() => div.style.backgroundColor = originalBg, 200);
+                }).catch(console.error);
+            };
             
             const meta = popup.document.createElement('span');
             meta.style.color = '#888';
@@ -37,15 +45,12 @@ Furnarchy.register({
             div.appendChild(content);
             
             // Auto-scroll logic
-            const win = popup.window;
-            const doc = popup.document.documentElement;
-            // Check if user is near bottom (within 50px) before adding content
-            const isNearBottom = (win.innerHeight + win.scrollY) >= doc.scrollHeight - 50;
+            const isNearBottom = (logContainer.scrollTop + logContainer.clientHeight) >= logContainer.scrollHeight - 50;
             
-            popup.document.body.appendChild(div);
+            logContainer.appendChild(div);
             
             if (isNearBottom) {
-                win.scrollTo(0, doc.scrollHeight);
+                logContainer.scrollTop = logContainer.scrollHeight;
             }
         }
     }
@@ -70,16 +75,70 @@ Furnarchy.register({
             <head>
                 <title>Wire Shrek - Network Traffic</title>
                 <style>
-                    body { font-family: monospace; font-size: 12px; padding: 10px; margin: 0; }
-                    h3 { margin-top: 0; border-bottom: 2px solid #333; padding-bottom: 5px; }
+                    body { font-family: monospace; font-size: 12px; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+                    h3 { margin: 0; padding: 10px; background: #ddd; border-bottom: 1px solid #999; flex-shrink: 0; }
+                    #controls { padding: 5px; background: #eee; border-bottom: 1px solid #ccc; flex-shrink: 0; display: flex; gap: 5px; }
+                    #log { flex-grow: 1; overflow-y: auto; padding: 10px; }
+                    input { flex-grow: 1; padding: 4px; }
+                    button { padding: 4px 8px; cursor: pointer; }
+                    .log-entry { position: relative; border-bottom: 1px solid #ccc; padding: 4px; white-space: pre-wrap; word-break: break-all; cursor: pointer; font-family: monospace; }
+                    .log-entry:hover { outline: 1px solid #666; z-index: 1; }
+                    .log-entry:hover::after {
+                        content: "📋 Copy";
+                        position: absolute;
+                        top: 0;
+                        right: 0;
+                        background: rgba(0,0,0,0.7);
+                        color: #fff;
+                        padding: 2px 5px;
+                        font-size: 10px;
+                        border-bottom-left-radius: 3px;
+                        pointer-events: none;
+                    }
                 </style>
             </head>
             <body>
                 <h3>Wire Shrek Capture</h3>
+                <div id="controls">
+                    <input type="text" id="cmdInput" placeholder="Enter command..." />
+                    <button id="btnSend" title="Send to Server (Enter)">Send</button>
+                    <button id="btnInject" title="Inject to Client (Shift+Enter)">Inject</button>
+                </div>
+                <div id="log"></div>
             </body>
             </html>
         `);
         popup.document.close();
+        
+        const btnSend = popup.document.getElementById('btnSend');
+        const btnInject = popup.document.getElementById('btnInject');
+        const cmdInput = popup.document.getElementById('cmdInput');
+
+        const sendCmd = () => {
+            const text = cmdInput.value;
+            if (text) {
+                api.send(text.endsWith('\\n') ? text : text + '\\n');
+                cmdInput.value = '';
+            }
+        };
+        
+        const injectCmd = () => {
+             const text = cmdInput.value;
+            if (text) {
+                api.inject(text.endsWith('\\n') ? text : text + '\\n');
+                cmdInput.value = '';
+            }
+        };
+
+        btnSend.onclick = sendCmd;
+        btnInject.onclick = injectCmd;
+        
+        cmdInput.onkeydown = (e) => {
+            if (e.key === 'Enter') {
+                if (e.shiftKey) injectCmd();
+                else sendCmd();
+            }
+        };
         
         popup.onbeforeunload = () => {
             popup = null;
