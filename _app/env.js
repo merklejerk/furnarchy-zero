@@ -1,0 +1,1 @@
+export const env={"PUBLIC_AUTH_PROXY_URL":"https://terra.furnarchy.xyz","PUBLIC_FURCADIA_CLIENT_JS_URL":"https://play.furcadia.com/web/furcadia.js","PUBLIC_PLAY_FURCADIA_URL":"https://play.furcadia.com/"}
