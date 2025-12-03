@@ -1,3 +1,5 @@
+import { utils } from './utils';
+
 export interface PluginMetadata {
 	id: string;
 	name: string;
@@ -54,7 +56,7 @@ export class PluginContext {
 	}
 
 	notify(text: string, tag?: string) {
-		this.inject(`([🟢] ${text}\n`, tag);
+		this.inject(`(${utils.escape('[🟢]')} ${text}\n`, tag);
 	}
 
 	onIncoming(
@@ -126,6 +128,8 @@ export type PluginRegistrationCallback = (plugin: PluginContext) => void;
 export class FurnarchyCore {
 	readonly version = __APP_VERSION__;
 	plugins: PluginContext[] = [];
+
+	utils = utils;
 
 	// Context for tracking which URL is currently loading
 	loadingPluginUrl: string | null = null;

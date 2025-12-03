@@ -178,7 +178,7 @@ Furnarchy.register({
     let interval;
     
     api.onLoggedIn(() => {
-        console.log("Logged in! Starting spin cycle...");
+        api.notify("Logged in! Starting spin cycle...");
         startSpin();
     });
     
@@ -225,6 +225,9 @@ Furnarchy.register({
         *   `api.onLoggedIn(callback)`: Called when login succeeds.
         *   `api.onPause(callback)`: Called when plugin is enabled/disabled. Callback receives `(paused)`.
         *   `api.onLoad(callback)`: Called immediately after registration with the initial enabled state. Callback receives `(enabled)`.
+
+* `Furnarchy.utils`
+    *   `escape(str)`: Escapes HTML special characters and converts Unicode characters to HTML entities.
 
 ### Hosting Plugins
 Since Furnarchy Zero runs in the browser, plugins must be hosted on a web server accessible via HTTPS (or HTTP if running locally).
