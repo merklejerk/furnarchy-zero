@@ -14,6 +14,10 @@
 	});
 </script>
 
+<svelte:head>
+	<title>Furnarchy Zero</title>
+</svelte:head> 
+
 <div class="landing-page retro-theme">
 	<header>
 		<img src="/logo.png" alt="Furnarchy Zero Logo" width="384" />
