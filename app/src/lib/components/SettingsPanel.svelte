@@ -96,6 +96,9 @@
 		<p class="desc">
 			Load external JavaScript plugins to enhance your game client. Plugins are loaded from the
 			provided URL and have full access to the game environment.
+        </p>
+        <p class="desc">
+            See the <a href="https://github.com/merklejerk/furnarchy-zero" target="_blank" rel="noopener noreferrer">Github README</a> for more information.
 		</p>
 		<div class="input-group">
 			<input
