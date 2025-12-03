@@ -1,5 +1,7 @@
 Furnarchy.register({
+    id: "auto-spinner-73d51b4bc8625286",
     name: "Auto Spinner",
+    description: "Automatically spins your character every 5 seconds.",
     version: "1.0.0",
     author: "me@merklerjerk.com"
 }, (api) => {
