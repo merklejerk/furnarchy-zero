@@ -117,7 +117,9 @@ A plugin registers itself using `Furnarchy.register()`.
 ```javascript
 // my-plugin.js
 Furnarchy.register({
+    id: "my-cool-plugin",
     name: "My Cool Plugin",
+    description: "A plugin that does cool things.",
     version: "1.0.0",
     author: "Your Name"
 }, (api) => {
@@ -129,7 +131,7 @@ Furnarchy.register({
     // api.send("look\n"); 
 
     // Intercept incoming messages from the server
-    api.onIncoming((line) => {
+    api.onIncoming((line, sourceId, tag) => {
         // Example: Highlight whispers
         if (line.startsWith("(whisper)")) {
             console.log("Got a whisper:", line);
@@ -138,7 +140,7 @@ Furnarchy.register({
     });
 
     // Intercept outgoing commands from the user
-    api.onOutgoing((line) => {
+    api.onOutgoing((line, sourceId, tag) => {
         // Example: Custom command
         if (line === "/hello") {
             api.send("shout Hello everyone!\n");
@@ -165,7 +167,9 @@ This plugin waits for the user to log in, then rotates the character every 5 sec
 
 ```javascript
 Furnarchy.register({
+    id: "auto-spinner-73d51b4bc8625286",
     name: "Auto Spinner",
+    description: "Automatically spins your character every 5 seconds.",
     version: "1.0.0",
     author: "me@merklerjerk.com"
 }, (api) => {
@@ -203,14 +207,22 @@ Furnarchy.register({
 
 * `Furnarchy.register(meta, callback)`
     Registers a new plugin.
-    *   `meta`: Object containing plugin metadata (`name`, `version`, `author`).
+    *   `meta`: Object containing plugin metadata.
+        *   `id` (Required): Unique string identifier for the plugin (e.g., "my-plugin").
+        *   `name` (Required): Human-readable name.
+        *   `version` (Required): Semantic version string.
+        *   `description` (Optional): Short description of what the plugin does.
+        *   `author` (Optional): Author name or email.
+        *   `toggle` (Optional): Boolean. If `true`, the plugin is disabled by default when installed.
     *   `callback`: Function that receives an `api` object with the following methods:
-        *   `api.send(text, tag?)`: Send a command to the server.
-        *   `api.inject(text, tag?)`: Inject a command from the server.
-        *   `api.onIncoming(callback)`: Intercept incoming messages.
-        *   `api.onOutgoing(callback)`: Intercept outgoing messages.
+        *   `api.send(text, tag?)`: Send a command to the server. `tag` defaults to the plugin's `id`.
+        *   `api.inject(text, tag?)`: Inject a command from the server. `tag` defaults to the plugin's `id`.
+        *   `api.notify(text, tag?)`: Display a client-side message in the chat area.
+        *   `api.onIncoming(callback)`: Intercept incoming messages. Callback receives `(text, sourceId, tag)`.
+        *   `api.onOutgoing(callback)`: Intercept outgoing messages. Callback receives `(text, sourceId, tag)`.
         *   `api.onLoggedIn(callback)`: Called when login succeeds.
-        *   `api.onPause(callback)`: Called when plugin is enabled/disabled.
+        *   `api.onPause(callback)`: Called when plugin is enabled/disabled. Callback receives `(paused)`.
+        *   `api.onLoad(callback)`: Called immediately after registration with the initial enabled state. Callback receives `(enabled)`.
 
 ### Hosting Plugins
 Since Furnarchy Zero runs in the browser, plugins must be hosted on a web server accessible via HTTPS (or HTTP if running locally).

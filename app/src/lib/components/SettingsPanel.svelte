@@ -6,6 +6,7 @@
 		saveStoredPlugins,
 		getStoredAuthUrl,
 		saveStoredAuthUrl,
+		markPluginAsDeleted,
 		pluginStore,
 		type StoredPlugin
 	} from '$lib/storage';
@@ -39,11 +40,13 @@
 			const newPlugins = [
 				...$pluginStore,
 				{
+					id: metadata.id,
 					url: pluginUrl,
 					name: metadata.name,
+					description: metadata.description,
 					version: metadata.version,
 					author: metadata.author,
-					enabled: true
+					enabled: metadata.toggle !== undefined ? !metadata.toggle : true
 				}
 			];
 			saveStoredPlugins(newPlugins);
@@ -56,6 +59,10 @@
 	}
 
 	function removePlugin(url: string) {
+		const plugin = $pluginStore.find((p) => p.url === url);
+		if (plugin && plugin.id) {
+			markPluginAsDeleted(plugin.id);
+		}
 		const newPlugins = $pluginStore.filter((p) => p.url !== url);
 		saveStoredPlugins(newPlugins);
 	}
@@ -142,11 +149,20 @@
 						<!-- svelte-ignore a11y-click-events-have-key-events -->
 						<!-- svelte-ignore a11y-no-static-element-interactions -->
 						<div class="plugin-details" on:click|stopPropagation>
+							{#if plugin.id}
+								<div class="detail-row"><span class="label">ID:</span> {plugin.id}</div>
+							{/if}
 							{#if plugin.version}
 								<div class="detail-row"><span class="label">Version:</span> {plugin.version}</div>
 							{/if}
 							{#if plugin.author}
 								<div class="detail-row"><span class="label">Author:</span> {plugin.author}</div>
+							{/if}
+							{#if plugin.description}
+								<div class="detail-row">
+									<span class="label">Description:</span>
+									{plugin.description}
+								</div>
 							{/if}
 							<div class="detail-row">
 								<span class="label">URL:</span>

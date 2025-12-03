@@ -5,6 +5,7 @@
 		getStoredPlugins,
 		saveStoredPlugins,
 		maintainConfig,
+		markPluginAsDeleted,
 		pluginStore,
 		type StoredPlugin
 	} from '$lib/storage';
@@ -38,28 +39,48 @@
 				const idx = $pluginStore.findIndex((p) => p.url === sourceUrl);
 				if (idx !== -1) {
 					// Sync enabled state
+					// If toggle is true, ALWAYS start disabled (per user request)
+					const shouldEnable = meta.toggle ? false : $pluginStore[idx].enabled !== false;
+
 					if (typeof plugin._setEnabled === 'function') {
-						plugin._setEnabled($pluginStore[idx].enabled !== false);
+						plugin._setEnabled(shouldEnable);
 					} else {
-						plugin.enabled = $pluginStore[idx].enabled !== false;
+						plugin.enabled = shouldEnable;
 					}
 
 					let changed = false;
 					const current = $pluginStore[idx];
 					const updated = { ...current };
 
-					if (!current.name) {
+					// If we forced it disabled, update the store so UI reflects it
+					if (meta.toggle && current.enabled !== false) {
+						updated.enabled = false;
+						changed = true;
+					}
+
+					if (current.name !== meta.name) {
 						updated.name = meta.name;
 						changed = true;
 					}
-					if (meta.version && current.version !== meta.version) {
+					if (current.id !== meta.id) {
+						updated.id = meta.id;
+						changed = true;
+					}
+					if (current.description !== meta.description) {
+						updated.description = meta.description;
+						changed = true;
+					}
+					if (current.version !== meta.version) {
 						updated.version = meta.version;
 						changed = true;
 					}
-					if (meta.author && current.author !== meta.author) {
+					if (current.author !== meta.author) {
 						updated.author = meta.author;
 						changed = true;
 					}
+
+					// Note: We do NOT sync 'toggle' here because that's an initial state preference,
+					// not a persistent state we want to overwrite user preference with.
 
 					if (changed) {
 						const newPlugins = [...$pluginStore];
@@ -91,11 +112,13 @@
 			const newPlugins = [
 				...$pluginStore,
 				{
+					id: metadata.id,
 					url: pluginUrl,
 					name: metadata.name,
+					description: metadata.description,
 					version: metadata.version,
 					author: metadata.author,
-					enabled: true
+					enabled: metadata.toggle !== undefined ? !metadata.toggle : true
 				}
 			];
 			saveStoredPlugins(newPlugins);
@@ -109,6 +132,11 @@
 	}
 
 	function removePlugin(url: string) {
+		const plugin = $pluginStore.find((p) => p.url === url);
+		if (plugin && plugin.id) {
+			markPluginAsDeleted(plugin.id);
+		}
+
 		const newPlugins = $pluginStore.filter((p) => p.url !== url);
 		saveStoredPlugins(newPlugins);
 		// Note: We can't easily unload a script without reloading the page
@@ -156,9 +184,6 @@
 		if (document.querySelector(`script[data-plugin-url="${url}"]`)) return;
 
 		try {
-			// Set context so register() knows which URL this is
-			(window as any).Furnarchy.loadingPluginUrl = url;
-
 			// Attempt to fetch the script content directly.
 			// This bypasses strict MIME type checking (ORB/CORB) which often blocks
 			// raw GitHub/Gist URLs (served as text/plain).
@@ -166,6 +191,9 @@
 			const response = await fetch(url);
 			if (!response.ok) throw new Error(`HTTP ${response.status}`);
 			const content = await response.text();
+
+			// Set context so register() knows which URL this is
+			(window as any).Furnarchy.loadingPluginUrl = url;
 
 			const script = document.createElement('script');
 			script.textContent = content;
@@ -243,11 +271,20 @@
 							<!-- svelte-ignore a11y-click-events-have-key-events -->
 							<!-- svelte-ignore a11y-no-static-element-interactions -->
 							<div class="plugin-details" on:click|stopPropagation>
+								{#if plugin.id}
+									<div class="detail-row"><span class="label">ID:</span> {plugin.id}</div>
+								{/if}
 								{#if plugin.version}
 									<div class="detail-row"><span class="label">Version:</span> {plugin.version}</div>
 								{/if}
 								{#if plugin.author}
 									<div class="detail-row"><span class="label">Author:</span> {plugin.author}</div>
+								{/if}
+								{#if plugin.description}
+									<div class="detail-row">
+										<span class="label">Description:</span>
+										{plugin.description}
+									</div>
 								{/if}
 								<div class="detail-row">
 									<span class="label">URL:</span>

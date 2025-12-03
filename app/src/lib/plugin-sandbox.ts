@@ -1,8 +1,11 @@
 export interface PluginMetadata {
+	id: string;
 	name: string;
-	version?: string;
+	version: string;
+	description?: string;
 	author?: string;
 	sourceUrl: string;
+	toggle?: boolean;
 }
 
 export async function verifyPlugin(url: string): Promise<PluginMetadata> {
@@ -44,17 +47,20 @@ export async function verifyPlugin(url: string): Promise<PluginMetadata> {
 			}
 
 			const plugin = data.plugin;
-			if (!plugin.name) {
+			if (!plugin.id || !plugin.name || !plugin.version) {
 				cleanup();
-				reject(new Error('Plugin registered but missing name'));
+				reject(new Error('Plugin registered but missing id, name, or version'));
 				return;
 			}
 
 			resolve({
+				id: plugin.id,
 				name: plugin.name,
+				description: plugin.description,
 				version: plugin.version,
 				author: plugin.author,
-				sourceUrl: url
+				sourceUrl: url,
+				toggle: plugin.toggle
 			});
 			cleanup();
 		};
@@ -78,10 +84,12 @@ export async function verifyPlugin(url: string): Promise<PluginMetadata> {
                         const api = {
                             send: function() {},
                             inject: function() {},
+                            notify: function() {},
                             onIncoming: function() {},
                             onOutgoing: function() {},
                             onLoggedIn: function() {},
-                            onPause: function() {}
+                            onPause: function() {},
+                            onLoad: function() {}
                         };
                         try { arg(api); } catch(e) {}
                     }

@@ -2,18 +2,39 @@ import { verifyPlugin } from './plugin-sandbox';
 import { writable } from 'svelte/store';
 
 export interface StoredPlugin {
-	url: string;
-	name?: string;
-	version?: string;
-	author?: string;
-	enabled?: boolean;
-}
-
-const PLUGINS_KEY = 'furnarchy_plugins';
+    url: string;
+    id?: string;
+    name?: string;
+    description?: string;
+    version?: string;
+    author?: string;
+    enabled?: boolean;
+}const PLUGINS_KEY = 'furnarchy_plugins';
+const DELETED_PLUGINS_KEY = 'furnarchy_deleted_plugins';
 const AUTH_URL_KEY = 'furnarchy_auth_url';
 const VERSION_KEY = 'furnarchy_version';
 
 export const pluginStore = writable<StoredPlugin[]>([]);
+
+export function getDeletedPluginIds(): string[] {
+	if (typeof localStorage === 'undefined') return [];
+	const stored = localStorage.getItem(DELETED_PLUGINS_KEY);
+	if (!stored) return [];
+	try {
+		return JSON.parse(stored);
+	} catch (e) {
+		return [];
+	}
+}
+
+export function markPluginAsDeleted(id: string) {
+	if (typeof localStorage === 'undefined') return;
+	const deleted = getDeletedPluginIds();
+	if (!deleted.includes(id)) {
+		deleted.push(id);
+		localStorage.setItem(DELETED_PLUGINS_KEY, JSON.stringify(deleted));
+	}
+}
 
 export function getStoredPlugins(): StoredPlugin[] {
 	if (typeof localStorage === 'undefined') return [];
@@ -84,33 +105,43 @@ export async function maintainConfig(currentVersion: string) {
 	const storedVersion = getStoredVersion();
 	let plugins = getStoredPlugins();
 
-	if (isMinorBehind(currentVersion, storedVersion)) {
-		const defaultUrls = ['/plugins/auto-spinner.js'];
+	const defaultUrls = ['/plugins/auto-spinner.js', '/plugins/wire-shrek.js'];
+	const deletedIds = getDeletedPluginIds();
 
-		let changed = false;
+	let changed = false;
 
-		for (const url of defaultUrls) {
-			if (!plugins.some((p) => p.url === url)) {
-				try {
-					const meta = await verifyPlugin(url);
-					plugins.push({
-						url: url,
-						name: meta.name,
-						version: meta.version,
-						author: meta.author,
-						enabled: true
-					});
-					changed = true;
-				} catch (e) {
-					console.error(`Failed to load default plugin ${url}:`, e);
+	for (const url of defaultUrls) {
+		if (!plugins.some((p) => p.url === url)) {
+			try {
+				const meta = await verifyPlugin(url);
+
+				// Skip if explicitly deleted
+				if (deletedIds.includes(meta.id)) {
+					console.log(`Skipping deleted default plugin: ${meta.name} (${meta.id})`);
+					continue;
 				}
+
+				plugins.push({
+					id: meta.id,
+					url: url,
+					name: meta.name,
+					description: meta.description,
+					version: meta.version,
+					author: meta.author,
+					enabled: typeof meta.toggle === 'boolean' ? !meta.toggle : true,
+				});
+				changed = true;
+			} catch (e) {
+				console.error(`Failed to load default plugin ${url}:`, e);
 			}
 		}
+	}
 
-		if (changed) {
-			saveStoredPlugins(plugins);
-		}
+	if (changed) {
+		saveStoredPlugins(plugins);
+	}
 
+	if (storedVersion !== currentVersion) {
 		saveStoredVersion(currentVersion);
 	}
 }

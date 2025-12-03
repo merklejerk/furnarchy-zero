@@ -90,8 +90,8 @@ export function installWebSocketPatch() {
 				// Hook up Furnarchy.send and inject
 				const furnarchy = (window as any).Furnarchy;
 				if (furnarchy) {
-					furnarchy.send = (text: string, tag: string = 'PLUGIN') => sendToSocket(this, text, tag);
-					furnarchy.inject = (text: string, tag: string = 'PLUGIN') =>
+					furnarchy.send = (text: string, tag: string | undefined) => sendToSocket(this, text, tag);
+					furnarchy.inject = (text: string, tag: string | undefined) =>
 						injectIntoSocket(this, text, tag);
 					console.log('[Furnarchy] Connected to Game Socket');
 				}
