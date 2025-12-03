@@ -9,7 +9,7 @@ Furnarchy.register({
     let interval;
     
     api.onLoggedIn(() => {
-        console.log("Logged in! Starting spin cycle...");
+        api.notify("Logged in! Starting spin cycle...");
         startSpin();
     });
     
