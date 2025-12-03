@@ -4,19 +4,19 @@
 
 The Furcadia Network Protocol stands as a significant artifact in the history of online virtual worlds, representing a unique evolutionary bridge between the text-based Multi-User Dungeons (MUDs) of the 1980s and the graphical Massively Multiplayer Online Games (MMOGs) that would come to dominate the 2000s. Unlike its contemporaries that rapidly shifted toward efficient, opaque binary protocols over UDP to support fast-paced combat, Furcadia’s architecture was designed with a fundamentally different set of constraints and goals: accessibility, user-generated content (UGC), and social interaction.
 
-The protocol operates strictly over the Transmission Control Protocol (TCP), prioritizing reliable, ordered delivery of data over the speed of transmission.1 This decision eliminates the need for the client to handle packet reordering or loss recovery, simplifying the client-side network stack significantly. Furthermore, the data stream is almost entirely character-based, utilizing 7-bit US-ASCII encoding for the majority of instructions.1 This design choice—essentially wrapping a graphical state machine in a text-based transport layer—has profound implications for the game's ecosystem. It allowed for the early proliferation of third-party tools, bots, and proxies, as the barrier to entry for reverse-engineering the protocol was essentially the ability to read text.
+The protocol operates strictly over the Transmission Control Protocol (TCP), prioritizing reliable, ordered delivery of data over the speed of transmission. This decision eliminates the need for the client to handle packet reordering or loss recovery, simplifying the client-side network stack significantly. Furthermore, the data stream is almost entirely character-based, utilizing 7-bit US-ASCII encoding for the majority of instructions. This design choice—essentially wrapping a graphical state machine in a text-based transport layer—has profound implications for the game's ecosystem. It allowed for the early proliferation of third-party tools, bots, and proxies, as the barrier to entry for reverse-engineering the protocol was essentially the ability to read text.
 
-However, the simplicity of ASCII presents a challenge for transmitting complex game state data such as 32-bit coordinates, unique user identifiers (UIDs), and high-fidelity color information. To address this, the protocol employs custom base-encoding algorithms—specifically Base95 and Base220—which compress numerical data into printable character strings.3 This approach creates a "hybrid" protocol: human-readable in its command structure (opcodes and delimiters) but machine-dense in its payload arguments.
+However, the simplicity of ASCII presents a challenge for transmitting complex game state data such as 32-bit coordinates, unique user identifiers (UIDs), and high-fidelity color information. To address this, the protocol employs custom base-encoding algorithms—specifically Base95 and Base220—which compress numerical data into printable character strings. This approach creates a "hybrid" protocol: human-readable in its command structure (opcodes and delimiters) but machine-dense in its payload arguments.
 
-The modern iteration of the protocol, particularly following the "Second Dreaming" updates (Version 31+), has had to graft sophisticated features like 32-bit "True Color" support, web-based inventory management, and dynamic lighting onto this legacy backbone.5 This report provides an exhaustive specification of this evolved protocol, dissecting its connection lifecycle, encoding standards, instruction sets, and the architectural compromises required to modernize a 1990s engine for the 2020s.
+The modern iteration of the protocol, particularly following the "Second Dreaming" updates (Version 31+), has had to graft sophisticated features like 32-bit "True Color" support, web-based inventory management, and dynamic lighting onto this legacy backbone. This report provides an exhaustive specification of this evolved protocol, dissecting its connection lifecycle, encoding standards, instruction sets, and the architectural compromises required to modernize a 1990s engine for the 2020s.
 
 ## **2\. The Physical and Transport Layer**
 
 ### **2.1. Network Topology and Connectivity**
 
-The Furcadia network architecture is centralized, relying on a client-server topology where the server acts as the authoritative source of world state. The client is effectively a "dumb terminal" with graphical caching capabilities; it visualizes the state provided by the server and sends user input requests, but it does not perform authoritative simulation of movement or collision.6
+The Furcadia network architecture is centralized, relying on a client-server topology where the server acts as the authoritative source of world state. The client is effectively a "dumb terminal" with graphical caching capabilities; it visualizes the state provided by the server and sends user input requests, but it does not perform authoritative simulation of movement or collision.
 
-The primary game service resides at the hostname lightbringer.furcadia.com, which resolves to the IP address 72.36.220.249.1 In a move that highlights the developers' foresight regarding network accessibility—particularly for users in restrictive environments like university dorms or corporate offices—the server listens on a wide array of ports. While port 6500 is the recommended standard, the service is also available on ports 5000, 2300, and the standard reserved ports 80 (HTTP), 21 (FTP), and 22 (SSH).1 By listening on these reserved ports, the Furcadia server can often bypass basic firewall rules that filter non-standard traffic, ensuring connectivity for a broader user base without requiring tunneling software.
+The primary game service resides at the hostname lightbringer.furcadia.com, which resolves to the IP address 72.36.220.249.1 In a move that highlights the developers' foresight regarding network accessibility—particularly for users in restrictive environments like university dorms or corporate offices—the server listens on a wide array of ports. While port 6500 is the recommended standard, the service is also available on ports 5000, 2300, and the standard reserved ports 80 (HTTP), 21 (FTP), and 22 (SSH). By listening on these reserved ports, the Furcadia server can often bypass basic firewall rules that filter non-standard traffic, ensuring connectivity for a broader user base without requiring tunneling software.
 
 ### **2.2. Session Lifecycle and Handshake**
 
@@ -24,31 +24,31 @@ Establishing a valid session with the Furcadia server involves a specific "hands
 
 #### **2.2.1. The "Dragonroar" Synchronization**
 
-Upon establishing the TCP connection, the server immediately begins streaming text data to the client. This data serves as a news feed, displaying update notes, marketplace advertisements, or community announcements.1 This stream is unidirectional; the server does not expect or process client input during this phase.
+Upon establishing the TCP connection, the server immediately begins streaming text data to the client. This data serves as a news feed, displaying update notes, marketplace advertisements, or community announcements. This stream is unidirectional; the server does not expect or process client input during this phase.
 
 The crucial synchronization signal is the line containing the string Dragonroar. This line serves as the "Ready" state indicator.
 
 * **Client Behavior:** The client must buffer and display (or discard) all incoming lines until Dragonroar is detected.  
-* **Proxy/Bot Constraints:** Automated tools must strictly observe this silence period. Attempting to send the login command before receiving Dragonroar will typically result in the server ignoring the input or terminating the connection as a flood protection measure.1  
-* **Legacy Artifacts:** Historically, the Dragonroar line was followed by version identifiers like V00013 and END. Modern parsers are advised to ignore these, as they are vestiges of older protocol versions and are no longer reliable indicators of state.1
+* **Proxy/Bot Constraints:** Automated tools must strictly observe this silence period. Attempting to send the login command before receiving Dragonroar will typically result in the server ignoring the input or terminating the connection as a flood protection measure.
+* **Legacy Artifacts:** Historically, the Dragonroar line was followed by version identifiers like V00013 and END. Modern parsers are advised to ignore these, as they are vestiges of older protocol versions and are no longer reliable indicators of state
 
 #### **2.2.2. Proxy Identification**
 
 The protocol includes a specific provision for "Third Party Proxies"—middleware software that sits between the client and server to provide features like moderation automation or accessibility tools. To prevent these tools from being flagged as malicious automated traffic, they are required to declare their presence.
 
 * **Command:** onlnprx  
-* **Timing:** This command must be sent *immediately* after the Dragonroar signal and *before* the standard connect command.1  
+* **Timing:** This command must be sent *immediately* after the Dragonroar signal and *before* the standard connect command.
 * **Function:** This registers the connection as a proxy, potentially adjusting the server's flood control thresholds or logging the session differently to account for the non-standard latency or packet frequency introduced by the middleware.
 
 ### **2.3. Authentication and Encryption**
 
 The authentication mechanism reveals the protocol's age. The standard login command is transmitted as a plaintext string.
 
-* **Command Structure:** connect \<PlayerName\> \<Password\>.7  
-* **Security Implications:** In the original specification, this credential transmission occurred without encryption, making it vulnerable to packet sniffing on local networks.2
+* **Command Structure:** connect \<PlayerName\> \<Password\>  
+* **Security Implications:** In the original specification, this credential transmission occurred without encryption, making it vulnerable to packet sniffing on local networks.
 
 Modern Mitigation:  
-With the "Second Dreaming" update and the integration of web-based account management, the authentication flow has evolved. While the protocol command remains connect, the "Password" field can now accept a temporary session token or a hashed credential generated via a secure HTTPS side-channel (e.g., the web-based character editor or the "Digo Market").5 This "Token Passing" strategy secures the actual user credentials while maintaining backward compatibility with the legacy text-based protocol, which treats the token simply as a string password.
+With the "Second Dreaming" update and the integration of web-based account management, the authentication flow has evolved. While the protocol command remains connect, the "Password" field can now accept a temporary session token or a hashed credential generated via a secure HTTPS side-channel (e.g., the web-based character editor or the "Digo Market"). This "Token Passing" strategy secures the actual user credentials while maintaining backward compatibility with the legacy text-based protocol, which treats the token simply as a string password.
 
 ### **2.4. Keep-Alive Mechanisms**
 
@@ -56,7 +56,7 @@ Unlike UDP protocols that might send a "heartbeat" packet every few milliseconds
 
 * **Client-Side:** Periodic commands such as onln (checking a friend's status) or look serve as keep-alives.  
 * **Server-Side:** The server periodically pushes updates. If the TCP window fills and packets cannot be acknowledged (ACK) by the client, the OS network stack will eventually tear down the connection.  
-* **Timeout:** The server enforces an idle timeout, disconnecting characters that have not sent an input command for a specified duration, unless they are flagged with an "AFK" state, which might extend this timer.9
+* **Timeout:** The server enforces an idle timeout, disconnecting characters that have not sent an input command for a specified duration, unless they are flagged with an "AFK" state, which might extend this timer.
 
 ## **3\. Data Representation and Encoding Algorithms**
 
@@ -95,7 +95,7 @@ For values exceeding 94, a multi-byte position notation is used, similar to hexa
   * \# is ASCII 35\. Value: $35 \- 32 \= 3$.  
   * Total: $(1 \\times 95\) \+ 3 \= 98$.
 
-This encoding allows the protocol to represent a coordinate pair (X, Y) in just 4 bytes of text (2 bytes for X, 2 for Y), which is significantly more compact than transmitting the string "100,100" (7 bytes).7
+This encoding allows the protocol to represent a coordinate pair (X, Y) in just 4 bytes of text (2 bytes for X, 2 for Y), which is significantly more compact than transmitting the string "100,100" (7 bytes)
 
 ### **3.2. Base220 Encoding**
 
@@ -111,9 +111,9 @@ Base220 utilizes 220 distinct characters from the 8-bit byte range (0-255). By e
 
 #### **3.2.2. Usage in Protocol**
 
-* **User IDs:** Always encoded as 4-byte Base220 strings in packets like "Spawn Avatar" (\<) and "Animated Move" (/).6  
+* **User IDs:** Always encoded as 4-byte Base220 strings in packets like "Spawn Avatar" (\<) and "Animated Move" (/).
 * **Coordinates:** Modern packets use 2-byte Base220 for X and Y, allowing for maps larger than the Base95 limit of roughly $95^2 \\approx 9000$ (though practical map limits are often lower due to memory).  
-* **Shape/Sprite IDs:** With the explosion of avatar customization (11 species, 3 genders, countless "Noble" variants), the Shape ID is also transmitted as a 2-byte Base220 value.6
+* **Shape/Sprite IDs:** With the explosion of avatar customization (11 species, 3 genders, countless "Noble" variants), the Shape ID is also transmitted as a 2-byte Base220 value
 
 ### **3.3. Color Code Structures**
 
@@ -121,7 +121,7 @@ The representation of avatar colors illustrates the protocol's evolution from a 
 
 #### **3.3.1. Legacy Color String (13 Bytes)**
 
-The original color string is a fixed-length sequence of 13 Base95 characters. Each character represents an index (0-94 typically, mapping to a 256-color palette) for a specific region of the avatar sprite.7
+The original color string is a fixed-length sequence of 13 Base95 characters. Each character represents an index (0-94 typically, mapping to a 256-color palette) for a specific region of the avatar sprite
 
 | Byte Index | Avatar Region | Description |
 | :---- | :---- | :---- |
@@ -193,14 +193,14 @@ Format:
 #### **4.1.3. Remove Avatar ())**
 
 Instructs the client to delete the entity from local memory.  
-Format: ‘)’ \+ UserID \+ LF.6
+Format: ‘)’ \+ UserID \+ LF
 
 * **Usage:** Sent when a player disconnects, teleports out of the visual range, or enters a dream portal.
 
 #### **4.1.4. Hide Avatar (C)**
 
 Used for specific game states where the avatar persists logically but should not be drawn (e.g., an invisible GM, or a player "inside" a large object).  
-Format: ‘C’ \+ UserID \+ X \+ Y \+ LF.6
+Format: ‘C’ \+ UserID \+ X \+ Y \+ LF
 
 ### **4.2. World and Environment Updates**
 
@@ -209,7 +209,7 @@ The Furcadia world is dynamic; users can script changes to the map using "Dragon
 #### **4.2.1. Object and Floor Placement (\>)**
 
 Updates the static map tiles.  
-Format: ‘\>’ \+ XX \+ YY \+ OO.7
+Format: ‘\>’ \+ XX \+ YY \+ OO
 
 * **XX, YY:** Coordinates (Base95/220).  
 * **OO:** Object ID.  
@@ -220,19 +220,19 @@ Format: ‘\>’ \+ XX \+ YY \+ OO.7
 #### **4.2.2. Floor Change (1)**
 
 Specific opcode for changing the ground tile (floor) distinct from the object layer.  
-Format: ‘1’ \+ XX \+ YY \+ OO.7
+Format: ‘1’ \+ XX \+ YY \+ OO
 
 #### **4.2.3. Camera Control (@)**
 
 Centers the user's viewport.  
-Format: ‘@’ \+ XX \+ YY.7
+Format: ‘@’ \+ XX \+ YY
 
 * **Usage:** Sent immediately after a map load or a "teleport" command to ensure the player is looking at their own avatar.
 
 #### **4.2.4. Map Switching (;)**
 
 Instructs the client to load a new map file.  
-Format: ‘;’ \+ MapName.7
+Format: ‘;’ \+ MapName
 
 * **Context:** Used for the main "permanent" maps like *Vinca* or *New Haven*. User-created maps (Dreams) use a more complex handshake (see Section 6).
 
@@ -242,18 +242,18 @@ Text is the primary carrier of social interaction.
 
 #### **4.3.1. Standard Text Output (()**
 
-**Format:** ‘(’ \+ Message.7
+**Format:** ‘(’ \+ Message
 
 * **Rendering:** The client renders this text in the chat box.  
 * **Formatting:** Supports a subset of HTML tags:  
   * \<b\>, \<i\>, \<u\>: Styling.  
   * \<font color='...'\>: Coloring.  
-  * \<a href='...'\>: Hyperlinks (strictly limited to URLs).1  
+  * \<a href='...'\>: Hyperlinks (strictly limited to URLs).
   * \<name\>: Special tags for clicking on users.
 
 #### **4.3.2. UI Control and Sub-Protocol (\])**
 
-The \] opcode acts as a gateway for extended functionality, using a secondary type character.7
+The \] opcode acts as a gateway for extended functionality, using a secondary type character
 
 * **\]c (Change Graphic):** Patches a UI element on the fly.  
   * \]c \+ Index \+ Filename.  
@@ -280,7 +280,7 @@ The client sends a stream of commands reflecting user input. These are terse and
 ### **5.2. State Requests**
 
 * **desc \<Text\>**: Update self description.  
-* **rev \<UserID\>**: "Request Avatar".6  
+* **rev \<UserID\>**: "Request Avatar".
   * **Crucial Recovery Mechanism:** If the client receives a / (Move) packet for a UserID it doesn't know (e.g., packet loss on the \< Spawn packet), it sends rev. The server responds with the full \< Spawn packet. This self-healing mechanism is vital for the stability of the long-running TCP session.  
 * **onln \<Name\>**: Queries the server for a friend's online status.
 
@@ -299,7 +299,7 @@ The File Server operates on a dynamic port and utilizes a distinct binary-heavy 
 **Sequence:**
 
 1. **Connect:** Client connects to File Server.  
-2. **Welcome:** Server sends 10 Welcome to Furcadia file server.7  
+2. **Welcome:** Server sends 10 Welcome to Furcadia file server  
 3. **Request:** Client sends the Dream ID.  
 4. **Header:** Server sends 44 FILESIZE CHUNKSIZE.  
    * FILESIZE: Total bytes.  
@@ -319,14 +319,14 @@ The "Second Dreaming" update required significant extensions to the protocol to 
 
 The move from the 8-bit FSH format to the 32-bit FOX5 format was a major architectural shift.
 
-* **FOX5 Container:** A custom format supporting LZMA compression and 32-bit RGBA.11  
-* **Protocol Abstraction:** The protocol *does not* transmit these images. It continues to transmit 2-byte Shape IDs (Base220). The client is responsible for mapping ShapeID: 12345 to the specific frame inside a local FOX5 file. This abstraction preserved the protocol's bandwidth efficiency while exponentially increasing visual fidelity.5
+* **FOX5 Container:** A custom format supporting LZMA compression and 32-bit RGBA.  
+* **Protocol Abstraction:** The protocol *does not* transmit these images. It continues to transmit 2-byte Shape IDs (Base220). The client is responsible for mapping ShapeID: 12345 to the specific frame inside a local FOX5 file. This abstraction preserved the protocol's bandwidth efficiency while exponentially increasing visual fidelity.
 
 ### **7.2. Web-Integration Headers**
 
 To support features like the "Digo Market" (real-money transactions) and Guild management, the protocol now includes HTTP-style headers in specific system messages.
 
-* **Headers:** X-Furcadia-Access-Token, X-Furcadia-Guild-ID.8  
+* **Headers:** X-Furcadia-Access-Token, X-Furcadia-Guild-ID.  
 * **Hybrid Flow:** The client parses these headers to open authenticated web views (embedded Chromium or external browser) without requiring the user to re-login. This delegates complex, secure transactions to standard HTTPS web stacks, keeping the game protocol focused on world state.
 
 ## **8\. Third-Party Ecosystem and Tooling**
@@ -335,12 +335,12 @@ The transparency of the ASCII protocol fostered a rich ecosystem of third-party 
 
 ### **8.1. Proxies and Bots**
 
-* **Silver Monkey:** A popular botting framework. It automates the onlnprx handshake and provides a scripting language (MonkeySpeak) to trigger actions based on incoming text (e.g., "If chat contains 'Hello', reply 'Hi'").12  
+* **Silver Monkey:** A popular botting framework. It automates the onlnprx handshake and provides a scripting language (MonkeySpeak) to trigger actions based on incoming text (e.g., "If chat contains 'Hello', reply 'Hi'").  
 * **Mechanism:** These bots act as Man-in-the-Middle (MitM) entities. They maintain the TCP socket to the server and a local socket to the client, stripping out administrative commands or injecting automated responses.
 
 ### **8.2. Libraries: LibFurc**
 
-* **LibFurc:** An open-source Python library designed to handle the nuances of Base220 decoding and packet parsing.13  
+* **LibFurc:** An open-source Python library designed to handle the nuances of Base220 decoding and packet parsing.  
 * **Significance:** It abstracts the complex bitmasking of the Flags byte and the variable-length parsing of the Modern Color String, allowing developers to focus on high-level logic (e.g., "Move avatar to X,Y") rather than byte-level stream management.
 
 ## **9\. Conclusion**

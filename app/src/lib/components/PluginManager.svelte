@@ -172,6 +172,38 @@
 		saveStoredPlugins(newPlugins);
 	}
 
+	function configurePlugin(url: string) {
+		const furnarchy = (window as any).Furnarchy;
+		if (furnarchy && furnarchy.plugins) {
+			const livePlugin = furnarchy.plugins.find((lp: any) => lp.metadata.sourceUrl === url);
+			if (livePlugin) {
+				livePlugin._notifyConfigure();
+			}
+		}
+	}
+
+	async function reloadPlugin(url: string) {
+		// 1. Remove existing script tag
+		const existingScript = document.querySelector(`script[data-plugin-url="${url}"]`);
+		if (existingScript) {
+			existingScript.remove();
+		}
+
+		// 2. Remove from Furnarchy core plugins list to allow re-registration
+		const furnarchy = (window as any).Furnarchy;
+		if (furnarchy && furnarchy.plugins) {
+			const idx = furnarchy.plugins.findIndex((p: any) => p.metadata.sourceUrl === url);
+			if (idx !== -1) {
+				// Disable first to trigger cleanup
+				furnarchy.plugins[idx]._setEnabled(false);
+				furnarchy.plugins.splice(idx, 1);
+			}
+		}
+
+		// 3. Re-inject
+		await injectPlugin(url);
+	}
+
 	function savePlugins() {
 		// No-op, saveStoredPlugins handles it
 	}
@@ -264,6 +296,15 @@
 									on:click|stopPropagation={() => togglePlugin(plugin.url)}
 									title={plugin.enabled !== false ? 'Disable Plugin' : 'Enable Plugin'}
 								></div>
+								<!-- svelte-ignore a11y-click-events-have-key-events -->
+								<!-- svelte-ignore a11y-no-static-element-interactions -->
+								<div
+									class="config-btn"
+									on:click|stopPropagation={() => configurePlugin(plugin.url)}
+									title="Configure Plugin"
+								>
+									⚙️
+								</div>
 								<span class="plugin-name" title={plugin.url}>{plugin.name || plugin.url}</span>
 							</div>
 						</div>
@@ -293,9 +334,14 @@
 										>{plugin.url}</a
 									>
 								</div>
-								<button class="remove-btn" on:click={() => removePlugin(plugin.url)}
-									>Remove Plugin</button
-								>
+								<div class="button-group">
+									<button class="action-btn reload-btn" on:click={() => reloadPlugin(plugin.url)}
+										>Reload Plugin</button
+									>
+									<button class="action-btn remove-btn" on:click={() => removePlugin(plugin.url)}
+										>Remove Plugin</button
+									>
+								</div>
 							</div>
 						{/if}
 					</li>
@@ -522,6 +568,18 @@
 		border-color: #fff;
 	}
 
+	.config-btn {
+		cursor: pointer;
+		font-size: 14px;
+		opacity: 0.7;
+		transition: opacity 0.2s;
+	}
+
+	.config-btn:hover {
+		opacity: 1;
+		transform: scale(1.1);
+	}
+
 	.plugin-name {
 		font-weight: bold;
 		font-size: 0.95rem;
@@ -563,18 +621,36 @@
 		color: #000;
 	}
 
-	.remove-btn {
+	.button-group {
+		display: flex;
+		gap: 10px;
 		margin-top: 10px;
-		width: 100%;
+	}
+
+	.action-btn {
+		flex: 1;
+		border-width: 2px;
+		box-shadow: 4px 4px 0px rgba(0,0,0,0.5);
+	}
+
+	.reload-btn {
+		background: #0088cc;
+		color: #cceeff;
+		border-color: #00aaff;
+	}
+
+	.reload-btn:hover {
+		background: #0099dd;
+	}
+
+	.remove-btn {
 		background: #aa0000;
 		color: #ffaaaa;
-		border: 2px solid #ff0000;
-		box-shadow: 4px 4px 0px #440000;
+		border-color: #ff0000;
 	}
 
 	.remove-btn:hover {
 		background: #cc0000;
-		box-shadow: 5px 5px 0px #440000;
 	}
 
 	.empty {

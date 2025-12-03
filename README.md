@@ -225,6 +225,7 @@ Furnarchy.register({
         *   `api.onLoggedIn(callback)`: Called when login succeeds.
         *   `api.onPause(callback)`: Called when plugin is enabled/disabled. Callback receives `(paused)`.
         *   `api.onLoad(callback)`: Called immediately after registration with the initial enabled state. Callback receives `(enabled)`.
+        *   `api.onConfigure(callback)`: Called when the user clicks the configure button in the plugin manager.
 
 * `Furnarchy.utils`
     *   `escape(str)`: Escapes HTML special characters and converts Unicode characters to HTML entities.

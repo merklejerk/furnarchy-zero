@@ -30,7 +30,8 @@ export class PluginContext {
 		outgoing: [] as { cb: MessageHandler; priority: number }[],
 		loggedIn: [] as (() => void)[],
 		pause: [] as ((paused: boolean) => void)[],
-		load: [] as ((enabled: boolean) => void)[]
+		load: [] as ((enabled: boolean) => void)[],
+		configure: [] as (() => void)[]
 	};
 
 	constructor(private core: FurnarchyCore) {
@@ -87,6 +88,10 @@ export class PluginContext {
 		this._handlers.load.push(cb);
 	}
 
+	onConfigure(cb: () => void) {
+		this._handlers.configure.push(cb);
+	}
+
 	// Internal methods called by Core
 	_setEnabled(enabled: boolean) {
 		if (this._enabledState === enabled) return;
@@ -118,6 +123,16 @@ export class PluginContext {
 				cb(this.enabled);
 			} catch (e) {
 				console.error(`[${this.metadata.name}] Load Error:`, e);
+			}
+		});
+	}
+
+	_notifyConfigure() {
+		this._handlers.configure.forEach((cb) => {
+			try {
+				cb();
+			} catch (e) {
+				console.error(`[${this.metadata.name}] Configure Error:`, e);
 			}
 		});
 	}
