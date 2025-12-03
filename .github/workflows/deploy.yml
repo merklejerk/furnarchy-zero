@@ -1,0 +1,54 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'app/**'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./app
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: app/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+        env:
+          PUBLIC_FURCADIA_CLIENT_JS_URL: ${{ vars.PUBLIC_FURCADIA_CLIENT_JS_URL }}
+          PUBLIC_AUTH_PROXY_URL: ${{ vars.PUBLIC_AUTH_PROXY_URL }}
+          PUBLIC_PLAY_FURCADIA_URL: ${{ vars.PUBLIC_PLAY_FURCADIA_URL }}
+          BASE_PATH: ${{ vars.BASE_PATH }}
+
+      - name: Create CNAME
+        if: ${{ vars.CNAME }}
+        run: echo "${{ vars.CNAME }}" > build/CNAME
+
+      - name: Add .nojekyll
+        run: touch build/.nojekyll
+
+      - name: Deploy to GitHub Pages
+        uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          folder: app/build
+          branch: gh-pages

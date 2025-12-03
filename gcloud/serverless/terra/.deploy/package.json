@@ -1,0 +1,14 @@
+{
+  "name": "furnarchy-terra-proxy",
+  "version": "1.0.0",
+  "description": "Proxy for Furcadia Terra API",
+  "main": "dist/index.js",
+  "scripts": {
+    "start": "functions-framework --target=proxy --source=dist/index.js --port=8080",
+    "deploy": "./deploy.sh"
+  },
+  "dependencies": {
+    "@google-cloud/functions-framework": "^3.3.0",
+    "dotenv": "^17.2.3"
+  }
+}
