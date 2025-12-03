@@ -1,5 +1,3 @@
-import type { FurnarchyPlugin } from './furnarchy-core';
-
 export interface PluginMetadata {
     name: string;
     version?: string;
@@ -68,17 +66,25 @@ export async function verifyPlugin(url: string): Promise<PluginMetadata> {
             window.Furnarchy = {
                 version: '0.0.0-sandbox',
                 loadingPluginUrl: ${JSON.stringify(url)},
-                register: function(plugin) {
-                    // Send result back to parent
-                    window.parent.postMessage({
-                        type: 'furnarchy-plugin-register',
-                        requestId: '${requestId}',
-                        plugin: {
-                            name: plugin.name,
-                            version: plugin.version,
-                            author: plugin.author
-                        }
-                    }, '*');
+                register: function(meta, arg) {
+                    if (typeof arg === 'function') {
+                        // Send metadata immediately
+                        window.parent.postMessage({
+                            type: 'furnarchy-plugin-register',
+                            requestId: '${requestId}',
+                            plugin: meta
+                        }, '*');
+
+                        const api = {
+                            send: function() {},
+                            inject: function() {},
+                            onIncoming: function() {},
+                            onOutgoing: function() {},
+                            onLoggedIn: function() {},
+                            onPause: function() {}
+                        };
+                        try { arg(api); } catch(e) {}
+                    }
                 },
                 onRegister: function() {},
                 send: function() {}

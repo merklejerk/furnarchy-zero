@@ -1,15 +1,17 @@
 <script lang="ts">
     import { onMount } from 'svelte';
     import { FurnarchyCore } from '$lib/furnarchy-core';
-    import { getStoredPlugins, saveStoredPlugins, type StoredPlugin } from '$lib/storage';
+    import { getStoredPlugins, saveStoredPlugins, maintainConfig, pluginStore, type StoredPlugin } from '$lib/storage';
     import { verifyPlugin } from '$lib/plugin-sandbox';
     import '$lib/retro.css';
 
     let isOpen = false;
     let pluginUrl = '';
-    let plugins: StoredPlugin[] = [];
     let expandedPluginUrl: string | null = null;
     let isVerifying = false;
+
+    // Use the store for reactivity
+    $: plugins = $pluginStore;
 
     onMount(() => {
         // Initialize global Furnarchy object if it doesn't exist
@@ -17,35 +19,56 @@
             (window as any).Furnarchy = new FurnarchyCore();
         }
 
+        // Initialize store from storage
+        pluginStore.set(getStoredPlugins());
+
         // Listen for registrations to update names
         (window as any).Furnarchy.onRegister((plugin: any) => {
-            if (plugin.sourceUrl) {
-                const idx = plugins.findIndex(p => p.url === plugin.sourceUrl);
+            // plugin is PluginContext
+            const meta = plugin.metadata || plugin; // Handle both just in case
+            const sourceUrl = meta.sourceUrl || plugin.sourceUrl;
+            
+            if (sourceUrl) {
+                const idx = $pluginStore.findIndex(p => p.url === sourceUrl);
                 if (idx !== -1) {
+                    // Sync enabled state
+                    if (typeof plugin._setEnabled === 'function') {
+                        plugin._setEnabled($pluginStore[idx].enabled !== false);
+                    } else {
+                        plugin.enabled = $pluginStore[idx].enabled !== false;
+                    }
+
                     let changed = false;
-                    if (!plugins[idx].name) {
-                        plugins[idx].name = plugin.name;
+                    const current = $pluginStore[idx];
+                    const updated = { ...current };
+
+                    if (!current.name) {
+                        updated.name = meta.name;
                         changed = true;
                     }
-                    if (plugin.version && plugins[idx].version !== plugin.version) {
-                        plugins[idx].version = plugin.version;
+                    if (meta.version && current.version !== meta.version) {
+                        updated.version = meta.version;
                         changed = true;
                     }
-                    if (plugin.author && plugins[idx].author !== plugin.author) {
-                        plugins[idx].author = plugin.author;
+                    if (meta.author && current.author !== meta.author) {
+                        updated.author = meta.author;
                         changed = true;
                     }
                     
                     if (changed) {
-                        plugins = [...plugins]; // Trigger reactivity
-                        savePlugins();
+                        const newPlugins = [...$pluginStore];
+                        newPlugins[idx] = updated;
+                        saveStoredPlugins(newPlugins); // Updates store and LS
                     }
                 }
             }
         });
 
-        plugins = getStoredPlugins();
-        loadPlugins();
+        // Version check for default plugins
+        const currentVersion = (window as any).Furnarchy?.version || '0.0.0';
+        maintainConfig(currentVersion).then(() => {
+            loadPlugins();
+        });
     });
 
     function toggle() {
@@ -54,18 +77,19 @@
 
     async function addPlugin() {
         if (!pluginUrl) return;
-        if (plugins.some(p => p.url === pluginUrl)) return;
+        if ($pluginStore.some(p => p.url === pluginUrl)) return;
         
         isVerifying = true;
         try {
             const metadata = await verifyPlugin(pluginUrl);
-            plugins = [...plugins, { 
+            const newPlugins = [...$pluginStore, { 
                 url: pluginUrl,
                 name: metadata.name,
                 version: metadata.version,
-                author: metadata.author
+                author: metadata.author,
+                enabled: true
             }];
-            savePlugins();
+            saveStoredPlugins(newPlugins);
             injectPlugin(pluginUrl);
             pluginUrl = '';
         } catch (e: any) {
@@ -76,8 +100,8 @@
     }
 
     function removePlugin(url: string) {
-        plugins = plugins.filter(p => p.url !== url);
-        savePlugins();
+        const newPlugins = $pluginStore.filter(p => p.url !== url);
+        saveStoredPlugins(newPlugins);
         // Note: We can't easily unload a script without reloading the page
         // Ideally we'd prompt the user to reload
         if (confirm('Plugin removed. Reload page to take effect?')) {
@@ -85,12 +109,37 @@
         }
     }
 
+    function togglePlugin(url: string) {
+        const newPlugins = $pluginStore.map(p => {
+            if (p.url === url) {
+                const newState = p.enabled === undefined ? false : !p.enabled;
+                
+                // Update live plugin if it exists
+                const furnarchy = (window as any).Furnarchy;
+                if (furnarchy && furnarchy.plugins) {
+                    const livePlugin = furnarchy.plugins.find((lp: any) => lp.metadata.sourceUrl === url);
+                    if (livePlugin) {
+                        if (typeof livePlugin._setEnabled === 'function') {
+                            livePlugin._setEnabled(newState);
+                        } else {
+                            livePlugin.enabled = newState;
+                        }
+                    }
+                }
+                
+                return { ...p, enabled: newState };
+            }
+            return p;
+        });
+        saveStoredPlugins(newPlugins);
+    }
+
     function savePlugins() {
-        saveStoredPlugins(plugins);
+        // No-op, saveStoredPlugins handles it
     }
 
     function loadPlugins() {
-        plugins.forEach(p => injectPlugin(p.url));
+        $pluginStore.forEach(p => injectPlugin(p.url));
     }
 
     async function injectPlugin(url: string) {
@@ -159,16 +208,27 @@
             </div>
 
             <ul class="plugin-list">
-                {#each plugins as plugin}
+                {#each $pluginStore as plugin}
                     <!-- svelte-ignore a11y-click-events-have-key-events -->
                     <!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
                     <li 
                         class="plugin-item" 
                         class:expanded={expandedPluginUrl === plugin.url}
+                        class:disabled={plugin.enabled === false}
                         on:click={() => expandedPluginUrl = expandedPluginUrl === plugin.url ? null : plugin.url}
                     >
                         <div class="plugin-header">
-                            <span class="plugin-name" title={plugin.url}>{plugin.name || plugin.url}</span>
+                            <div class="plugin-title-group">
+                                <!-- svelte-ignore a11y-click-events-have-key-events -->
+                                <!-- svelte-ignore a11y-no-static-element-interactions -->
+                                <div 
+                                    class="toggle-switch" 
+                                    class:checked={plugin.enabled !== false}
+                                    on:click|stopPropagation={() => togglePlugin(plugin.url)}
+                                    title={plugin.enabled !== false ? "Disable Plugin" : "Enable Plugin"}
+                                ></div>
+                                <span class="plugin-name" title={plugin.url}>{plugin.name || plugin.url}</span>
+                            </div>
                         </div>
                         
                         {#if expandedPluginUrl === plugin.url}
@@ -190,7 +250,7 @@
                         {/if}
                     </li>
                 {/each}
-                {#if plugins.length === 0}
+                {#if $pluginStore.length === 0}
                     <li class="empty">No plugins installed</li>
                 {/if}
             </ul>
@@ -373,11 +433,43 @@
         background: #1a1a1a;
     }
 
+    .plugin-item.disabled .plugin-name {
+        color: #777;
+        text-decoration: line-through;
+    }
+
     .plugin-header {
         padding: 10px;
         display: flex;
         justify-content: space-between;
         align-items: center;
+    }
+
+    .plugin-title-group {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex: 1;
+        overflow: hidden;
+    }
+
+    .toggle-switch {
+        width: 16px;
+        height: 16px;
+        border: 2px solid #555;
+        background: #000;
+        cursor: pointer;
+        flex-shrink: 0;
+    }
+
+    .toggle-switch.checked {
+        background: #00aa00;
+        border-color: #00ff00;
+        box-shadow: inset 2px 2px 0px rgba(255,255,255,0.3);
+    }
+
+    .toggle-switch:hover {
+        border-color: #fff;
     }
 
     .plugin-name {

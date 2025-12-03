@@ -1,19 +1,102 @@
-export interface FurnarchyPlugin {
+export interface PluginMetadata {
     name: string;
     version?: string;
     author?: string;
     sourceUrl?: string;
-    onIncoming?: (text: string, tag: string | null) => string | null | undefined | Promise<string | null | undefined>;
-    onOutgoing?: (text: string, tag: string | null) => string | null | undefined | Promise<string | null | undefined>;
-    onLoad?: () => void;
-    onLoggedIn?: () => void;
 }
 
-export type PluginRegistrationCallback = (plugin: FurnarchyPlugin) => void;
+export class PluginContext {
+    id = crypto.randomUUID();
+    metadata: PluginMetadata = { name: "Unknown Plugin" };
+    enabled = true;
+    
+    private handlers = {
+        incoming: [] as ((text: string, tag: string | null) => string | null | undefined | Promise<string | null | undefined>)[],
+        outgoing: [] as ((text: string, tag: string | null) => string | null | undefined | Promise<string | null | undefined>)[],
+        loggedIn: [] as (() => void)[],
+        pause: [] as ((paused: boolean) => void)[],
+    };
+
+    constructor(private core: FurnarchyCore) {
+        if (core.loadingPluginUrl) {
+            this.metadata.sourceUrl = core.loadingPluginUrl;
+        }
+    }
+
+    send(text: string) {
+        if (!this.enabled) return;
+        this.core.send(text, this.metadata.name || "PLUGIN");
+    }
+
+    inject(text: string) {
+        if (!this.enabled) return;
+        this.core.inject(text, this.metadata.name || "PLUGIN");
+    }
+
+    onIncoming(cb: (text: string, tag: string | null) => string | null | undefined | Promise<string | null | undefined>) {
+        this.handlers.incoming.push(cb);
+    }
+
+    onOutgoing(cb: (text: string, tag: string | null) => string | null | undefined | Promise<string | null | undefined>) {
+        this.handlers.outgoing.push(cb);
+    }
+
+    onLoggedIn(cb: () => void) {
+        this.handlers.loggedIn.push(cb);
+    }
+
+    onPause(cb: (paused: boolean) => void) {
+        this.handlers.pause.push(cb);
+    }
+
+    // Internal methods called by Core
+    _setEnabled(enabled: boolean) {
+        if (this.enabled === enabled) return;
+        this.enabled = enabled;
+        this.handlers.pause.forEach(cb => {
+            try { cb(!enabled); } catch (e) { console.error(e); }
+        });
+    }
+
+    async _processIncoming(text: string, tag: string | null): Promise<string | null | undefined> {
+        if (!this.enabled) return text;
+        let current = text;
+        for (const cb of this.handlers.incoming) {
+            try {
+                const res = await cb(current, tag);
+                if (res === null || res === undefined) return null;
+                current = res;
+            } catch (e) { console.error(`[${this.metadata.name}] Incoming Error:`, e); }
+        }
+        return current;
+    }
+
+    async _processOutgoing(text: string, tag: string | null): Promise<string | null | undefined> {
+        if (!this.enabled) return text;
+        let current = text;
+        for (const cb of this.handlers.outgoing) {
+            try {
+                const res = await cb(current, tag);
+                if (res === null || res === undefined) return null;
+                current = res;
+            } catch (e) { console.error(`[${this.metadata.name}] Outgoing Error:`, e); }
+        }
+        return current;
+    }
+
+    _notifyLoggedIn() {
+        if (!this.enabled) return;
+        this.handlers.loggedIn.forEach(cb => {
+            try { cb(); } catch (e) { console.error(`[${this.metadata.name}] LoggedIn Error:`, e); }
+        });
+    }
+}
+
+export type PluginRegistrationCallback = (plugin: PluginContext) => void;
 
 export class FurnarchyCore {
     readonly version = __APP_VERSION__;
-    plugins: FurnarchyPlugin[] = [];
+    plugins: PluginContext[] = [];
     
     // Context for tracking which URL is currently loading
     loadingPluginUrl: string | null = null;
@@ -43,42 +126,34 @@ export class FurnarchyCore {
         this.listeners.push(cb);
     }
 
-    register(plugin: FurnarchyPlugin) {
-        console.log(`[Furnarchy] Registering plugin: ${plugin.name}`);
-        
-        // Associate with source URL if we are in a loading context
-        if (this.loadingPluginUrl) {
-            plugin.sourceUrl = this.loadingPluginUrl;
-        }
-
-        this.plugins.push(plugin);
-        
-        // Notify listeners
+    notifyUpdate(plugin: PluginContext) {
+        // Re-emit registration event to update UI
         this.listeners.forEach(cb => {
             try { cb(plugin); } catch (e) { console.error(e); }
         });
+    }
 
-        if (plugin.onLoad) {
-            try {
-                plugin.onLoad();
-            } catch (e) {
-                console.error(`[Furnarchy] Error loading plugin ${plugin.name}:`, e);
-            }
+    register(meta: PluginMetadata, initFn: (api: PluginContext) => void) {
+        const ctx = new PluginContext(this);
+        ctx.metadata = { ...ctx.metadata, ...meta };
+        this.plugins.push(ctx);
+        
+        try {
+            initFn(ctx);
+            console.log(`[Furnarchy] Registered plugin: ${ctx.metadata.name}`);
+        } catch (e) {
+            console.error(`[Furnarchy] Error initializing plugin:`, e);
         }
+
+        this.notifyUpdate(ctx);
     }
 
     async processIncoming(text: string, tag: string | null = null): Promise<string | null | undefined> {
         let currentText = text;
         for (const plugin of this.plugins) {
-            if (plugin.onIncoming) {
-                try {
-                    const result = await plugin.onIncoming(currentText, tag);
-                    if (result === null || result === undefined) return null;
-                    currentText = result;
-                } catch (e) {
-                    console.error(`[Furnarchy] Error in plugin ${plugin.name} (incoming):`, e);
-                }
-            }
+            const result = await plugin._processIncoming(currentText, tag);
+            if (result === null || result === undefined) return null;
+            currentText = result;
         }
         return currentText;
     }
@@ -86,29 +161,15 @@ export class FurnarchyCore {
     async processOutgoing(text: string, tag: string | null = null): Promise<string | null | undefined> {
         let currentText = text;
         for (const plugin of this.plugins) {
-            if (plugin.onOutgoing) {
-                try {
-                    const result = await plugin.onOutgoing(currentText, tag);
-                    if (result === null || result === undefined) return null;
-                    currentText = result;
-                } catch (e) {
-                    console.error(`[Furnarchy] Error in plugin ${plugin.name} (outgoing):`, e);
-                }
-            }
+            const result = await plugin._processOutgoing(currentText, tag);
+            if (result === null || result === undefined) return null;
+            currentText = result;
         }
         return currentText;
     }
 
     notifyLoggedIn() {
         console.log('[Furnarchy] User logged in, notifying plugins...');
-        this.plugins.forEach(plugin => {
-            if (plugin.onLoggedIn) {
-                try {
-                    plugin.onLoggedIn();
-                } catch (e) {
-                    console.error(`[Furnarchy] Error in plugin ${plugin.name} (onLoggedIn):`, e);
-                }
-            }
-        });
+        this.plugins.forEach(plugin => plugin._notifyLoggedIn());
     }
 }

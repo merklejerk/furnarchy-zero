@@ -1,24 +1,27 @@
 <script lang="ts">
     import { onMount } from 'svelte';
     import { env } from '$env/dynamic/public';
-    import { getStoredPlugins, saveStoredPlugins, getStoredAuthUrl, saveStoredAuthUrl, type StoredPlugin } from '$lib/storage';
+    import { getStoredPlugins, saveStoredPlugins, getStoredAuthUrl, saveStoredAuthUrl, pluginStore, type StoredPlugin } from '$lib/storage';
     import { verifyPlugin } from '$lib/plugin-sandbox';
     import '$lib/retro.css';
 
-    let plugins: StoredPlugin[] = [];
     let pluginUrl = '';
     let authUrl = '';
     let expandedPluginUrl: string | null = null;
     let isVerifying = false;
 
+    // Use the store for reactivity
+    $: plugins = $pluginStore;
+
     onMount(() => {
-        plugins = getStoredPlugins();
+        // Initialize store from storage
+        pluginStore.set(getStoredPlugins());
         authUrl = getStoredAuthUrl() || env.PUBLIC_AUTH_PROXY_URL;
     });
 
     async function addPlugin() {
         if (!pluginUrl) return;
-        if (plugins.some(p => p.url === pluginUrl)) {
+        if ($pluginStore.some(p => p.url === pluginUrl)) {
             alert('Plugin already added!');
             return;
         }
@@ -26,13 +29,14 @@
         isVerifying = true;
         try {
             const metadata = await verifyPlugin(pluginUrl);
-            plugins = [...plugins, { 
+            const newPlugins = [...$pluginStore, { 
                 url: pluginUrl,
                 name: metadata.name,
                 version: metadata.version,
-                author: metadata.author
+                author: metadata.author,
+                enabled: true
             }];
-            saveStoredPlugins(plugins);
+            saveStoredPlugins(newPlugins);
             pluginUrl = '';
         } catch (e: any) {
             alert(`Failed to verify plugin: ${e.message || e}`);
@@ -42,8 +46,18 @@
     }
 
     function removePlugin(url: string) {
-        plugins = plugins.filter(p => p.url !== url);
-        saveStoredPlugins(plugins);
+        const newPlugins = $pluginStore.filter(p => p.url !== url);
+        saveStoredPlugins(newPlugins);
+    }
+
+    function togglePlugin(url: string) {
+        const newPlugins = $pluginStore.map(p => {
+            if (p.url === url) {
+                return { ...p, enabled: p.enabled === undefined ? false : !p.enabled };
+            }
+            return p;
+        });
+        saveStoredPlugins(newPlugins);
     }
 
     function saveAuth() {
@@ -96,10 +110,21 @@
                 <li 
                     class="plugin-item" 
                     class:expanded={expandedPluginUrl === plugin.url}
+                    class:disabled={plugin.enabled === false}
                     on:click={() => expandedPluginUrl = expandedPluginUrl === plugin.url ? null : plugin.url}
                 >
                     <div class="plugin-header">
-                        <span class="plugin-name" title={plugin.url}>{plugin.name || plugin.url}</span>
+                        <div class="plugin-title-group">
+                            <!-- svelte-ignore a11y-click-events-have-key-events -->
+                            <!-- svelte-ignore a11y-no-static-element-interactions -->
+                            <div 
+                                class="toggle-switch" 
+                                class:checked={plugin.enabled !== false}
+                                on:click|stopPropagation={() => togglePlugin(plugin.url)}
+                                title={plugin.enabled !== false ? "Disable Plugin" : "Enable Plugin"}
+                            ></div>
+                            <span class="plugin-name" title={plugin.url}>{plugin.name || plugin.url}</span>
+                        </div>
                     </div>
                     
                     {#if expandedPluginUrl === plugin.url}
@@ -230,11 +255,43 @@
         background: #1a1a1a;
     }
 
+    .plugin-item.disabled .plugin-name {
+        color: #777;
+        text-decoration: line-through;
+    }
+
     .plugin-header {
         padding: 10px;
         display: flex;
         justify-content: space-between;
         align-items: center;
+    }
+
+    .plugin-title-group {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex: 1;
+        overflow: hidden;
+    }
+
+    .toggle-switch {
+        width: 16px;
+        height: 16px;
+        border: 2px solid #555;
+        background: #000;
+        cursor: pointer;
+        flex-shrink: 0;
+    }
+
+    .toggle-switch.checked {
+        background: #00aa00;
+        border-color: #00ff00;
+        box-shadow: inset 2px 2px 0px rgba(255,255,255,0.3);
+    }
+
+    .toggle-switch:hover {
+        border-color: #fff;
     }
 
     .plugin-name {

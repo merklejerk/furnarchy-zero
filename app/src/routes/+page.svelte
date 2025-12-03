@@ -1,11 +1,17 @@
 <script lang="ts">
+    import { onMount } from 'svelte';
     import SettingsPanel from '$lib/components/SettingsPanel.svelte';
     import { FurnarchyCore } from '$lib/furnarchy-core';
+    import { maintainConfig } from '$lib/storage';
     import '$lib/retro.css';
     
     // We can instantiate a dummy core just to get the version if needed, 
     // or just import the version constant if we exported it, but the class has it.
     const version = new FurnarchyCore().version;
+
+    onMount(async () => {
+        await maintainConfig(version);
+    });
 </script>
 
 <div class="landing-page retro-theme">
@@ -41,7 +47,7 @@
 
     <footer>
         <div class="footer-links">
-            <a href="https://github.com/furnarchy/furnarchy-zero" target="_blank" rel="noopener noreferrer">GitHub</a>
+            <a href="https://github.com/merklejerk/furnarchy-zero" target="_blank" rel="noopener noreferrer">GitHub</a>
             <span class="separator">•</span>
             <a href="https://github.com/furnarchy/furnarchy-zero/issues" target="_blank" rel="noopener noreferrer">Report Issue</a>
         </div>
