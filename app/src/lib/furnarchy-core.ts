@@ -8,22 +8,24 @@ export interface PluginMetadata {
 	toggle?: boolean;
 }
 
+export type MessageHandler = (
+	text: string,
+	sourceId: string | null,
+	tag: string | null
+) => string | null | undefined | Promise<string | null | undefined>;
+
 export class PluginContext {
 	// id = crypto.randomUUID(); // Removed, using metadata.id
 	metadata: PluginMetadata = { id: '', name: 'Unknown Plugin', version: '0.0.0' };
-	enabled = true;
+	private _enabledState = true;
 
-	private handlers = {
-		incoming: [] as ((
-			text: string,
-			sourceId: string | null,
-			tag: string | null
-		) => string | null | undefined | Promise<string | null | undefined>)[],
-		outgoing: [] as ((
-			text: string,
-			sourceId: string | null,
-			tag: string | null
-		) => string | null | undefined | Promise<string | null | undefined>)[],
+	get enabled() {
+		return this._enabledState;
+	}
+
+	_handlers = {
+		incoming: [] as { cb: MessageHandler; priority: number }[],
+		outgoing: [] as { cb: MessageHandler; priority: number }[],
 		loggedIn: [] as (() => void)[],
 		pause: [] as ((paused: boolean) => void)[],
 		load: [] as ((enabled: boolean) => void)[]
@@ -45,47 +47,50 @@ export class PluginContext {
 		this.core.inject(text, tag, this.metadata.id);
 	}
 
+	disable() {
+		if (!this.enabled) return;
+		this._setEnabled(false);
+		this.core.notifyUpdate(this);
+	}
+
 	notify(text: string, tag?: string) {
-		this.inject(`(${text}\n`, tag);
+		this.inject(`([🟢] ${text}\n`, tag);
 	}
 
 	onIncoming(
-		cb: (
-			text: string,
-			sourceId: string | null,
-			tag: string | null
-		) => string | null | undefined | Promise<string | null | undefined>
+		cb: MessageHandler,
+		priority: number = 0
 	) {
-		this.handlers.incoming.push(cb);
+		this._handlers.incoming.push({ cb, priority });
+		this.core.invalidateHandlers();
 	}
 
 	onOutgoing(
-		cb: (
-			text: string,
-			sourceId: string | null,
-			tag: string | null
-		) => string | null | undefined | Promise<string | null | undefined>
+		cb: MessageHandler,
+		priority: number = 0
 	) {
-		this.handlers.outgoing.push(cb);
+		this._handlers.outgoing.push({ cb, priority });
+		this.core.invalidateHandlers();
 	}
 
 	onLoggedIn(cb: () => void) {
-		this.handlers.loggedIn.push(cb);
+		this._handlers.loggedIn.push(cb);
 	}
 
 	onPause(cb: (paused: boolean) => void) {
-		this.handlers.pause.push(cb);
+		this._handlers.pause.push(cb);
 	}
 
 	onLoad(cb: (enabled: boolean) => void) {
-		this.handlers.load.push(cb);
+		this._handlers.load.push(cb);
 	}
 
 	// Internal methods called by Core
 	_setEnabled(enabled: boolean) {
-		if (this.enabled === enabled) return;
-		this.enabled = enabled;
-		this.handlers.pause.forEach((cb) => {
+		if (this._enabledState === enabled) return;
+		this._enabledState = enabled;
+		this.core.invalidateHandlers();
+		this._handlers.pause.forEach((cb) => {
 			try {
 				cb(!enabled);
 			} catch (e) {
@@ -94,39 +99,9 @@ export class PluginContext {
 		});
 	}
 
-	async _processIncoming(text: string, tag: string | null, sourceId: string | null): Promise<string | null | undefined> {
-		if (!this.enabled) return text;
-		let current = text;
-		for (const cb of this.handlers.incoming) {
-			try {
-				const res = await cb(current, sourceId, tag);
-				if (res === null || res === undefined) return null;
-				current = res;
-			} catch (e) {
-				console.error(`[${this.metadata.name}] Incoming Error:`, e);
-			}
-		}
-		return current;
-	}
-
-	async _processOutgoing(text: string, tag: string | null, sourceId: string | null): Promise<string | null | undefined> {
-		if (!this.enabled) return text;
-		let current = text;
-		for (const cb of this.handlers.outgoing) {
-			try {
-				const res = await cb(current, sourceId, tag);
-				if (res === null || res === undefined) return null;
-				current = res;
-			} catch (e) {
-				console.error(`[${this.metadata.name}] Outgoing Error:`, e);
-			}
-		}
-		return current;
-	}
-
 	_notifyLoggedIn() {
 		if (!this.enabled) return;
-		this.handlers.loggedIn.forEach((cb) => {
+		this._handlers.loggedIn.forEach((cb) => {
 			try {
 				cb();
 			} catch (e) {
@@ -136,7 +111,7 @@ export class PluginContext {
 	}
 
 	_notifyLoad() {
-		this.handlers.load.forEach((cb) => {
+		this._handlers.load.forEach((cb) => {
 			try {
 				cb(this.enabled);
 			} catch (e) {
@@ -155,6 +130,14 @@ export class FurnarchyCore {
 	// Context for tracking which URL is currently loading
 	loadingPluginUrl: string | null = null;
 	private listeners: PluginRegistrationCallback[] = [];
+
+	private _cachedIncoming: { cb: MessageHandler; priority: number; plugin: PluginContext }[] | null = null;
+	private _cachedOutgoing: { cb: MessageHandler; priority: number; plugin: PluginContext }[] | null = null;
+
+	invalidateHandlers() {
+		this._cachedIncoming = null;
+		this._cachedOutgoing = null;
+	}
 
 	/**
 	 * Sends a command to the game server.
@@ -209,7 +192,7 @@ export class FurnarchyCore {
 		
 		// If toggle is true, default to disabled (unless overridden by storage later)
 		if (meta.toggle) {
-			ctx.enabled = false;
+			ctx._setEnabled(false);
 		}
 		
 		this.plugins.push(ctx);
@@ -225,18 +208,59 @@ export class FurnarchyCore {
 		ctx._notifyLoad();
 	}
 
+	private _getSortedHandlers(type: 'incoming' | 'outgoing') {
+		// Check cache first
+		if (type === 'incoming' && this._cachedIncoming) return this._cachedIncoming;
+		if (type === 'outgoing' && this._cachedOutgoing) return this._cachedOutgoing;
+
+		const handlers = [];
+		for (const plugin of this.plugins) {
+			if (!plugin.enabled) continue;
+			// Access the correct handler list based on type
+			const pluginHandlers = type === 'incoming' ? plugin._handlers.incoming : plugin._handlers.outgoing;
+			for (const handler of pluginHandlers) {
+				handlers.push({ ...handler, plugin });
+			}
+		}
+		handlers.sort((a, b) => b.priority - a.priority);
+		
+		// Update the cache
+		if (type === 'incoming') this._cachedIncoming = handlers;
+		else this._cachedOutgoing = handlers;
+
+		return handlers;
+	}
+
+	private async _processMessage(
+		type: 'incoming' | 'outgoing',
+		text: string,
+		tag: string | null,
+		sourceId: string | null
+	): Promise<string | null | undefined> {
+		let currentText = text;
+		
+		const handlers = this._getSortedHandlers(type);
+
+		for (const { cb, plugin } of handlers) {
+			try {
+				const result = await cb(currentText, sourceId, tag);
+				if (result === null || result === undefined) return null;
+				currentText = result;
+			} catch (e) {
+				// Capitalize first letter for error message
+				const label = type.charAt(0).toUpperCase() + type.slice(1);
+				console.error(`[${plugin.metadata.name}] ${label} Error:`, e);
+			}
+		}
+		return currentText;
+	}
+
 	async processIncoming(
 		text: string,
 		tag: string | null = null,
 		sourceId: string | null = null
 	): Promise<string | null | undefined> {
-		let currentText = text;
-		for (const plugin of this.plugins) {
-			const result = await plugin._processIncoming(currentText, tag, sourceId);
-			if (result === null || result === undefined) return null;
-			currentText = result;
-		}
-		return currentText;
+		return this._processMessage('incoming', text, tag, sourceId);
 	}
 
 	async processOutgoing(
@@ -244,13 +268,7 @@ export class FurnarchyCore {
 		tag: string | null = null,
 		sourceId: string | null = null
 	): Promise<string | null | undefined> {
-		let currentText = text;
-		for (const plugin of this.plugins) {
-			const result = await plugin._processOutgoing(currentText, tag, sourceId);
-			if (result === null || result === undefined) return null;
-			currentText = result;
-		}
-		return currentText;
+		return this._processMessage('outgoing', text, tag, sourceId);
 	}
 
 	notifyLoggedIn() {

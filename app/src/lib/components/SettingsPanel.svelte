@@ -7,6 +7,7 @@
 		getStoredAuthUrl,
 		saveStoredAuthUrl,
 		markPluginAsDeleted,
+		updateStoredPlugin,
 		pluginStore,
 		type StoredPlugin
 	} from '$lib/storage';
@@ -25,7 +26,32 @@
 		// Initialize store from storage
 		pluginStore.set(getStoredPlugins());
 		authUrl = getStoredAuthUrl() || env.PUBLIC_AUTH_PROXY_URL;
+		
+		// Refresh metadata for all plugins
+		refreshPlugins();
 	});
+
+	async function refreshPlugins() {
+		const currentPlugins = getStoredPlugins();
+		await Promise.all(
+			currentPlugins.map(async (plugin) => {
+				try {
+					const meta = await verifyPlugin(plugin.url);
+					updateStoredPlugin(plugin.url, {
+						id: meta.id,
+						name: meta.name,
+						description: meta.description,
+						version: meta.version,
+						author: meta.author
+						// Note: We do NOT update 'enabled' based on 'toggle' here.
+						// User preference should persist on the landing page.
+					});
+				} catch (e) {
+					console.warn(`[SettingsPanel] Failed to refresh metadata for ${plugin.url}`, e);
+				}
+			})
+		);
+	}
 
 	async function addPlugin() {
 		if (!pluginUrl) return;

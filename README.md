@@ -131,13 +131,14 @@ Furnarchy.register({
     // api.send("look\n"); 
 
     // Intercept incoming messages from the server
+    // Priority 10: Run this before default (0) handlers
     api.onIncoming((line, sourceId, tag) => {
         // Example: Highlight whispers
         if (line.startsWith("(whisper)")) {
             console.log("Got a whisper:", line);
         }
         return line;
-    });
+    }, 10);
 
     // Intercept outgoing commands from the user
     api.onOutgoing((line, sourceId, tag) => {
@@ -218,8 +219,9 @@ Furnarchy.register({
         *   `api.send(text, tag?)`: Send a command to the server. `tag` defaults to the plugin's `id`.
         *   `api.inject(text, tag?)`: Inject a command from the server. `tag` defaults to the plugin's `id`.
         *   `api.notify(text, tag?)`: Display a client-side message in the chat area.
-        *   `api.onIncoming(callback)`: Intercept incoming messages. Callback receives `(text, sourceId, tag)`.
-        *   `api.onOutgoing(callback)`: Intercept outgoing messages. Callback receives `(text, sourceId, tag)`.
+        *   `api.disable()`: Disable the plugin programmatically.
+        *   `api.onIncoming(callback, priority?)`: Intercept incoming messages. Callback receives `(text, sourceId, tag)`. `priority` is an optional number (default 0). Higher priority handlers run first.
+        *   `api.onOutgoing(callback, priority?)`: Intercept outgoing messages. Callback receives `(text, sourceId, tag)`. `priority` is an optional number (default 0). Higher priority handlers run first.
         *   `api.onLoggedIn(callback)`: Called when login succeeds.
         *   `api.onPause(callback)`: Called when plugin is enabled/disabled. Callback receives `(paused)`.
         *   `api.onLoad(callback)`: Called immediately after registration with the initial enabled state. Callback receives `(enabled)`.

@@ -85,6 +85,7 @@ export async function verifyPlugin(url: string): Promise<PluginMetadata> {
                             send: function() {},
                             inject: function() {},
                             notify: function() {},
+                            disable: function() {},
                             onIncoming: function() {},
                             onOutgoing: function() {},
                             onLoggedIn: function() {},

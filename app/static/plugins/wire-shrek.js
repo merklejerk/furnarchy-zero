@@ -36,14 +36,16 @@ Furnarchy.register({
             div.appendChild(meta);
             div.appendChild(content);
             
-            // Auto-scroll if near bottom
-            const body = popup.document.body;
-            const isNearBottom = body.scrollHeight - body.scrollTop - body.clientHeight < 100;
+            // Auto-scroll logic
+            const win = popup.window;
+            const doc = popup.document.documentElement;
+            // Check if user is near bottom (within 50px) before adding content
+            const isNearBottom = (win.innerHeight + win.scrollY) >= doc.scrollHeight - 50;
             
-            body.appendChild(div);
+            popup.document.body.appendChild(div);
             
             if (isNearBottom) {
-                popup.window.scrollTo(0, body.scrollHeight);
+                win.scrollTo(0, doc.scrollHeight);
             }
         }
     }
@@ -81,6 +83,7 @@ Furnarchy.register({
         
         popup.onbeforeunload = () => {
             popup = null;
+            api.disable();
         };
     }
 
@@ -94,12 +97,12 @@ Furnarchy.register({
     api.onIncoming((text, sourceId, tag) => {
         log('IN', text, sourceId, tag);
         return text;
-    });
+    }, 1000); // High priority: capture raw server data before other plugins
 
     api.onOutgoing((text, sourceId, tag) => {
         log('OUT', text, sourceId, tag);
         return text;
-    });
+    }, -1000); // Low priority: capture final data sent to server (after other plugins)
 
     api.onPause((paused) => {
         if (paused) {

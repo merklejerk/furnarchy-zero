@@ -64,6 +64,27 @@ export function saveStoredPlugins(plugins: StoredPlugin[]) {
 	pluginStore.set(plugins);
 }
 
+export function updateStoredPlugin(url: string, updates: Partial<StoredPlugin>) {
+	pluginStore.update((plugins) => {
+		const idx = plugins.findIndex((p) => p.url === url);
+		if (idx === -1) return plugins;
+
+		const current = plugins[idx];
+		const updated = { ...current, ...updates };
+		
+		// Check if anything actually changed to avoid unnecessary writes
+		if (JSON.stringify(current) === JSON.stringify(updated)) return plugins;
+
+		const newPlugins = [...plugins];
+		newPlugins[idx] = updated;
+
+		if (typeof localStorage !== 'undefined') {
+			localStorage.setItem(PLUGINS_KEY, JSON.stringify(newPlugins));
+		}
+		return newPlugins;
+	});
+}
+
 export function getStoredAuthUrl(): string | null {
 	if (typeof localStorage === 'undefined') return null;
 	return localStorage.getItem(AUTH_URL_KEY);

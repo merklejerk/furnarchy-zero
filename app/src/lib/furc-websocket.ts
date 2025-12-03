@@ -79,6 +79,7 @@ export function installWebSocketPatch() {
 		private _incomingQueue: Promise<void> = Promise.resolve();
 		private _incomingBuffer = new CommandBuffer();
 		private _outgoingBuffer = new CommandBuffer();
+		private _motdComplete = false;
 
 		constructor(url: string | URL, protocols?: string | string[]) {
 			super(url, protocols);
@@ -162,6 +163,15 @@ export function installWebSocketPatch() {
 
 					const processedLines: string[] = [];
 					for (let line of lines) {
+						// MOTD Check: Do not process commands until we see "Dragonraor"
+						if (!this._motdComplete) {
+							if (line === 'Dragonraor') {
+								this._motdComplete = true;
+							}
+							processedLines.push(line);
+							continue;
+						}
+
 						// Run Furnarchy plugins
 						const furnarchy = (window as any).Furnarchy;
 

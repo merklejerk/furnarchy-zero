@@ -38,24 +38,29 @@
 			if (sourceUrl) {
 				const idx = $pluginStore.findIndex((p) => p.url === sourceUrl);
 				if (idx !== -1) {
-					// Sync enabled state
-					// If toggle is true, ALWAYS start disabled (per user request)
-					const shouldEnable = meta.toggle ? false : $pluginStore[idx].enabled !== false;
-
-					if (typeof plugin._setEnabled === 'function') {
-						plugin._setEnabled(shouldEnable);
-					} else {
-						plugin.enabled = shouldEnable;
-					}
-
-					let changed = false;
+					const isLoading = (window as any).Furnarchy.loadingPluginUrl === sourceUrl;
 					const current = $pluginStore[idx];
+					let changed = false;
 					const updated = { ...current };
 
-					// If we forced it disabled, update the store so UI reflects it
-					if (meta.toggle && current.enabled !== false) {
-						updated.enabled = false;
-						changed = true;
+					if (isLoading) {
+						// Initial load: Enforce store/toggle settings onto the plugin
+						// If toggle is true, ALWAYS start disabled (per user request)
+						const shouldEnable = meta.toggle ? false : current.enabled !== false;
+
+						plugin._setEnabled(shouldEnable);
+
+						// If we forced it disabled via toggle, update the store so UI reflects it
+						if (meta.toggle && current.enabled !== false) {
+							updated.enabled = false;
+							changed = true;
+						}
+					} else {
+						// Runtime update: Trust the plugin's state and update the store
+						if (plugin.enabled !== (current.enabled !== false)) {
+							updated.enabled = plugin.enabled;
+							changed = true;
+						}
 					}
 
 					if (current.name !== meta.name) {
@@ -156,11 +161,7 @@
 				if (furnarchy && furnarchy.plugins) {
 					const livePlugin = furnarchy.plugins.find((lp: any) => lp.metadata.sourceUrl === url);
 					if (livePlugin) {
-						if (typeof livePlugin._setEnabled === 'function') {
-							livePlugin._setEnabled(newState);
-						} else {
-							livePlugin.enabled = newState;
-						}
+						livePlugin._setEnabled(newState);
 					}
 				}
 
