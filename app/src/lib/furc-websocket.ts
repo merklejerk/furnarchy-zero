@@ -163,9 +163,9 @@ export function installWebSocketPatch() {
 
 					const processedLines: string[] = [];
 					for (let line of lines) {
-						// MOTD Check: Do not process commands until we see "Dragonraor"
+						// MOTD Check: Do not process commands until we see "Dragonroar"
 						if (!this._motdComplete) {
-							if (line === 'Dragonraor') {
+							if (line === 'Dragonroar') {
 								this._motdComplete = true;
 							}
 							processedLines.push(line);

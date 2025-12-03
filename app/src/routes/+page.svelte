@@ -27,7 +27,7 @@
 
 	<main>
 		<div class="actions">
-			<a href="/play" class="play-btn">Launch Client</a>
+			<a href="/play" class="play-btn" data-sveltekit-reload>Launch Client</a>
 		</div>
 
 		<div class="info-section">
