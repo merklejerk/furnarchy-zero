@@ -201,17 +201,16 @@ Furnarchy.register({
 
 ### API Reference
 
-#### `Furnarchy.register(meta, callback)`
-Registers a new plugin.
-*   `meta`: Object containing plugin metadata (`name`, `version`, `author`).
-*   `callback`: Function that receives an `api` object with the following methods:
-
-*   `api.send(text, tag?)`: Send a command to the server.
-*   `api.inject(text, tag?)`: Inject a command from the server.
-*   `api.onIncoming(callback)`: Intercept incoming messages.
-*   `api.onOutgoing(callback)`: Intercept outgoing messages.
-*   `api.onLoggedIn(callback)`: Called when login succeeds.
-*   `api.onPause(callback)`: Called when plugin is enabled/disabled.
+* `Furnarchy.register(meta, callback)`
+    Registers a new plugin.
+    *   `meta`: Object containing plugin metadata (`name`, `version`, `author`).
+    *   `callback`: Function that receives an `api` object with the following methods:
+        *   `api.send(text, tag?)`: Send a command to the server.
+        *   `api.inject(text, tag?)`: Inject a command from the server.
+        *   `api.onIncoming(callback)`: Intercept incoming messages.
+        *   `api.onOutgoing(callback)`: Intercept outgoing messages.
+        *   `api.onLoggedIn(callback)`: Called when login succeeds.
+        *   `api.onPause(callback)`: Called when plugin is enabled/disabled.
 
 ### Hosting Plugins
 Since Furnarchy Zero runs in the browser, plugins must be hosted on a web server accessible via HTTPS (or HTTP if running locally).
