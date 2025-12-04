@@ -74,6 +74,14 @@ Packet type is determined by the first byte (ASCII char).
 | **0x46** | `F` | Map RLE | Update **Ambience** (Layer 4). |
 | **0x21** | `!` | Base220 | Play Sound (Arg: Sound ID 1 byte). |
 | **0x5D** | `]` | Extended | **Extended Protocol** (See §6). |
+| **0x26** | `&` | - | **Login/Ready**. Triggers costume request and buffer start. |
+| **0x3B** | `;` | Text | **Load Map (Legacy)**. |
+| **0x5E** | `^` | Base220 | **Unknown**. Calls `sv.Om`. |
+| **0x30** | `0` | Base220 | **DS Variable**. Calls `sv.cp.Kv`. |
+| **0x33** | `3` | Base220 | **DS String**. Calls `sv.cp.Sm`. |
+| **0x36** | `6` | Base220 | **DS Trigger (Server)**. Calls `M_`. |
+| **0x37** | `7` | Base220 | **DS Trigger (Client)**. Calls `M_`. |
+| **0x38** | `8` | Base220 | **DS Init**. Calls `sv.cp.Zv`. |
 
 ## 3. Object & Avatar Protocols (S2C)
 
@@ -175,7 +183,7 @@ Chat messages are sent with simple HTML-like tagging.
 
 ### 5.1 Pre-Chat Buffer (`]-` and `]P`)
 
-The `]-` and `]P` commands are stateful modifiers (handled by `S_` in `Ie`). They buffer data that is attached to the *immediately following* text packet (`(`).
+The `]-` and `]P` commands are stateful modifiers (handled by `S_` in `Ie`). They buffer data that is attached to the *immediately following* text packet (`(`). They are aliases and handled identically by the client.
 
 **Payload Structure:** `[OpCode 2 bytes] [Data Type 2 bytes] [Content]`
 
@@ -212,12 +220,14 @@ The `]` OpCode acts as a namespace for modern features. The 2nd byte determines 
 | **0x73** | `s` | Base220 (2b+2b) + Text | **Set Tag**. (Type, Length, String). |
 | **0x23** | `#` | Text | **Dialog Box**. Opens modal with buttons. |
 | **0x3F** | `?` | Binary Stream | **Pounce Update**. Friend list online/offline status. |
-| **0x7C** | `\|` | Char | |
+| **0x7C** | `\|` | Char | **Toggle Feature**. (e.g. `]|1` sets `xx.xc` to true). |
 | **0x48** | `H` | Base220 (4b+2b+2b) | **Set Offsets**. Updates avatar visual offsets (yl, Al). |
 | **0x5F** | `_` | Base220 (4b+1b) | **Set Scale**. Updates avatar scale factor. |
 | **0x4F** | `O` | Base220 (4b+2b) | **Set Gloam**. Updates avatar lighting/gloam. |
 | **0x49** | `I` | Base220 + Blob | **Batch Particle/VX**. Spawns VXN particle system (See §13). |
 | **0x76** | `v` | Base95 + Char | **Legacy Visual Effect**. Spawns predefined effects (See §13). |
+| **0x74** | `t` | Base220 (2b+2b) | **Unknown**. Calls `sv.Up`. |
+| **0x7D** | `}` | Binary | **Unknown**. Calls `F_`. |
 
 ### 6.1 Avatar Manifest (`]M`)
 
