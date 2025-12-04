@@ -81,7 +81,6 @@ export function installWebSocketPatch() {
 		private _incomingQueue: Promise<void> = Promise.resolve();
 		private _incomingBuffer = new CommandBuffer();
 		private _outgoingBuffer = new CommandBuffer();
-		private _motdComplete = false;
 
 		constructor(url: string | URL, protocols?: string | string[]) {
 			super(url, protocols);
@@ -184,23 +183,8 @@ export function installWebSocketPatch() {
 
 					const processedLines: string[] = [];
 					for (let line of lines) {
-						// MOTD Check: Do not process commands until we see "Dragonroar"
-						if (!this._motdComplete) {
-							if (line === 'Dragonroar') {
-								this._motdComplete = true;
-							}
-							processedLines.push(line);
-							continue;
-						}
-
 						// Run Furnarchy plugins
 						const furnarchy = furnarchyCore;
-
-						// Check for login success sequence (13 ampersands)
-						if (furnarchy && line === '&&&&&&&&&&&&&') {
-							console.log('%c🟢 Login Detected - Notifying Plugins', 'color: green;');
-							furnarchy.notifyLoggedIn();
-						}
 
 						if (furnarchy) {
 							const result = await furnarchy.processIncoming(line, sourceId, tag);

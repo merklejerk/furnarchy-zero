@@ -229,7 +229,9 @@ It is automatically loaded in development mode. To try it in production, add the
         *   `api.disable()`: Disable the plugin programmatically.
         *   `api.onIncoming(callback, priority?)`: Intercept incoming messages. Callback receives `(text, sourceId, tag)`. `priority` is an optional number (default 0). Higher priority handlers run first.
         *   `api.onOutgoing(callback, priority?)`: Intercept outgoing messages. Callback receives `(text, sourceId, tag)`. `priority` is an optional number (default 0). Higher priority handlers run first.
-        *   `api.onLoggedIn(callback)`: Called when login succeeds.
+        *   `api.onConnected(callback)`: Called when the WebSocket connection is established.
+        *   `api.onDisconnected(callback)`: Called when the WebSocket connection is closed.
+        *   `api.onLoggedIn(callback)`: Called when login succeeds. Callback receives `(name)`.
         *   `api.onPause(callback)`: Called when plugin is enabled/disabled. Callback receives `(paused)`.
         *   `api.onLoad(callback)`: Called immediately after registration with the initial enabled state. Callback receives `(enabled)`.
         *   `api.onConfigure(callback)`: Called when the user clicks the configure button in the plugin manager.
@@ -251,6 +253,10 @@ It is automatically loaded in development mode. To try it in production, add the
 
 *   `Furnarchy.utils`
     *   `escape(str)`: Escapes HTML special characters and converts Unicode characters to HTML entities.
+    *   `base95Encode(val, length?)`: Encodes a number to Base95 string.
+    *   `base95Decode(str)`: Decodes a Base95 string to a number.
+    *   `base220Encode(val, length?)`: Encodes a number to Base220 string.
+    *   `base220Decode(str)`: Decodes a Base220 string to a number.
 
 ### Hosting Plugins
 Since Furnarchy Zero runs in the browser, plugins must be hosted on a web server accessible via HTTPS (or HTTP if running locally).

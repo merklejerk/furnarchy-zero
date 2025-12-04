@@ -35,7 +35,7 @@ export class PluginContext {
 	_handlers = {
 		incoming: [] as { cb: MessageHandler; priority: number }[],
 		outgoing: [] as { cb: MessageHandler; priority: number }[],
-		loggedIn: [] as (() => void)[],
+		loggedIn: [] as ((name: string) => void)[],
 		connected: [] as (() => void)[],
 		disconnected: [] as (() => void)[],
 		ready: [] as (() => void)[],
@@ -96,7 +96,7 @@ export class PluginContext {
 		this.core.invalidateHandlers();
 	}
 
-	onLoggedIn(cb: () => void): void {
+	onLoggedIn(cb: (name: string) => void): void {
 		this._handlers.loggedIn.push(cb);
 	}
 
@@ -191,11 +191,11 @@ export class PluginContext {
 		});
 	}
 
-	_notifyLoggedIn(): void {
+	_notifyLoggedIn(name: string): void {
 		if (!this.enabled) return;
 		this._handlers.loggedIn.forEach((cb) => {
 			try {
-				cb();
+				cb(name);
 			} catch (e) {
 				console.error(`[${this.metadata.name}] LoggedIn Error:`, e);
 			}
@@ -269,6 +269,7 @@ export class FurnarchyCore {
 	// Context for tracking which URL is currently loading
 	loadingPluginUrl: string | null = null;
 	isLoggedIn = false;
+	characterName: string | null = null;
 	isReady = false;
 	private listeners: PluginRegistrationCallback[] = [];
 	private gameInputEnabled = true;
@@ -453,6 +454,13 @@ export class FurnarchyCore {
 		sourceId: string | null = null,
 		tag: string | null = null
 	): Promise<string | null | undefined> {
+		if (text.startsWith(']B')) {
+			const spaceIdx = text.indexOf(' ');
+			if (spaceIdx !== -1) {
+				const name = text.substring(spaceIdx + 1);
+				this.notifyLoggedIn(name);
+			}
+		}
 		return this._processMessage('incoming', text, sourceId, tag);
 	}
 
@@ -464,10 +472,11 @@ export class FurnarchyCore {
 		return this._processMessage('outgoing', text, sourceId, tag);
 	}
 
-	notifyLoggedIn(): void {
+	notifyLoggedIn(name: string): void {
 		this.isLoggedIn = true;
-		console.log('[Furnarchy] User logged in, notifying plugins...');
-		this.plugins.forEach((plugin) => plugin._notifyLoggedIn());
+		this.characterName = name;
+		console.log(`[Furnarchy] User logged in as ${name}, notifying plugins...`);
+		this.plugins.forEach((plugin) => plugin._notifyLoggedIn(name));
 	}
 
 	notifyConnected(): void {
