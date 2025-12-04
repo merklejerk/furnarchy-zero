@@ -42,12 +42,12 @@ export class PluginContext {
 
 	send(text: string, tag?: string) {
 		if (!this.enabled) return;
-		this.core.send(text, tag, this.metadata.id);
+		this.core.send(text, this.metadata.id, tag);
 	}
 
 	inject(text: string, tag?: string) {
 		if (!this.enabled) return;
-		this.core.inject(text, tag, this.metadata.id);
+		this.core.inject(text, this.metadata.id, tag);
 	}
 
 	disable() {
@@ -191,10 +191,10 @@ export class FurnarchyCore {
 	 * Sends a command to the game server.
 	 * This will be overwritten by the WebSocket patch when the connection is established.
 	 * @param text The command to send. Must be a complete line ending in \n.
-	 * @param tag Optional tag to identify the source of the command.
 	 * @param sourceId Optional ID of the plugin sending the command.
+	 * @param tag Optional tag to identify the source of the command.
 	 */
-	send(text: string, tag?: string, sourceId?: string) {
+	send(text: string, sourceId?: string, tag?: string) {
 		console.warn('[Furnarchy] send() called before connection established', text);
 	}
 
@@ -202,10 +202,10 @@ export class FurnarchyCore {
 	 * Injects a fake command from the server.
 	 * This will be overwritten by the WebSocket patch when the connection is established.
 	 * @param text The command to inject. Must be a complete line ending in \n.
-	 * @param tag Optional tag to identify the source of the command.
 	 * @param sourceId Optional ID of the plugin injecting the command.
+	 * @param tag Optional tag to identify the source of the command.
 	 */
-	inject(text: string, tag?: string, sourceId?: string) {
+	inject(text: string, sourceId?: string, tag?: string) {
 		console.warn('[Furnarchy] inject() called before connection established', text);
 	}
 
@@ -282,8 +282,8 @@ export class FurnarchyCore {
 	private async _processMessage(
 		type: 'incoming' | 'outgoing',
 		text: string,
-		tag: string | null,
-		sourceId: string | null
+		sourceId: string | null,
+		tag: string | null
 	): Promise<string | null | undefined> {
 		let currentText = text;
 		
@@ -305,18 +305,18 @@ export class FurnarchyCore {
 
 	async processIncoming(
 		text: string,
-		tag: string | null = null,
-		sourceId: string | null = null
+		sourceId: string | null = null,
+		tag: string | null = null
 	): Promise<string | null | undefined> {
-		return this._processMessage('incoming', text, tag, sourceId);
+		return this._processMessage('incoming', text, sourceId, tag);
 	}
 
 	async processOutgoing(
 		text: string,
-		tag: string | null = null,
-		sourceId: string | null = null
+		sourceId: string | null = null,
+		tag: string | null = null
 	): Promise<string | null | undefined> {
-		return this._processMessage('outgoing', text, tag, sourceId);
+		return this._processMessage('outgoing', text, sourceId, tag);
 	}
 
 	notifyLoggedIn() {

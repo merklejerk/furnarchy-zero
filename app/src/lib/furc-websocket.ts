@@ -45,7 +45,7 @@ export function installWebSocketPatch() {
 	});
 
 	// Helper to inject messages into the socket (as if from server)
-	function injectIntoSocket(socket: WebSocket, text: string, tag?: string) {
+	function injectIntoSocket(socket: WebSocket, text: string, sourceId?: string, tag?: string) {
 		if (!text.endsWith('\n')) {
 			throw new Error('Furnarchy.inject() requires a complete command (must end with \\n)');
 		}
@@ -55,18 +55,19 @@ export function installWebSocketPatch() {
 			origin: 'wss://lightbringer.furcadia.com'
 		});
 		(event as any).tag = tag;
+		(event as any).sourceId = sourceId;
 		socket.dispatchEvent(event);
 	}
 
 	// Helper to send messages to the server
-	function sendToSocket(socket: WebSocket, text: string, tag?: string) {
+	function sendToSocket(socket: WebSocket, text: string, sourceId?: string, tag?: string) {
 		if (socket.readyState === WebSocket.OPEN) {
 			if (!text.endsWith('\n')) {
 				throw new Error('Furnarchy.send() requires a complete command (must end with \\n)');
 			}
 			const raw = encoder.encode(text);
 			if ((socket as any).sendTagged) {
-				(socket as any).sendTagged(raw, tag);
+				(socket as any).sendTagged(raw, sourceId, tag);
 			} else {
 				socket.send(raw);
 			}
@@ -91,9 +92,10 @@ export function installWebSocketPatch() {
 				// Hook up Furnarchy.send and inject
 				const furnarchy = (window as any).Furnarchy;
 				if (furnarchy) {
-					furnarchy.send = (text: string, tag: string | undefined) => sendToSocket(this, text, tag);
-					furnarchy.inject = (text: string, tag: string | undefined) =>
-						injectIntoSocket(this, text, tag);
+					furnarchy.send = (text: string, sourceId: string | undefined, tag: string | undefined) =>
+						sendToSocket(this, text, sourceId, tag);
+					furnarchy.inject = (text: string, sourceId: string | undefined, tag: string | undefined) =>
+						injectIntoSocket(this, text, sourceId, tag);
 					console.log('[Furnarchy] Connected to Game Socket');
 				}
 
@@ -102,10 +104,14 @@ export function installWebSocketPatch() {
 		}
 
 		send(data: string | ArrayBufferLike | Blob | ArrayBufferView): void {
-			this.sendTagged(data, undefined);
+			this.sendTagged(data, undefined, undefined);
 		}
 
-		sendTagged(data: string | ArrayBufferLike | Blob | ArrayBufferView, tag?: string): void {
+		sendTagged(
+			data: string | ArrayBufferLike | Blob | ArrayBufferView,
+			sourceId?: string,
+			tag?: string
+		): void {
 			if (activeSocket !== this) {
 				super.send(data);
 				return;
@@ -125,7 +131,7 @@ export function installWebSocketPatch() {
 						// Run Furnarchy plugins
 						const furnarchy = (window as any).Furnarchy;
 						if (furnarchy) {
-							const result = await furnarchy.processOutgoing(line, tag);
+							const result = await furnarchy.processOutgoing(line, sourceId, tag);
 							if (result === null || result === undefined) {
 								console.log('%c🚫 Outgoing Dropped (Furnarchy)', 'color: gray; font-size: 9px');
 								continue;
@@ -149,6 +155,7 @@ export function installWebSocketPatch() {
 
 		private _hookMessageEvent(msgEvent: MessageEvent, callback: (evt: MessageEvent) => void) {
 			const tag = (msgEvent as any).tag;
+			const sourceId = (msgEvent as any).sourceId;
 
 			// Queue the incoming message processing to preserve order
 			this._incomingQueue = this._incomingQueue
@@ -182,7 +189,7 @@ export function installWebSocketPatch() {
 						}
 
 						if (furnarchy) {
-							const result = await furnarchy.processIncoming(line, tag);
+							const result = await furnarchy.processIncoming(line, sourceId, tag);
 							if (result === null || result === undefined) continue;
 							line = result;
 						}
