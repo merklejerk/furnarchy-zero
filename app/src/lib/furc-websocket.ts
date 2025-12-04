@@ -1,4 +1,5 @@
 import { CommandBuffer } from './command-buffer';
+import { furnarchyCore } from './furnarchy-core';
 
 export function installWebSocketPatch() {
 	// --- WebSocket Hooking (Furc Bridge) ---
@@ -90,7 +91,7 @@ export function installWebSocketPatch() {
 				activeSocket = this;
 
 				// Hook up Furnarchy.send and inject
-				const furnarchy = (window as any).Furnarchy;
+				const furnarchy = furnarchyCore;
 				if (furnarchy) {
 					furnarchy.send = (text: string, sourceId: string | undefined, tag: string | undefined) =>
 						sendToSocket(this, text, sourceId, tag);
@@ -129,7 +130,7 @@ export function installWebSocketPatch() {
 					const processedLines: string[] = [];
 					for (let line of lines) {
 						// Run Furnarchy plugins
-						const furnarchy = (window as any).Furnarchy;
+						const furnarchy = furnarchyCore;
 						if (furnarchy) {
 							const result = await furnarchy.processOutgoing(line, sourceId, tag);
 							if (result === null || result === undefined) {
@@ -180,7 +181,7 @@ export function installWebSocketPatch() {
 						}
 
 						// Run Furnarchy plugins
-						const furnarchy = (window as any).Furnarchy;
+						const furnarchy = furnarchyCore;
 
 						// Check for login success sequence (13 ampersands)
 						if (furnarchy && line === '&&&&&&&&&&&&&') {

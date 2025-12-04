@@ -1,4 +1,6 @@
 import { utils } from './utils';
+import { get } from 'svelte/store';
+import { openModal, closeModal, modalStore, type ModalOptions } from './modal-store';
 
 export interface PluginMetadata {
 	id: string;
@@ -8,6 +10,11 @@ export interface PluginMetadata {
 	author?: string;
 	sourceUrl?: string;
 	toggle?: boolean;
+}
+
+export interface Service {
+	name: string;
+	version: string;
 }
 
 export type MessageHandler = (
@@ -21,7 +28,7 @@ export class PluginContext {
 	metadata: PluginMetadata = { id: '', name: 'Unknown Plugin', version: '0.0.0' };
 	private _enabledState = true;
 
-	get enabled() {
+	get enabled(): boolean {
 		return this._enabledState;
 	}
 
@@ -29,10 +36,12 @@ export class PluginContext {
 		incoming: [] as { cb: MessageHandler; priority: number }[],
 		outgoing: [] as { cb: MessageHandler; priority: number }[],
 		loggedIn: [] as (() => void)[],
+		ready: [] as (() => void)[],
 		pause: [] as ((paused: boolean) => void)[],
 		load: [] as ((enabled: boolean) => void)[],
 		configure: [] as (() => void)[]
 	};
+	private _readyFired = false;
 
 	constructor(private core: FurnarchyCore) {
 		if (core.loadingPluginUrl) {
@@ -40,23 +49,23 @@ export class PluginContext {
 		}
 	}
 
-	send(text: string, tag?: string) {
+	send(text: string, tag?: string): void {
 		if (!this.enabled) return;
 		this.core.send(text, this.metadata.id, tag);
 	}
 
-	inject(text: string, tag?: string) {
+	inject(text: string, tag?: string): void {
 		if (!this.enabled) return;
 		this.core.inject(text, this.metadata.id, tag);
 	}
 
-	disable() {
+	disable(): void {
 		if (!this.enabled) return;
 		this._setEnabled(false);
 		this.core.notifyUpdate(this);
 	}
 
-	notify(text: string, tag?: string) {
+	notify(text: string, tag?: string): void {
 		if (!this.core.isLoggedIn) {
 			console.log(`[${this.metadata.name}] ${text}`);
 			return;
@@ -67,7 +76,7 @@ export class PluginContext {
 	onIncoming(
 		cb: MessageHandler,
 		priority: number = 0
-	) {
+	): void {
 		this._handlers.incoming.push({ cb, priority });
 		this.core.invalidateHandlers();
 	}
@@ -75,29 +84,86 @@ export class PluginContext {
 	onOutgoing(
 		cb: MessageHandler,
 		priority: number = 0
-	) {
+	): void {
 		this._handlers.outgoing.push({ cb, priority });
 		this.core.invalidateHandlers();
 	}
 
-	onLoggedIn(cb: () => void) {
+	onLoggedIn(cb: () => void): void {
 		this._handlers.loggedIn.push(cb);
 	}
 
-	onPause(cb: (paused: boolean) => void) {
+	onReady(cb: () => void): void {
+		this._handlers.ready.push(cb);
+		if (this._readyFired) {
+			try {
+				cb();
+			} catch (e) {
+				console.error(`[${this.metadata.name}] Ready Error (Late):`, e);
+			}
+		}
+	}
+
+	onPause(cb: (paused: boolean) => void): void {
 		this._handlers.pause.push(cb);
 	}
 
-	onLoad(cb: (enabled: boolean) => void) {
+	onLoad(cb: (enabled: boolean) => void): void {
 		this._handlers.load.push(cb);
 	}
 
-	onConfigure(cb: () => void) {
+	onConfigure(cb: () => void): void {
 		this._handlers.configure.push(cb);
 	}
 
+	openModal(options: ModalOptions): void {
+		openModal(options);
+	}
+
+	closeModal(): void {
+		closeModal();
+	}
+
+	isModalOpen(): boolean {
+		return get(modalStore).isOpen;
+	}
+
+	setGameInput(enabled: boolean): void {
+		this.core.setGameInput(enabled);
+	}
+
+	saveData<T>(key: string, value: T): void {
+		if (typeof localStorage === 'undefined') return;
+		const storageKey = `furnarchy_plugin_${this.metadata.id}_${key}`;
+		try {
+			localStorage.setItem(storageKey, JSON.stringify(value));
+		} catch (e) {
+			console.error(`[${this.metadata.name}] Failed to save data:`, e);
+		}
+	}
+
+	loadData<T>(key: string): T | null {
+		if (typeof localStorage === 'undefined') return null;
+		const storageKey = `furnarchy_plugin_${this.metadata.id}_${key}`;
+		try {
+			const item = localStorage.getItem(storageKey);
+			return item ? JSON.parse(item) : null;
+		} catch (e) {
+			console.error(`[${this.metadata.name}] Failed to load data:`, e);
+			return null;
+		}
+	}
+
+	expose<T extends Service>(service: T): void {
+		this.core.registerService(service, this.metadata.id);
+	}
+
+	use<T extends Service>(name: string): T | null {
+		return this.core.getService<T>(name);
+	}
+
 	// Internal methods called by Core
-	_setEnabled(enabled: boolean) {
+	_setEnabled(enabled: boolean): void {
 		if (this._enabledState === enabled) return;
 		this._enabledState = enabled;
 		this.core.invalidateHandlers();
@@ -110,7 +176,7 @@ export class PluginContext {
 		});
 	}
 
-	_notifyLoggedIn() {
+	_notifyLoggedIn(): void {
 		if (!this.enabled) return;
 		this._handlers.loggedIn.forEach((cb) => {
 			try {
@@ -121,7 +187,19 @@ export class PluginContext {
 		});
 	}
 
-	_notifyLoad() {
+	_notifyReady(): void {
+		if (this._readyFired) return;
+		this._readyFired = true;
+		this._handlers.ready.forEach((cb) => {
+			try {
+				cb();
+			} catch (e) {
+				console.error(`[${this.metadata.name}] Ready Error:`, e);
+			}
+		});
+	}
+
+	_notifyLoad(): void {
 		this._handlers.load.forEach((cb) => {
 			try {
 				cb(this.enabled);
@@ -131,7 +209,7 @@ export class PluginContext {
 		});
 	}
 
-	_notifyConfigure() {
+	_notifyConfigure(): void {
 		this._handlers.configure.forEach((cb) => {
 			try {
 				cb();
@@ -147,12 +225,14 @@ export type PluginRegistrationCallback = (plugin: PluginContext) => void;
 export class FurnarchyCore {
 	readonly version = __APP_VERSION__;
 	plugins: PluginContext[] = [];
+	services: Map<string, { service: Service; providerId: string }> = new Map();
 
 	utils = utils;
 
 	// Context for tracking which URL is currently loading
 	loadingPluginUrl: string | null = null;
 	isLoggedIn = false;
+	isReady = false;
 	private listeners: PluginRegistrationCallback[] = [];
 	private gameInputEnabled = true;
 
@@ -178,13 +258,20 @@ export class FurnarchyCore {
 		document.addEventListener('keypress', handler);
 	}
 
-	setGameInput(enabled: boolean) {
+	setGameInput(enabled: boolean): void {
 		this.gameInputEnabled = enabled;
 	}
 
-	invalidateHandlers() {
+	invalidateHandlers(): void {
 		this._cachedIncoming = null;
 		this._cachedOutgoing = null;
+	}
+
+	start(): void {
+		if (this.isReady) return;
+		this.isReady = true;
+		console.log('[Furnarchy] Starting plugins...');
+		this.plugins.forEach((p) => p._notifyReady());
 	}
 
 	/**
@@ -194,7 +281,7 @@ export class FurnarchyCore {
 	 * @param sourceId Optional ID of the plugin sending the command.
 	 * @param tag Optional tag to identify the source of the command.
 	 */
-	send(text: string, sourceId?: string, tag?: string) {
+	send(text: string, sourceId?: string, tag?: string): void {
 		console.warn('[Furnarchy] send() called before connection established', text);
 	}
 
@@ -205,15 +292,33 @@ export class FurnarchyCore {
 	 * @param sourceId Optional ID of the plugin injecting the command.
 	 * @param tag Optional tag to identify the source of the command.
 	 */
-	inject(text: string, sourceId?: string, tag?: string) {
+	inject(text: string, sourceId?: string, tag?: string): void {
 		console.warn('[Furnarchy] inject() called before connection established', text);
 	}
 
-	onRegister(cb: PluginRegistrationCallback) {
+	registerService<T extends Service>(service: T, providerId: string): void {
+		if (!service.name || !service.version) {
+			console.error(`[Furnarchy] Service registration failed: Missing 'name' or 'version'`, service);
+			return;
+		}
+		if (this.services.has(service.name)) {
+			console.warn(`[Furnarchy] Service '${service.name}' is already registered. Overwriting.`);
+		}
+		this.services.set(service.name, { service, providerId });
+		console.log(`[Furnarchy] Service registered: ${service.name} v${service.version} by ${providerId}`);
+	}
+
+	getService<T extends Service>(name: string): T | null {
+		const entry = this.services.get(name);
+		if (!entry) return null;
+		return entry.service as T;
+	}
+
+	onRegister(cb: PluginRegistrationCallback): void {
 		this.listeners.push(cb);
 	}
 
-	notifyUpdate(plugin: PluginContext) {
+	notifyUpdate(plugin: PluginContext): void {
 		// Re-emit registration event to update UI
 		this.listeners.forEach((cb) => {
 			try {
@@ -224,7 +329,7 @@ export class FurnarchyCore {
 		});
 	}
 
-	register(meta: PluginMetadata, initFn: (api: PluginContext) => void) {
+	register(meta: PluginMetadata, initFn: (api: PluginContext) => void): void {
 		if (!meta.id || !meta.version) {
 			console.error(`[Furnarchy] Plugin registration failed: Missing 'id' or 'version' in metadata`, meta);
 			return;
@@ -254,9 +359,12 @@ export class FurnarchyCore {
 
 		this.notifyUpdate(ctx);
 		ctx._notifyLoad();
+		if (this.isReady) {
+			ctx._notifyReady();
+		}
 	}
 
-	private _getSortedHandlers(type: 'incoming' | 'outgoing') {
+	private _getSortedHandlers(type: 'incoming' | 'outgoing'): { cb: MessageHandler; priority: number; plugin: PluginContext }[] {
 		// Check cache first
 		if (type === 'incoming' && this._cachedIncoming) return this._cachedIncoming;
 		if (type === 'outgoing' && this._cachedOutgoing) return this._cachedOutgoing;
@@ -319,9 +427,20 @@ export class FurnarchyCore {
 		return this._processMessage('outgoing', text, sourceId, tag);
 	}
 
-	notifyLoggedIn() {
+	notifyLoggedIn(): void {
 		this.isLoggedIn = true;
 		console.log('[Furnarchy] User logged in, notifying plugins...');
 		this.plugins.forEach((plugin) => plugin._notifyLoggedIn());
 	}
+
+	getExposedAPI() {
+		return {
+			register: this.register.bind(this),
+			version: this.version,
+			utils: this.utils
+		};
+	}
 }
+
+export const furnarchyCore = new FurnarchyCore();
+

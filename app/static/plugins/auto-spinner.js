@@ -13,7 +13,7 @@ Furnarchy.register({
     };
 
     // Load saved config
-    const savedConfig = Furnarchy.utils.loadData(api.metadata.id, 'config');
+    const savedConfig = api.loadData('config');
     if (savedConfig) {
         config = { ...config, ...savedConfig };
     }
@@ -33,7 +33,7 @@ Furnarchy.register({
         const idDir = "auto-spinner-dir";
         const idSave = "auto-spinner-save";
 
-        Furnarchy.utils.openModal({
+        api.openModal({
             title: "Configure Auto Spinner",
             body: `
                 <div style="display: flex; flex-direction: column; gap: 10px;">
@@ -72,7 +72,7 @@ Furnarchy.register({
                             config.direction = newDir;
                             config.frequency = newFreq;
                             
-                            Furnarchy.utils.saveData(api.metadata.id, 'config', config);
+                            api.saveData('config', config);
 
                             api.notify(`Configuration saved: ${newDir === '<' ? 'Left' : 'Right'} every ${newFreq/1000}s`);
                             
@@ -82,7 +82,7 @@ Furnarchy.register({
                                 startSpin();
                             }
                             
-                            Furnarchy.utils.closeModal();
+                            api.closeModal();
                         } else {
                             alert("Invalid frequency");
                         }

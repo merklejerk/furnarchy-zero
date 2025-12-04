@@ -233,21 +233,24 @@ It is automatically loaded in development mode. To try it in production, add the
         *   `api.onPause(callback)`: Called when plugin is enabled/disabled. Callback receives `(paused)`.
         *   `api.onLoad(callback)`: Called immediately after registration with the initial enabled state. Callback receives `(enabled)`.
         *   `api.onConfigure(callback)`: Called when the user clicks the configure button in the plugin manager.
+        *   `api.onReady(callback)`: Called when all plugins have been loaded. Use this to safely access services exposed by other plugins.
+        *   `api.openModal(options)`: Opens a modal dialog.
+            *   `options`: Object containing:
+                *   `title`: String title of the modal.
+                *   `body`: HTML string content of the modal body.
+                *   `onClose`: Optional callback function when the modal is closed.
+                *   `width`: Optional CSS width string (e.g., "500px").
+                *   `height`: Optional CSS height string (e.g., "auto").
+        *   `api.closeModal()`: Closes the currently open modal.
+        *   `api.isModalOpen()`: Returns `true` if a modal is currently open.
+        *   `api.setGameInput(enabled)`: Enable or disable keyboard input to the game client. Useful when showing custom UI elements.
+        *   `api.saveData(key, value)`: Save a JSON-serializable value to local storage, namespaced to the plugin.
+        *   `api.loadData(key)`: Load a saved value from local storage. Returns `null` if not found.
+        *   `api.expose(service)`: Expose an API object to other plugins. `service` must have `name` and `version` properties.
+        *   `api.use(name)`: Retrieve a service exposed by another plugin. Returns `null` if not found.
 
-    *   `Furnarchy.utils`
+*   `Furnarchy.utils`
     *   `escape(str)`: Escapes HTML special characters and converts Unicode characters to HTML entities.
-    *   `openModal(options)`: Opens a modal dialog.
-        *   `options`: Object containing:
-            *   `title`: String title of the modal.
-            *   `body`: HTML string content of the modal body.
-            *   `onClose`: Optional callback function when the modal is closed.
-            *   `width`: Optional CSS width string (e.g., "500px").
-            *   `height`: Optional CSS height string (e.g., "auto").
-    *   `closeModal()`: Closes the currently open modal.
-    *   `isModalOpen()`: Returns `true` if a modal is currently open.
-    *   `setGameInput(enabled)`: Enable or disable keyboard input to the game client. Useful when showing custom UI elements.
-    *   `saveData(pluginId, key, value)`: Save a JSON-serializable value to local storage, namespaced to the plugin.
-    *   `loadData(pluginId, key)`: Load a saved value from local storage. Returns `null` if not found.
 
 ### Hosting Plugins
 Since Furnarchy Zero runs in the browser, plugins must be hosted on a web server accessible via HTTPS (or HTTP if running locally).

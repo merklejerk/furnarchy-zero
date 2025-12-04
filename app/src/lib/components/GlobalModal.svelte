@@ -1,19 +1,20 @@
 <script lang="ts">
     import { modalStore, closeModal } from '$lib/modal-store';
+    import { furnarchyCore } from '$lib/furnarchy-core';
     import { tick } from 'svelte';
 
     let modalWindow: HTMLDivElement;
 
     $: if ($modalStore.isOpen) {
-        if (typeof window !== 'undefined' && (window as any).Furnarchy) {
-            (window as any).Furnarchy.setGameInput(false);
+        if (typeof window !== 'undefined') {
+            furnarchyCore.setGameInput(false);
         }
         tick().then(() => {
             modalWindow?.focus();
         });
     } else {
-        if (typeof window !== 'undefined' && (window as any).Furnarchy) {
-            (window as any).Furnarchy.setGameInput(true);
+        if (typeof window !== 'undefined') {
+            furnarchyCore.setGameInput(true);
         }
     }
 </script>

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { FurnarchyCore } from '$lib/furnarchy-core';
+	import { FurnarchyCore, furnarchyCore } from '$lib/furnarchy-core';
 	import {
 		getStoredPlugins,
 		saveStoredPlugins,
@@ -18,21 +18,21 @@
 	let isVerifying = false;
 	let pluginConfigurable: Record<string, boolean> = {};
 
+	let core: FurnarchyCore = furnarchyCore;
+
 	// Use the store for reactivity
 	$: plugins = $pluginStore;
 
 	onMount(() => {
 		// Initialize global Furnarchy object if it doesn't exist
-		if (!(window as any).Furnarchy) {
-			(window as any).Furnarchy = new FurnarchyCore();
-		}
+		(window as any).Furnarchy = core.getExposedAPI();
 
 		// Initialize store from storage
 		pluginStore.set(getStoredPlugins());
 
 		// Initialize configurable state for existing plugins
-		if ((window as any).Furnarchy.plugins) {
-			(window as any).Furnarchy.plugins.forEach((p: any) => {
+		if (core.plugins) {
+			core.plugins.forEach((p: any) => {
 				if (p.metadata.sourceUrl) {
 					pluginConfigurable[p.metadata.sourceUrl] = p._handlers.configure.length > 0;
 				}
@@ -40,7 +40,7 @@
 		}
 
 		// Listen for registrations to update names
-		(window as any).Furnarchy.onRegister((plugin: any) => {
+		core.onRegister((plugin: any) => {
 			// plugin is PluginContext
 			const meta = plugin.metadata || plugin; // Handle both just in case
 			const sourceUrl = meta.sourceUrl || plugin.sourceUrl;
@@ -54,7 +54,7 @@
 
 				const idx = $pluginStore.findIndex((p) => p.url === sourceUrl);
 				if (idx !== -1) {
-					const isLoading = (window as any).Furnarchy.loadingPluginUrl === sourceUrl;
+					const isLoading = core.loadingPluginUrl === sourceUrl;
 					const current = $pluginStore[idx];
 					let changed = false;
 					const updated = { ...current };
@@ -113,7 +113,7 @@
 		});
 
 		// Version check for default plugins
-		const currentVersion = (window as any).Furnarchy?.version || '0.0.0';
+		const currentVersion = core.version || '0.0.0';
 		maintainConfig(currentVersion).then(() => {
 			loadPlugins();
 		});
@@ -173,9 +173,8 @@
 				const newState = p.enabled === undefined ? false : !p.enabled;
 
 				// Update live plugin if it exists
-				const furnarchy = (window as any).Furnarchy;
-				if (furnarchy && furnarchy.plugins) {
-					const livePlugin = furnarchy.plugins.find((lp: any) => lp.metadata.sourceUrl === url);
+				if (core && core.plugins) {
+					const livePlugin = core.plugins.find((lp: any) => lp.metadata.sourceUrl === url);
 					if (livePlugin) {
 						livePlugin._setEnabled(newState);
 					}
@@ -190,9 +189,8 @@
 
 	function configurePlugin(url: string) {
 		isOpen = false;
-		const furnarchy = (window as any).Furnarchy;
-		if (furnarchy && furnarchy.plugins) {
-			const livePlugin = furnarchy.plugins.find((lp: any) => lp.metadata.sourceUrl === url);
+		if (core && core.plugins) {
+			const livePlugin = core.plugins.find((lp: any) => lp.metadata.sourceUrl === url);
 			if (livePlugin) {
 				livePlugin._notifyConfigure();
 			}
@@ -207,13 +205,12 @@
 		}
 
 		// 2. Remove from Furnarchy core plugins list to allow re-registration
-		const furnarchy = (window as any).Furnarchy;
-		if (furnarchy && furnarchy.plugins) {
-			const idx = furnarchy.plugins.findIndex((p: any) => p.metadata.sourceUrl === url);
+		if (core && core.plugins) {
+			const idx = core.plugins.findIndex((p: any) => p.metadata.sourceUrl === url);
 			if (idx !== -1) {
 				// Disable first to trigger cleanup
-				furnarchy.plugins[idx]._setEnabled(false);
-				furnarchy.plugins.splice(idx, 1);
+				core.plugins[idx]._setEnabled(false);
+				core.plugins.splice(idx, 1);
 			}
 		}
 
@@ -225,8 +222,9 @@
 		// No-op, saveStoredPlugins handles it
 	}
 
-	function loadPlugins() {
-		$pluginStore.forEach((p) => injectPlugin(p.url));
+	async function loadPlugins() {
+		await Promise.all($pluginStore.map((p) => injectPlugin(p.url)));
+		core.start();
 	}
 
 	async function injectPlugin(url: string) {
@@ -243,7 +241,7 @@
 			const content = await response.text();
 
 			// Set context so register() knows which URL this is
-			(window as any).Furnarchy.loadingPluginUrl = url;
+			core.loadingPluginUrl = url;
 
 			const script = document.createElement('script');
 			script.textContent = content;
@@ -255,16 +253,24 @@
 
 			// Fallback to standard script injection.
 			// This works for non-CORS servers but requires correct MIME types.
-			const script = document.createElement('script');
-			script.src = url;
-			script.async = true;
-			script.dataset.pluginUrl = url;
-			script.onload = () => console.log(`[PluginManager] Loaded via tag: ${url}`);
-			script.onerror = () => console.error(`[PluginManager] Failed to load: ${url}`);
-			document.body.appendChild(script);
+			return new Promise<void>((resolve) => {
+				const script = document.createElement('script');
+				script.src = url;
+				script.async = true;
+				script.dataset.pluginUrl = url;
+				script.onload = () => {
+					console.log(`[PluginManager] Loaded via tag: ${url}`);
+					resolve();
+				};
+				script.onerror = () => {
+					console.error(`[PluginManager] Failed to load: ${url}`);
+					resolve();
+				};
+				document.body.appendChild(script);
+			});
 		} finally {
 			// Clear context
-			(window as any).Furnarchy.loadingPluginUrl = null;
+			core.loadingPluginUrl = null;
 		}
 	}
 </script>
