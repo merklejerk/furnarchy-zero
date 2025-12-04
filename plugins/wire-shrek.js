@@ -2,7 +2,7 @@ Furnarchy.register({
     id: "wire-shrek-f3a66d300de24038",
     name: "Wire Shrek",
     description: "Network traffic inspector. Opens a popout window to view raw traffic.",
-    version: "1.1.0",
+    version: "1.2.1",
     author: "Furnarchy Zero",
     toggle: true
 }, (api) => {
@@ -15,6 +15,9 @@ Furnarchy.register({
 
             const div = popup.document.createElement('div');
             div.className = 'log-entry';
+            if (sourceId) {
+                div.classList.add('self');
+            }
             div.style.backgroundColor = type === 'IN' ? '#e6ffe6' : '#ffe6e6';
             div.title = 'Click to copy raw text';
 
@@ -77,9 +80,9 @@ Furnarchy.register({
                 <style>
                     body { font-family: monospace; font-size: 12px; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
                     h3 { margin: 0; padding: 10px; background: #ddd; border-bottom: 1px solid #999; flex-shrink: 0; }
-                    #controls { padding: 5px; background: #eee; border-bottom: 1px solid #ccc; flex-shrink: 0; display: flex; gap: 5px; }
+                    #controls { padding: 5px; background: #eee; border-bottom: 1px solid #ccc; flex-shrink: 0; display: flex; gap: 5px; align-items: center; }
                     #log { flex-grow: 1; overflow-y: auto; padding: 10px; }
-                    input { flex-grow: 1; padding: 4px; }
+                    input[type="text"] { flex-grow: 1; padding: 4px; }
                     button { padding: 4px 8px; cursor: pointer; }
                     .log-entry { position: relative; border-bottom: 1px solid #ccc; padding: 4px; white-space: pre-wrap; word-break: break-all; cursor: pointer; font-family: monospace; }
                     .log-entry:hover { outline: 1px solid #666; z-index: 1; }
@@ -95,6 +98,8 @@ Furnarchy.register({
                         border-bottom-left-radius: 3px;
                         pointer-events: none;
                     }
+                    .log-entry.self { opacity: 0.7; border-left: 4px solid #888; }
+                    body.hide-self .log-entry.self { display: none; }
                 </style>
             </head>
             <body>
@@ -103,6 +108,7 @@ Furnarchy.register({
                     <input type="text" id="cmdInput" placeholder="Enter command..." />
                     <button id="btnSend" title="Send to Server (Enter)">Send</button>
                     <button id="btnInject" title="Inject to Client (Shift+Enter)">Inject</button>
+                    <label style="font-size: 11px; user-select: none; display: flex; align-items: center; gap: 4px;"><input type="checkbox" id="chkHideSelf"> Hide Plugins</label>
                 </div>
                 <div id="log"></div>
             </body>
@@ -113,6 +119,15 @@ Furnarchy.register({
         const btnSend = popup.document.getElementById('btnSend');
         const btnInject = popup.document.getElementById('btnInject');
         const cmdInput = popup.document.getElementById('cmdInput');
+        const chkHideSelf = popup.document.getElementById('chkHideSelf');
+
+        chkHideSelf.onchange = () => {
+            if (chkHideSelf.checked) {
+                popup.document.body.classList.add('hide-self');
+            } else {
+                popup.document.body.classList.remove('hide-self');
+            }
+        };
 
         const sendCmd = () => {
             const text = cmdInput.value;
@@ -137,6 +152,8 @@ Furnarchy.register({
             if (e.key === 'Enter') {
                 if (e.shiftKey) injectCmd();
                 else sendCmd();
+            } else if (e.key === 'Escape') {
+                cmdInput.value = '';
             }
         };
         
