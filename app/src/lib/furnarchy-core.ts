@@ -36,6 +36,8 @@ export class PluginContext {
 		incoming: [] as { cb: MessageHandler; priority: number }[],
 		outgoing: [] as { cb: MessageHandler; priority: number }[],
 		loggedIn: [] as (() => void)[],
+		connected: [] as (() => void)[],
+		disconnected: [] as (() => void)[],
 		ready: [] as (() => void)[],
 		pause: [] as ((paused: boolean) => void)[],
 		load: [] as ((enabled: boolean) => void)[],
@@ -96,6 +98,14 @@ export class PluginContext {
 
 	onLoggedIn(cb: () => void): void {
 		this._handlers.loggedIn.push(cb);
+	}
+
+	onConnected(cb: () => void): void {
+		this._handlers.connected.push(cb);
+	}
+
+	onDisconnected(cb: () => void): void {
+		this._handlers.disconnected.push(cb);
 	}
 
 	onReady(cb: () => void): void {
@@ -188,6 +198,28 @@ export class PluginContext {
 				cb();
 			} catch (e) {
 				console.error(`[${this.metadata.name}] LoggedIn Error:`, e);
+			}
+		});
+	}
+
+	_notifyConnected(): void {
+		if (!this.enabled) return;
+		this._handlers.connected.forEach((cb) => {
+			try {
+				cb();
+			} catch (e) {
+				console.error(`[${this.metadata.name}] Connected Error:`, e);
+			}
+		});
+	}
+
+	_notifyDisconnected(): void {
+		if (!this.enabled) return;
+		this._handlers.disconnected.forEach((cb) => {
+			try {
+				cb();
+			} catch (e) {
+				console.error(`[${this.metadata.name}] Disconnected Error:`, e);
 			}
 		});
 	}
@@ -436,6 +468,17 @@ export class FurnarchyCore {
 		this.isLoggedIn = true;
 		console.log('[Furnarchy] User logged in, notifying plugins...');
 		this.plugins.forEach((plugin) => plugin._notifyLoggedIn());
+	}
+
+	notifyConnected(): void {
+		console.log('[Furnarchy] Connected to server, notifying plugins...');
+		this.plugins.forEach((plugin) => plugin._notifyConnected());
+	}
+
+	notifyDisconnected(): void {
+		this.isLoggedIn = false;
+		console.log('[Furnarchy] Disconnected from server, notifying plugins...');
+		this.plugins.forEach((plugin) => plugin._notifyDisconnected());
 	}
 
 	getExposedAPI() {

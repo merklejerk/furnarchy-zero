@@ -100,7 +100,20 @@ export function installWebSocketPatch() {
 					console.log('[Furnarchy] Connected to Game Socket');
 				}
 
-				this.addEventListener('open', () => resolveSocket(this));
+				this.addEventListener('open', () => {
+					resolveSocket(this);
+					const furnarchy = furnarchyCore;
+					if (furnarchy) {
+						furnarchy.notifyConnected();
+					}
+				});
+
+				this.addEventListener('close', () => {
+					const furnarchy = furnarchyCore;
+					if (furnarchy) {
+						furnarchy.notifyDisconnected();
+					}
+				});
 			}
 		}
 
