@@ -7,7 +7,9 @@ Furnarchy.register({
 }, (api) => {
     
     const showModal = () => {
-        Furnarchy.utils.openModal({
+        const closeBtnId = 'modal-showcase-close';
+        
+        api.openModal({
             title: "Modal Showcase",
             body: `
                 <div style="text-align: center;">
@@ -24,7 +26,7 @@ Furnarchy.register({
                         <input type="text" class="full-width" placeholder="Type something retro..." />
                     </div>
                     <div style="margin-top: 10px;">
-                        <button class="full-width" onclick="Furnarchy.utils.closeModal()">Close Modal</button>
+                        <button id="${closeBtnId}" class="full-width">Close Modal</button>
                     </div>
                 </div>
             `,
@@ -32,6 +34,13 @@ Furnarchy.register({
                 api.notify("Modal closed.");
             }
         });
+
+        setTimeout(() => {
+            const btn = document.getElementById(closeBtnId);
+            if (btn) {
+                btn.onclick = () => api.closeModal();
+            }
+        }, 100);
     };
 
     api.onConfigure(() => {
