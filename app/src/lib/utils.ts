@@ -1,7 +1,19 @@
-import { parseServerCommand } from './furc-protocol';
+import {
+	parseServerCommand,
+	parseClientCommand,
+	createServerCommand,
+	createClientCommand,
+	base95Encode,
+	base95Decode,
+	base220Encode,
+	base220Decode
+} from './furc-protocol';
 
 export const utils = {
 	parseServerCommand,
+	parseClientCommand,
+	createServerCommand,
+	createClientCommand,
 	escape: (str: string) => {
 		return str.replace(/[&<>"']|[\u0080-\uFFFF]/g, (c) => {
 			switch (c) {
@@ -20,40 +32,24 @@ export const utils = {
 			}
 		});
 	},
-	base95Encode: (val: number, length: number = 0): string => {
-		let res = '';
-		do {
-			const digit = val % 95;
-			val = Math.floor(val / 95);
-			res = String.fromCharCode(digit + 32) + res;
-		} while (val > 0 || res.length < length);
-		return res;
-	},
-	base95Decode: (str: string): number => {
-		let val = 0;
-		for (let i = 0; i < str.length; i++) {
-			val = val * 95 + (str.charCodeAt(i) - 32);
-		}
-		return val;
-	},
-	base220Encode: (val: number, length: number = 0): string => {
-		let res = '';
-		do {
-			const digit = val % 220;
-			val = Math.floor(val / 220);
-			const charCode = digit + 35;
-			res = res + String.fromCharCode(charCode);
-		} while (val > 0 || res.length < length);
-		return res;
-	},
-	base220Decode: (str: string): number => {
-		let val = 0;
-		let multiplier = 1;
-		for (let i = 0; i < str.length; i++) {
-			const charCode = str.charCodeAt(i);
-			val += (charCode - 35) * multiplier;
-			multiplier *= 220;
-		}
-		return val;
+	base95Encode,
+	base95Decode,
+	base220Encode,
+	base220Decode,
+	getShortname: (name: string) => {
+		// Based on 'pt' function from furcadia.beautified.js
+		let res = name;
+		res = res.replace(/&(?:[Aa]grave|acute|circ|tilde|uml|ring)|AElig|aelig;/g, 'a');
+		res = res.replace(/&[Cc]edil;/g, 'c');
+		res = res.replace(/&[Ee]grave|acute|circ|uml;/g, 'e');
+		res = res.replace(/&[Ii]grave|acute|circ|uml;/g, 'i');
+		res = res.replace(/&ETH;/g, 'd');
+		res = res.replace(/&[Nn]tilde;/g, 'n');
+		res = res.replace(/&(?:[Oo]grave|acute|tilde|uml)|oslash|Ocirc|oric;/g, 'o');
+		res = res.replace(/&[Uu]grave|acute|circ|uml;/g, 'u');
+		res = res.replace(/&(?:[Yy]acute)|yuml;/g, 'y');
+		res = res.replace(/&euro;/g, 'e');
+		res = res.replace(/[^A-Za-z0-9]/g, '');
+		return res.toLowerCase();
 	}
 };

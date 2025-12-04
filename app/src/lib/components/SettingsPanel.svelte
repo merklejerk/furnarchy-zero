@@ -26,7 +26,7 @@
 		// Initialize store from storage
 		pluginStore.set(getStoredPlugins());
 		authUrl = getStoredAuthUrl() || env.PUBLIC_AUTH_PROXY_URL;
-		
+
 		// Refresh metadata for all plugins
 		refreshPlugins();
 	});
@@ -129,9 +129,13 @@
 		<p class="desc">
 			Load external JavaScript plugins to enhance your game client. Plugins are loaded from the
 			provided URL and have full access to the game environment.
-        </p>
-        <p class="desc">
-            See the <a href="https://github.com/merklejerk/furnarchy-zero" target="_blank" rel="noopener noreferrer">Github README</a> for more information.
+		</p>
+		<p class="desc">
+			See the <a
+				href="https://github.com/merklejerk/furnarchy-zero"
+				target="_blank"
+				rel="noopener noreferrer">Github README</a
+			> for more information.
 		</p>
 		<div class="input-group">
 			<input
@@ -211,11 +215,11 @@
 </div>
 
 <style lang="scss">
-    @use '../styles/variables' as *;
-    @use '../styles/mixins' as *;
+	@use '../styles/variables' as *;
+	@use '../styles/mixins' as *;
 
 	.settings-panel {
-        @include retro-panel;
+		@include retro-panel;
 		padding: 20px;
 		max-width: 600px;
 		margin: 0 auto;
@@ -243,14 +247,14 @@
 		gap: 10px;
 		margin-bottom: 15px;
 
-        input {
-            flex: 1;
-            @include retro-input;
-        }
+		input {
+			flex: 1;
+			@include retro-input;
+		}
 
-        button {
-            @include retro-button($color-primary, $color-primary-border, $color-primary-shadow);
-        }
+		button {
+			@include retro-button($color-primary, $color-primary-border, $color-primary-shadow);
+		}
 	}
 
 	/* Reuse plugin list styles */
@@ -267,18 +271,19 @@
 		cursor: pointer;
 		transition: background 0.2s;
 
-        &:last-child {
-            border-bottom: none;
-        }
+		&:last-child {
+			border-bottom: none;
+		}
 
-        &:hover, &.expanded {
-            background: $color-bg-hover;
-        }
+		&:hover,
+		&.expanded {
+			background: $color-bg-hover;
+		}
 
-        &.disabled .plugin-name {
-            color: #777;
-            text-decoration: line-through;
-        }
+		&.disabled .plugin-name {
+			color: #777;
+			text-decoration: line-through;
+		}
 	}
 
 	.plugin-header {
@@ -304,15 +309,15 @@
 		cursor: pointer;
 		flex-shrink: 0;
 
-        &.checked {
-            background: $color-primary;
-            border-color: $color-primary-border;
-            box-shadow: inset 2px 2px 0px rgba(255, 255, 255, 0.3);
-        }
+		&.checked {
+			background: $color-primary;
+			border-color: $color-primary-border;
+			box-shadow: inset 2px 2px 0px rgba(255, 255, 255, 0.3);
+		}
 
-        &:hover {
-            border-color: $color-border-light;
-        }
+		&:hover {
+			border-color: $color-border-light;
+		}
 	}
 
 	.plugin-name {
@@ -349,17 +354,22 @@
 		color: $color-text-link;
 		text-decoration: none;
 
-        &:hover {
-            text-decoration: underline;
-            background: $color-text-link;
-            color: #000;
-        }
+		&:hover {
+			text-decoration: underline;
+			background: $color-text-link;
+			color: #000;
+		}
 	}
 
 	.remove-btn {
 		margin-top: 10px;
 		width: 100%;
-        @include retro-button($color-danger, $color-danger-border, $color-danger-shadow, $color-danger-text);
+		@include retro-button(
+			$color-danger,
+			$color-danger-border,
+			$color-danger-shadow,
+			$color-danger-text
+		);
 	}
 
 	.empty {

@@ -6,7 +6,8 @@ declare global {
 	interface ClientHooks {
 		reconnect: () => void;
 		appendChat: (...args: any[]) => void;
-	}	interface Window {
+	}
+	interface Window {
 		__CLIENT_HOOKS?: ClientHooks;
 		Furnarchy?: {
 			register: (meta: any, initFn: (api: any) => void) => void;

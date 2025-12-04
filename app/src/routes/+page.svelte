@@ -16,7 +16,7 @@
 
 <svelte:head>
 	<title>Furnarchy Zero</title>
-</svelte:head> 
+</svelte:head>
 
 <div class="landing-page retro-theme">
 	<header>
@@ -69,8 +69,8 @@
 </div>
 
 <style lang="scss">
-    @use '../lib/styles/variables' as *;
-    @use '../lib/styles/mixins' as *;
+	@use '../lib/styles/variables' as *;
+	@use '../lib/styles/mixins' as *;
 
 	.landing-page {
 		max-width: 800px;
@@ -107,7 +107,7 @@
 
 	.play-btn {
 		display: inline-block;
-        @include retro-button($color-primary, $color-primary-border, $color-primary-shadow);
+		@include retro-button($color-primary, $color-primary-border, $color-primary-shadow);
 		font-size: 2rem;
 		padding: 15px 40px;
 		text-decoration: none;
@@ -115,7 +115,7 @@
 	}
 
 	.info-section {
-        @include retro-panel;
+		@include retro-panel;
 		padding: 30px;
 		margin-bottom: 40px;
 		line-height: 1.4;

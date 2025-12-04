@@ -81,18 +81,12 @@ export class PluginContext {
 		}
 	}
 
-	onIncoming(
-		cb: MessageHandler,
-		priority: number = 0
-	): void {
+	onIncoming(cb: MessageHandler, priority: number = 0): void {
 		this._handlers.incoming.push({ cb, priority });
 		this.core.invalidateHandlers();
 	}
 
-	onOutgoing(
-		cb: MessageHandler,
-		priority: number = 0
-	): void {
+	onOutgoing(cb: MessageHandler, priority: number = 0): void {
 		this._handlers.outgoing.push({ cb, priority });
 		this.core.invalidateHandlers();
 	}
@@ -277,8 +271,12 @@ export class FurnarchyCore {
 	private listeners: PluginRegistrationCallback[] = [];
 	private gameInputEnabled = true;
 
-	private _cachedIncoming: { cb: MessageHandler; priority: number; plugin: PluginContext }[] | null = null;
-	private _cachedOutgoing: { cb: MessageHandler; priority: number; plugin: PluginContext }[] | null = null;
+	private _cachedIncoming:
+		| { cb: MessageHandler; priority: number; plugin: PluginContext }[]
+		| null = null;
+	private _cachedOutgoing:
+		| { cb: MessageHandler; priority: number; plugin: PluginContext }[]
+		| null = null;
 
 	constructor() {
 		this.setupInputInterception();
@@ -286,7 +284,7 @@ export class FurnarchyCore {
 
 	private setupInputInterception() {
 		if (typeof document === 'undefined') return;
-		
+
 		const handler = (e: KeyboardEvent) => {
 			if (!this.gameInputEnabled) {
 				e.stopImmediatePropagation();
@@ -339,14 +337,19 @@ export class FurnarchyCore {
 
 	registerService<T extends Service>(service: T, providerId: string): void {
 		if (!service.name || !service.version) {
-			console.error(`[Furnarchy] Service registration failed: Missing 'name' or 'version'`, service);
+			console.error(
+				`[Furnarchy] Service registration failed: Missing 'name' or 'version'`,
+				service
+			);
 			return;
 		}
 		if (this.services.has(service.name)) {
 			console.warn(`[Furnarchy] Service '${service.name}' is already registered. Overwriting.`);
 		}
 		this.services.set(service.name, { service, providerId });
-		console.log(`[Furnarchy] Service registered: ${service.name} v${service.version} by ${providerId}`);
+		console.log(
+			`[Furnarchy] Service registered: ${service.name} v${service.version} by ${providerId}`
+		);
 	}
 
 	getService<T extends Service>(name: string): T | null {
@@ -372,23 +375,26 @@ export class FurnarchyCore {
 
 	register(meta: PluginMetadata, initFn: (api: PluginContext) => void): void {
 		if (!meta.id || !meta.version) {
-			console.error(`[Furnarchy] Plugin registration failed: Missing 'id' or 'version' in metadata`, meta);
+			console.error(
+				`[Furnarchy] Plugin registration failed: Missing 'id' or 'version' in metadata`,
+				meta
+			);
 			return;
 		}
-		
-		if (this.plugins.some(p => p.metadata.id === meta.id)) {
+
+		if (this.plugins.some((p) => p.metadata.id === meta.id)) {
 			console.warn(`[Furnarchy] Plugin with id '${meta.id}' already registered. Skipping.`);
 			return;
 		}
 
 		const ctx = new PluginContext(this);
 		ctx.metadata = { ...ctx.metadata, ...meta };
-		
+
 		// If toggle is true, default to disabled (unless overridden by storage later)
 		if (meta.toggle) {
 			ctx._setEnabled(false);
 		}
-		
+
 		this.plugins.push(ctx);
 
 		try {
@@ -405,7 +411,9 @@ export class FurnarchyCore {
 		}
 	}
 
-	private _getSortedHandlers(type: 'incoming' | 'outgoing'): { cb: MessageHandler; priority: number; plugin: PluginContext }[] {
+	private _getSortedHandlers(
+		type: 'incoming' | 'outgoing'
+	): { cb: MessageHandler; priority: number; plugin: PluginContext }[] {
 		// Check cache first
 		if (type === 'incoming' && this._cachedIncoming) return this._cachedIncoming;
 		if (type === 'outgoing' && this._cachedOutgoing) return this._cachedOutgoing;
@@ -414,13 +422,14 @@ export class FurnarchyCore {
 		for (const plugin of this.plugins) {
 			if (!plugin.enabled) continue;
 			// Access the correct handler list based on type
-			const pluginHandlers = type === 'incoming' ? plugin._handlers.incoming : plugin._handlers.outgoing;
+			const pluginHandlers =
+				type === 'incoming' ? plugin._handlers.incoming : plugin._handlers.outgoing;
 			for (const handler of pluginHandlers) {
 				handlers.push({ ...handler, plugin });
 			}
 		}
 		handlers.sort((a, b) => b.priority - a.priority);
-		
+
 		// Update the cache
 		if (type === 'incoming') this._cachedIncoming = handlers;
 		else this._cachedOutgoing = handlers;
@@ -435,7 +444,7 @@ export class FurnarchyCore {
 		tag: string | null
 	): Promise<string | null | undefined> {
 		let currentText = text;
-		
+
 		const handlers = this._getSortedHandlers(type);
 
 		for (const { cb, plugin } of handlers) {
@@ -510,4 +519,3 @@ export class FurnarchyCore {
 }
 
 export const furnarchyCore = new FurnarchyCore();
-

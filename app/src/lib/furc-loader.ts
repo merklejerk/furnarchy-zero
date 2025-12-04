@@ -9,17 +9,17 @@ export async function loadFurcadiaScript(scriptUrl: string): Promise<void> {
 	scriptContent = scriptContent.replaceAll('XMLHttpRequest', 'FurcXMLHttpRequest');
 	// Replace WebSocket with FurcWebSocket
 	scriptContent = scriptContent.replaceAll('WebSocket', 'FurcWebSocket');
-    // Expose the game client instance when it gets created.
-    const oldLen = scriptContent.length;
-    scriptContent = (() => {
-        // Look for the string "Missing login data".
-        let o = scriptContent.indexOf('Missing login data');
-        if (o === -1) {
-            return scriptContent;
-        }
-        const pre = scriptContent.substring(0, o);
-        const instantiatorName = '__instantiate'
-        const code = `
+	// Expose the game client instance when it gets created.
+	const oldLen = scriptContent.length;
+	scriptContent = (() => {
+		// Look for the string "Missing login data".
+		let o = scriptContent.indexOf('Missing login data');
+		if (o === -1) {
+			return scriptContent;
+		}
+		const pre = scriptContent.substring(0, o);
+		const instantiatorName = '__instantiate';
+		const code = `
             let ${instantiatorName} = (cls, ...args) => {
                 // Instantate the class.
                 const r = $2(cls, ...args);
@@ -37,61 +37,65 @@ export async function loadFurcadiaScript(scriptUrl: string): Promise<void> {
                 return r;
             }
         `;
-        // Look for the first where the game class is instantiated.
-        // It looks like:
-        //   ;i=l(Ie, { ...
-        // But the variable names may change, so we look for the pattern.
-        const post = scriptContent.substring(o).replace(/;\s*(\w+)\s*=\s*(\w+)\s*\(\s*(\w+)\s*,/, `;${code}; $1 = ${instantiatorName}($3,`);
-        return pre + post;
-    })();
-    if (oldLen === scriptContent.length) {
-        console.warn('[Furc Loader] Warning: Could not find game instance assignment point to hook into.');
-    } else {
-        window.processGameClientInstance = (inst: any) => {
-            console.log('[Furc Loader] Processing game client instance...');
-            const instProps = getAllObjectProps(inst);
-            
-            // Find the reconnect method (v_).
-            const reconnectMethod = (() => {
-                for (const [_key, prop] of instProps) {
-                    if (getFunctionCodeOr(prop).search(/this(\.\w+){3}\("Reconnecting..."\)/) !== -1) {
-                        return prop.bind(inst);
-                    }
-                }
-            })();
-            // Find the insert chat method (ey).
-            const insertChatMethod = (() => {
-                // Find the chat manager (Ks)
-                const chatManager = (() => {
-                    for (const [_key, prop] of instProps) {
-                        if (getConstructorCodeOr(prop).includes('"Señor Furreton"')) {
-                            return prop;
-                        }
-                    }
-                })();
-                if (!chatManager) return;
-                // Find the main chat box (qs)
-                const mainChatBox = (() => {
-                    for (const [_key, prop] of getAllObjectProps(chatManager)) {
-                        if (getConstructorCodeOr(prop).includes('"chatBuffer"')) {
-                            return prop;
-                        }
-                    }
-                })();
-                if (!mainChatBox) return;
-                // Find the insert chat method (ey)
-                for (const [_key, prop] of getAllObjectProps(mainChatBox)) {
-                    if (getFunctionCodeOr(prop).includes('"specitag"')) {
-                        return prop.bind(mainChatBox);
-                    }
-                }
-            })();
+		// Look for the first where the game class is instantiated.
+		// It looks like:
+		//   ;i=l(Ie, { ...
+		// But the variable names may change, so we look for the pattern.
+		const post = scriptContent
+			.substring(o)
+			.replace(/;\s*(\w+)\s*=\s*(\w+)\s*\(\s*(\w+)\s*,/, `;${code}; $1 = ${instantiatorName}($3,`);
+		return pre + post;
+	})();
+	if (oldLen === scriptContent.length) {
+		console.warn(
+			'[Furc Loader] Warning: Could not find game instance assignment point to hook into.'
+		);
+	} else {
+		window.processGameClientInstance = (inst: any) => {
+			console.log('[Furc Loader] Processing game client instance...');
+			const instProps = getAllObjectProps(inst);
 
-            if (reconnectMethod && insertChatMethod) {
-                window.__CLIENT_HOOKS = { reconnect: reconnectMethod, appendChat: insertChatMethod };
-            }
-        }
-    }
+			// Find the reconnect method (v_).
+			const reconnectMethod = (() => {
+				for (const [_key, prop] of instProps) {
+					if (getFunctionCodeOr(prop).search(/this(\.\w+){3}\("Reconnecting..."\)/) !== -1) {
+						return prop.bind(inst);
+					}
+				}
+			})();
+			// Find the insert chat method (ey).
+			const insertChatMethod = (() => {
+				// Find the chat manager (Ks)
+				const chatManager = (() => {
+					for (const [_key, prop] of instProps) {
+						if (getConstructorCodeOr(prop).includes('"Señor Furreton"')) {
+							return prop;
+						}
+					}
+				})();
+				if (!chatManager) return;
+				// Find the main chat box (qs)
+				const mainChatBox = (() => {
+					for (const [_key, prop] of getAllObjectProps(chatManager)) {
+						if (getConstructorCodeOr(prop).includes('"chatBuffer"')) {
+							return prop;
+						}
+					}
+				})();
+				if (!mainChatBox) return;
+				// Find the insert chat method (ey)
+				for (const [_key, prop] of getAllObjectProps(mainChatBox)) {
+					if (getFunctionCodeOr(prop).includes('"specitag"')) {
+						return prop.bind(mainChatBox);
+					}
+				}
+			})();
+
+			if (reconnectMethod && insertChatMethod) {
+				window.__CLIENT_HOOKS = { reconnect: reconnectMethod, appendChat: insertChatMethod };
+			}
+		};
+	}
 
 	// Inject the script
 	const script = document.createElement('script');
@@ -101,36 +105,37 @@ export async function loadFurcadiaScript(scriptUrl: string): Promise<void> {
 	document.body.appendChild(script);
 }
 
-
 function getAllObjectProps(obj: any): Array<[string, any]> {
-    const allProps = new Set<[string, any]>();
-    const collectProps = (obj: any) => {
-        if (!obj || !(obj instanceof Object)) return;
-        Object.getOwnPropertyNames(obj).filter(k => k !== 'constructor' && obj[k]).forEach(k => allProps.add([k, obj[k]]));
-        collectProps(Object.getPrototypeOf(obj));
-    }
-    collectProps(obj);
-    return [...allProps].sort();
+	const allProps = new Set<[string, any]>();
+	const collectProps = (obj: any) => {
+		if (!obj || !(obj instanceof Object)) return;
+		Object.getOwnPropertyNames(obj)
+			.filter((k) => k !== 'constructor' && obj[k])
+			.forEach((k) => allProps.add([k, obj[k]]));
+		collectProps(Object.getPrototypeOf(obj));
+	};
+	collectProps(obj);
+	return [...allProps].sort();
 }
 
 function getConstructor(obj: any): Function | null {
-    if (obj && obj instanceof Object) {
-        return Object.getPrototypeOf(obj).constructor;
-    }
-    return null;
+	if (obj && obj instanceof Object) {
+		return Object.getPrototypeOf(obj).constructor;
+	}
+	return null;
 }
 
 function getConstructorCodeOr(obj: any, default_: string = ''): string {
-    const ctor = getConstructor(obj);
-    if (ctor) {
-        return ctor.toString();
-    }
-    return default_;
+	const ctor = getConstructor(obj);
+	if (ctor) {
+		return ctor.toString();
+	}
+	return default_;
 }
 
 function getFunctionCodeOr(func: any, default_: string = ''): string {
-    if (typeof(func) === 'function') {
-        return func.toString();
-    }
-    return default_;
+	if (typeof func === 'function') {
+		return func.toString();
+	}
+	return default_;
 }

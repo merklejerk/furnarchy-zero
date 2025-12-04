@@ -386,8 +386,8 @@
 </div>
 
 <style lang="scss">
-    @use '../styles/variables' as *;
-    @use '../styles/mixins' as *;
+	@use '../styles/variables' as *;
+	@use '../styles/mixins' as *;
 
 	.plugin-manager {
 		position: fixed;
@@ -409,18 +409,20 @@
 		align-items: center;
 		justify-content: center;
 		box-shadow: $shadow-hard;
-        transition: transform 0.1s, box-shadow 0.1s;
+		transition:
+			transform 0.1s,
+			box-shadow 0.1s;
 
-        &:hover {
-            background: $color-bg-panel;
-            transform: translate(-1px, -1px);
-            box-shadow: 5px 5px 0px #000;
-        }
+		&:hover {
+			background: $color-bg-panel;
+			transform: translate(-1px, -1px);
+			box-shadow: 5px 5px 0px #000;
+		}
 
-        &:active {
-            transform: translate(2px, 2px);
-            box-shadow: 2px 2px 0px #000;
-        }
+		&:active {
+			transform: translate(2px, 2px);
+			box-shadow: 2px 2px 0px #000;
+		}
 	}
 
 	.modal-backdrop {
@@ -475,12 +477,12 @@
 		align-items: center;
 		box-shadow: none;
 
-        &:hover {
-            color: $color-danger-border;
-            background: transparent;
-            transform: scale(1.2);
-            box-shadow: none;
-        }
+		&:hover {
+			color: $color-danger-border;
+			background: transparent;
+			transform: scale(1.2);
+			box-shadow: none;
+		}
 	}
 
 	.add-plugin {
@@ -488,15 +490,15 @@
 		gap: 5px;
 		margin-bottom: 15px;
 
-        input {
-            flex: 1;
-            @include retro-input;
-            min-width: 0;
-        }
+		input {
+			flex: 1;
+			@include retro-input;
+			min-width: 0;
+		}
 
-        button {
-            @include retro-button($color-primary, $color-primary-border, $color-primary-shadow);
-        }
+		button {
+			@include retro-button($color-primary, $color-primary-border, $color-primary-shadow);
+		}
 	}
 
 	.plugin-list {
@@ -507,7 +509,7 @@
 		overflow-y: auto;
 		border: 2px solid $color-border-dim;
 		background: $color-bg-list;
-        @include retro-scrollbar;
+		@include retro-scrollbar;
 	}
 
 	.plugin-item {
@@ -515,18 +517,19 @@
 		cursor: pointer;
 		transition: background 0.2s;
 
-        &:last-child {
-            border-bottom: none;
-        }
+		&:last-child {
+			border-bottom: none;
+		}
 
-        &:hover, &.expanded {
-            background: $color-bg-hover;
-        }
+		&:hover,
+		&.expanded {
+			background: $color-bg-hover;
+		}
 
-        &.disabled .plugin-name {
-            color: #777;
-            text-decoration: line-through;
-        }
+		&.disabled .plugin-name {
+			color: #777;
+			text-decoration: line-through;
+		}
 	}
 
 	.plugin-header {
@@ -552,15 +555,15 @@
 		cursor: pointer;
 		flex-shrink: 0;
 
-        &.checked {
-            background: $color-primary;
-            border-color: $color-primary-border;
-            box-shadow: inset 2px 2px 0px rgba(255, 255, 255, 0.3);
-        }
+		&.checked {
+			background: $color-primary;
+			border-color: $color-primary-border;
+			box-shadow: inset 2px 2px 0px rgba(255, 255, 255, 0.3);
+		}
 
-        &:hover {
-            border-color: $color-border-light;
-        }
+		&:hover {
+			border-color: $color-border-light;
+		}
 	}
 
 	.config-btn {
@@ -569,10 +572,10 @@
 		opacity: 0.7;
 		transition: opacity 0.2s;
 
-        &:hover {
-            opacity: 1;
-            transform: scale(1.1);
-        }
+		&:hover {
+			opacity: 1;
+			transform: scale(1.1);
+		}
 	}
 
 	.plugin-name {
@@ -609,11 +612,11 @@
 		color: $color-text-link;
 		text-decoration: none;
 
-        &:hover {
-            text-decoration: underline;
-            background: $color-text-link;
-            color: #000;
-        }
+		&:hover {
+			text-decoration: underline;
+			background: $color-text-link;
+			color: #000;
+		}
 	}
 
 	.button-group {
@@ -625,15 +628,20 @@
 	.action-btn {
 		flex: 1;
 		border-width: 2px;
-		box-shadow: 4px 4px 0px rgba(0,0,0,0.5);
+		box-shadow: 4px 4px 0px rgba(0, 0, 0, 0.5);
 	}
 
 	.reload-btn {
-        @include retro-button($color-info, $color-info-border, rgba(0,0,0,0.5), $color-info-text);
+		@include retro-button($color-info, $color-info-border, rgba(0, 0, 0, 0.5), $color-info-text);
 	}
 
 	.remove-btn {
-        @include retro-button($color-danger, $color-danger-border, rgba(0,0,0,0.5), $color-danger-text);
+		@include retro-button(
+			$color-danger,
+			$color-danger-border,
+			rgba(0, 0, 0, 0.5),
+			$color-danger-text
+		);
 	}
 
 	.empty {

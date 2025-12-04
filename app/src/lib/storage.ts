@@ -2,14 +2,15 @@ import { verifyPlugin } from './plugin-sandbox';
 import { writable } from 'svelte/store';
 
 export interface StoredPlugin {
-    url: string;
-    id?: string;
-    name?: string;
-    description?: string;
-    version?: string;
-    author?: string;
-    enabled?: boolean;
-}const PLUGINS_KEY = 'furnarchy_plugins';
+	url: string;
+	id?: string;
+	name?: string;
+	description?: string;
+	version?: string;
+	author?: string;
+	enabled?: boolean;
+}
+const PLUGINS_KEY = 'furnarchy_plugins';
 const DELETED_PLUGINS_KEY = 'furnarchy_deleted_plugins';
 const AUTH_URL_KEY = 'furnarchy_auth_url';
 const VERSION_KEY = 'furnarchy_version';
@@ -71,7 +72,7 @@ export function updateStoredPlugin(url: string, updates: Partial<StoredPlugin>) 
 
 		const current = plugins[idx];
 		const updated = { ...current, ...updates };
-		
+
 		// Check if anything actually changed to avoid unnecessary writes
 		if (JSON.stringify(current) === JSON.stringify(updated)) return plugins;
 
@@ -152,7 +153,7 @@ export async function maintainConfig(currentVersion: string) {
 					description: meta.description,
 					version: meta.version,
 					author: meta.author,
-					enabled: typeof meta.toggle === 'boolean' ? !meta.toggle : true,
+					enabled: typeof meta.toggle === 'boolean' ? !meta.toggle : true
 				});
 				changed = true;
 			} catch (e) {

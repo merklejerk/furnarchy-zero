@@ -94,8 +94,11 @@ export function installWebSocketPatch() {
 				if (furnarchy) {
 					furnarchy.send = (text: string, sourceId: string | undefined, tag: string | undefined) =>
 						sendToSocket(this, text, sourceId, tag);
-					furnarchy.inject = (text: string, sourceId: string | undefined, tag: string | undefined) =>
-						injectIntoSocket(this, text, sourceId, tag);
+					furnarchy.inject = (
+						text: string,
+						sourceId: string | undefined,
+						tag: string | undefined
+					) => injectIntoSocket(this, text, sourceId, tag);
 					console.log('[Furnarchy] Connected to Game Socket');
 				}
 
