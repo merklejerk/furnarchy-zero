@@ -3,6 +3,19 @@
 declare global {
 	const __APP_VERSION__: string;
 
+	interface ClientHooks {
+		reconnect: () => void;
+		appendChat: (...args: any[]) => void;
+	}	interface Window {
+		__CLIENT_HOOKS?: ClientHooks;
+		Furnarchy?: {
+			register: (meta: any, initFn: (api: any) => void) => void;
+			version: string;
+			utils: any;
+		};
+		processGameClientInstance?: (inst: any) => void;
+	}
+
 	namespace App {
 		// interface Error {}
 		// interface Locals {}

@@ -70,7 +70,12 @@ export class PluginContext {
 			console.log(`[${this.metadata.name}] ${text}`);
 			return;
 		}
-		this.inject(`(${utils.escape('[🟢]')} ${text}\n`, tag);
+
+		if (window.__CLIENT_HOOKS?.appendChat) {
+			window.__CLIENT_HOOKS.appendChat(`${utils.escape('[🟢]')} ${text}`);
+		} else {
+			this.inject(`(${utils.escape('[🟢]')} ${text}\n`, tag);
+		}
 	}
 
 	onIncoming(
