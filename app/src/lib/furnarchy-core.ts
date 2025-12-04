@@ -57,6 +57,10 @@ export class PluginContext {
 	}
 
 	notify(text: string, tag?: string) {
+		if (!this.core.isLoggedIn) {
+			console.log(`[${this.metadata.name}] ${text}`);
+			return;
+		}
 		this.inject(`(${utils.escape('[🟢]')} ${text}\n`, tag);
 	}
 
@@ -148,10 +152,35 @@ export class FurnarchyCore {
 
 	// Context for tracking which URL is currently loading
 	loadingPluginUrl: string | null = null;
+	isLoggedIn = false;
 	private listeners: PluginRegistrationCallback[] = [];
+	private gameInputEnabled = true;
 
 	private _cachedIncoming: { cb: MessageHandler; priority: number; plugin: PluginContext }[] | null = null;
 	private _cachedOutgoing: { cb: MessageHandler; priority: number; plugin: PluginContext }[] | null = null;
+
+	constructor() {
+		this.setupInputInterception();
+	}
+
+	private setupInputInterception() {
+		if (typeof document === 'undefined') return;
+		
+		const handler = (e: KeyboardEvent) => {
+			if (!this.gameInputEnabled) {
+				e.stopImmediatePropagation();
+			}
+		};
+
+		// Register early to intercept events before the game client sees them
+		document.addEventListener('keydown', handler);
+		document.addEventListener('keyup', handler);
+		document.addEventListener('keypress', handler);
+	}
+
+	setGameInput(enabled: boolean) {
+		this.gameInputEnabled = enabled;
+	}
 
 	invalidateHandlers() {
 		this._cachedIncoming = null;
@@ -291,6 +320,7 @@ export class FurnarchyCore {
 	}
 
 	notifyLoggedIn() {
+		this.isLoggedIn = true;
 		console.log('[Furnarchy] User logged in, notifying plugins...');
 		this.plugins.forEach((plugin) => plugin._notifyLoggedIn());
 	}

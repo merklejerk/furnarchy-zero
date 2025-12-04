@@ -6,6 +6,7 @@
 	import { loadFurcadiaScript } from '$lib/furc-loader';
 	import { getStoredAuthUrl } from '$lib/storage';
 	import PluginManager from '$lib/components/PluginManager.svelte';
+	import { json } from '@sveltejs/kit';
 
 	const FURCADIA_CLIENT_JS = env.PUBLIC_FURCADIA_CLIENT_JS_URL;
 	const DEFAULT_AUTH_PROXY_URL = env.PUBLIC_AUTH_PROXY_URL;
@@ -66,6 +67,7 @@
 	</div>
 {/if}
 
+<!-- Elements required by furcadia.js, must be in root -->
 <div id="furcContainer"></div>
 <div id="firstLoadScene"></div>
 <div id="modalOverlay"></div>
@@ -78,6 +80,7 @@
 	</div>
 </div>
 <div id="pounce" style="display: none"><!-- coming soon, folks --></div>
+<!-- End of required furcadia.js elements -->
 
 {#if error}
 	<div class="error">

@@ -133,9 +133,9 @@ Furnarchy.register({
     // Intercept incoming messages from the server
     // Priority 10: Run this before default (0) handlers
     api.onIncoming((line, sourceId, tag) => {
-        // Example: Highlight whispers
-        if (line.startsWith("(whisper)")) {
-            console.log("Got a whisper:", line);
+        // Example: Detect when someone says "pizza"
+        if (line.startsWith("(") && line.includes("pizza")) {
+            api.notify("Someone mentioned pizza!");
         }
         return line;
     }, 10);
@@ -144,7 +144,7 @@ Furnarchy.register({
     api.onOutgoing((line, sourceId, tag) => {
         // Example: Custom command
         if (line === "/hello") {
-            api.send("shout Hello everyone!\n");
+            api.send("\"Hello everyone!\n");
             return null; // Block the original /hello command
         }
         return line;
@@ -204,6 +204,13 @@ Furnarchy.register({
 });
 ```
 
+### Example: Modal Showcase
+
+This plugin demonstrates how to create custom UI modals with styled inputs and buttons.
+It is automatically loaded in development mode. To try it in production, add the plugin URL: `/plugins/modal-showcase.js`.
+
+[View Source](app/static/plugins/modal-showcase.js)
+
 ### API Reference
 
 * `Furnarchy.register(meta, callback)`
@@ -227,8 +234,20 @@ Furnarchy.register({
         *   `api.onLoad(callback)`: Called immediately after registration with the initial enabled state. Callback receives `(enabled)`.
         *   `api.onConfigure(callback)`: Called when the user clicks the configure button in the plugin manager.
 
-* `Furnarchy.utils`
+    *   `Furnarchy.utils`
     *   `escape(str)`: Escapes HTML special characters and converts Unicode characters to HTML entities.
+    *   `openModal(options)`: Opens a modal dialog.
+        *   `options`: Object containing:
+            *   `title`: String title of the modal.
+            *   `body`: HTML string content of the modal body.
+            *   `onClose`: Optional callback function when the modal is closed.
+            *   `width`: Optional CSS width string (e.g., "500px").
+            *   `height`: Optional CSS height string (e.g., "auto").
+    *   `closeModal()`: Closes the currently open modal.
+    *   `isModalOpen()`: Returns `true` if a modal is currently open.
+    *   `setGameInput(enabled)`: Enable or disable keyboard input to the game client. Useful when showing custom UI elements.
+    *   `saveData(pluginId, key, value)`: Save a JSON-serializable value to local storage, namespaced to the plugin.
+    *   `loadData(pluginId, key)`: Load a saved value from local storage. Returns `null` if not found.
 
 ### Hosting Plugins
 Since Furnarchy Zero runs in the browser, plugins must be hosted on a web server accessible via HTTPS (or HTTP if running locally).

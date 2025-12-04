@@ -16,6 +16,7 @@
 	let pluginUrl = '';
 	let expandedPluginUrl: string | null = null;
 	let isVerifying = false;
+	let pluginConfigurable: Record<string, boolean> = {};
 
 	// Use the store for reactivity
 	$: plugins = $pluginStore;
@@ -29,6 +30,15 @@
 		// Initialize store from storage
 		pluginStore.set(getStoredPlugins());
 
+		// Initialize configurable state for existing plugins
+		if ((window as any).Furnarchy.plugins) {
+			(window as any).Furnarchy.plugins.forEach((p: any) => {
+				if (p.metadata.sourceUrl) {
+					pluginConfigurable[p.metadata.sourceUrl] = p._handlers.configure.length > 0;
+				}
+			});
+		}
+
 		// Listen for registrations to update names
 		(window as any).Furnarchy.onRegister((plugin: any) => {
 			// plugin is PluginContext
@@ -36,6 +46,12 @@
 			const sourceUrl = meta.sourceUrl || plugin.sourceUrl;
 
 			if (sourceUrl) {
+				// Update configurable state
+				pluginConfigurable = {
+					...pluginConfigurable,
+					[sourceUrl]: plugin._handlers.configure.length > 0
+				};
+
 				const idx = $pluginStore.findIndex((p) => p.url === sourceUrl);
 				if (idx !== -1) {
 					const isLoading = (window as any).Furnarchy.loadingPluginUrl === sourceUrl;
@@ -173,6 +189,7 @@
 	}
 
 	function configurePlugin(url: string) {
+		isOpen = false;
 		const furnarchy = (window as any).Furnarchy;
 		if (furnarchy && furnarchy.plugins) {
 			const livePlugin = furnarchy.plugins.find((lp: any) => lp.metadata.sourceUrl === url);
@@ -296,15 +313,17 @@
 									on:click|stopPropagation={() => togglePlugin(plugin.url)}
 									title={plugin.enabled !== false ? 'Disable Plugin' : 'Enable Plugin'}
 								></div>
-								<!-- svelte-ignore a11y-click-events-have-key-events -->
-								<!-- svelte-ignore a11y-no-static-element-interactions -->
-								<div
-									class="config-btn"
-									on:click|stopPropagation={() => configurePlugin(plugin.url)}
-									title="Configure Plugin"
-								>
-									⚙️
-								</div>
+								{#if pluginConfigurable[plugin.url]}
+									<!-- svelte-ignore a11y-click-events-have-key-events -->
+									<!-- svelte-ignore a11y-no-static-element-interactions -->
+									<div
+										class="config-btn"
+										on:click|stopPropagation={() => configurePlugin(plugin.url)}
+										title="Configure Plugin"
+									>
+										⚙️
+									</div>
+								{/if}
 								<span class="plugin-name" title={plugin.url}>{plugin.name || plugin.url}</span>
 							</div>
 						</div>
@@ -360,7 +379,10 @@
 	{/if}
 </div>
 
-<style>
+<style lang="scss">
+    @use '../styles/variables' as *;
+    @use '../styles/mixins' as *;
+
 	.plugin-manager {
 		position: fixed;
 		top: 20px;
@@ -372,26 +394,27 @@
 		width: 40px;
 		height: 40px;
 		border-radius: 0;
-		background: #000;
-		border: 2px solid #fff;
-		color: white;
+		background: $color-bg-input;
+		border: 2px solid $color-border-light;
+		color: $color-text-bright;
 		font-size: 20px;
 		cursor: pointer;
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		box-shadow: 4px 4px 0px #000;
-	}
+		box-shadow: $shadow-hard;
+        transition: transform 0.1s, box-shadow 0.1s;
 
-	.fab:hover {
-		background: #222;
-		transform: translate(-1px, -1px);
-		box-shadow: 5px 5px 0px #000;
-	}
+        &:hover {
+            background: $color-bg-panel;
+            transform: translate(-1px, -1px);
+            box-shadow: 5px 5px 0px #000;
+        }
 
-	.fab:active {
-		transform: translate(2px, 2px);
-		box-shadow: 2px 2px 0px #000;
+        &:active {
+            transform: translate(2px, 2px);
+            box-shadow: 2px 2px 0px #000;
+        }
 	}
 
 	.modal-backdrop {
@@ -410,11 +433,11 @@
 		top: 50px;
 		right: 0;
 		width: 300px;
-		background: #120b1e;
-		border: 2px solid #fff;
+		background: $color-bg-dark;
+		border: 2px solid $color-border-light;
 		border-radius: 0;
 		padding: 15px;
-		color: white;
+		color: $color-text-bright;
 		z-index: 20002;
 		box-shadow: 8px 8px 0px #000;
 	}
@@ -424,20 +447,20 @@
 		justify-content: space-between;
 		align-items: center;
 		margin-bottom: 15px;
-		border-bottom: 2px dashed #555;
+		border-bottom: 2px dashed $color-border-dim;
 		padding-bottom: 10px;
 	}
 
 	h2 {
 		margin: 0;
 		font-size: 1.2rem;
-		color: #ffcc00;
+		color: $color-text-gold;
 	}
 
 	.close-btn {
 		background: transparent;
 		border: none;
-		color: #fff;
+		color: $color-text-bright;
 		font-size: 1.5rem;
 		padding: 0 8px;
 		cursor: pointer;
@@ -445,60 +468,29 @@
 		display: flex;
 		align-items: center;
 		box-shadow: none;
-	}
 
-	.close-btn:hover {
-		color: #ff0000;
-		background: transparent;
-		transform: scale(1.2);
-		box-shadow: none;
+        &:hover {
+            color: $color-danger-border;
+            background: transparent;
+            transform: scale(1.2);
+            box-shadow: none;
+        }
 	}
 
 	.add-plugin {
 		display: flex;
 		gap: 5px;
 		margin-bottom: 15px;
-	}
 
-	input {
-		flex: 1;
-		background: #000;
-		border: 2px solid #555;
-		color: #0f0;
-		padding: 5px;
-		border-radius: 0;
-		min-width: 0;
-		box-shadow: inset 2px 2px 0px rgba(0, 0, 0, 0.5);
-	}
+        input {
+            flex: 1;
+            @include retro-input;
+            min-width: 0;
+        }
 
-	button {
-		background: #00aa00;
-		border: 2px solid #00ff00;
-		color: white;
-		padding: 5px 10px;
-		border-radius: 0;
-		cursor: pointer;
-		box-shadow: 4px 4px 0px #004400;
-	}
-
-	button:hover {
-		background: #00cc00;
-		transform: translate(-1px, -1px);
-		box-shadow: 5px 5px 0px #004400;
-	}
-
-	button:active {
-		transform: translate(2px, 2px);
-		box-shadow: 2px 2px 0px #004400;
-	}
-
-	button:disabled {
-		background: #555;
-		border-color: #777;
-		color: #aaa;
-		box-shadow: none;
-		cursor: not-allowed;
-		transform: none;
+        button {
+            @include retro-button($color-primary, $color-primary-border, $color-primary-shadow);
+        }
 	}
 
 	.plugin-list {
@@ -507,31 +499,28 @@
 		margin: 0;
 		max-height: 300px;
 		overflow-y: auto;
-		border: 2px solid #555;
-		background: #000;
+		border: 2px solid $color-border-dim;
+		background: $color-bg-list;
+        @include retro-scrollbar;
 	}
 
 	.plugin-item {
-		border-bottom: 1px dashed #333;
+		border-bottom: 1px dashed $color-border-dark;
 		cursor: pointer;
 		transition: background 0.2s;
-	}
 
-	.plugin-item:last-child {
-		border-bottom: none;
-	}
+        &:last-child {
+            border-bottom: none;
+        }
 
-	.plugin-item:hover {
-		background: #1a1a1a;
-	}
+        &:hover, &.expanded {
+            background: $color-bg-hover;
+        }
 
-	.plugin-item.expanded {
-		background: #1a1a1a;
-	}
-
-	.plugin-item.disabled .plugin-name {
-		color: #777;
-		text-decoration: line-through;
+        &.disabled .plugin-name {
+            color: #777;
+            text-decoration: line-through;
+        }
 	}
 
 	.plugin-header {
@@ -552,20 +541,20 @@
 	.toggle-switch {
 		width: 16px;
 		height: 16px;
-		border: 2px solid #555;
-		background: #000;
+		border: 2px solid $color-border-dim;
+		background: $color-bg-input;
 		cursor: pointer;
 		flex-shrink: 0;
-	}
 
-	.toggle-switch.checked {
-		background: #00aa00;
-		border-color: #00ff00;
-		box-shadow: inset 2px 2px 0px rgba(255, 255, 255, 0.3);
-	}
+        &.checked {
+            background: $color-primary;
+            border-color: $color-primary-border;
+            box-shadow: inset 2px 2px 0px rgba(255, 255, 255, 0.3);
+        }
 
-	.toggle-switch:hover {
-		border-color: #fff;
+        &:hover {
+            border-color: $color-border-light;
+        }
 	}
 
 	.config-btn {
@@ -573,11 +562,11 @@
 		font-size: 14px;
 		opacity: 0.7;
 		transition: opacity 0.2s;
-	}
 
-	.config-btn:hover {
-		opacity: 1;
-		transform: scale(1.1);
+        &:hover {
+            opacity: 1;
+            transform: scale(1.1);
+        }
 	}
 
 	.plugin-name {
@@ -586,14 +575,14 @@
 		white-space: nowrap;
 		overflow: hidden;
 		text-overflow: ellipsis;
-		color: #0f0;
+		color: $color-text-terminal;
 	}
 
 	.plugin-details {
 		padding: 0 10px 10px 10px;
 		font-size: 0.85rem;
-		color: #ccc;
-		border-top: 1px dashed #333;
+		color: $color-text-main; // slightly brighter than dim
+		border-top: 1px dashed $color-border-dark;
 		margin-top: 5px;
 		padding-top: 10px;
 		cursor: default;
@@ -605,20 +594,20 @@
 	}
 
 	.label {
-		color: #888;
+		color: $color-text-dim;
 		font-weight: bold;
 		margin-right: 5px;
 	}
 
 	.url-link {
-		color: #ff77a8;
+		color: $color-text-link;
 		text-decoration: none;
-	}
 
-	.url-link:hover {
-		text-decoration: underline;
-		background: #ff77a8;
-		color: #000;
+        &:hover {
+            text-decoration: underline;
+            background: $color-text-link;
+            color: #000;
+        }
 	}
 
 	.button-group {
@@ -634,28 +623,16 @@
 	}
 
 	.reload-btn {
-		background: #0088cc;
-		color: #cceeff;
-		border-color: #00aaff;
-	}
-
-	.reload-btn:hover {
-		background: #0099dd;
+        @include retro-button($color-info, $color-info-border, rgba(0,0,0,0.5), $color-info-text);
 	}
 
 	.remove-btn {
-		background: #aa0000;
-		color: #ffaaaa;
-		border-color: #ff0000;
-	}
-
-	.remove-btn:hover {
-		background: #cc0000;
+        @include retro-button($color-danger, $color-danger-border, rgba(0,0,0,0.5), $color-danger-text);
 	}
 
 	.empty {
 		padding: 15px;
-		color: #777;
+		color: $color-text-dim;
 		text-align: center;
 		font-style: italic;
 	}
@@ -663,7 +640,7 @@
 	.footer {
 		margin-top: 15px;
 		text-align: center;
-		color: #777;
+		color: $color-text-dim;
 		font-size: 0.8rem;
 	}
 

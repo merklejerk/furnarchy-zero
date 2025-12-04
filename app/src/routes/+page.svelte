@@ -68,7 +68,10 @@
 	</footer>
 </div>
 
-<style>
+<style lang="scss">
+    @use '../lib/styles/variables' as *;
+    @use '../lib/styles/mixins' as *;
+
 	.landing-page {
 		max-width: 800px;
 		margin: 0 auto;
@@ -76,7 +79,7 @@
 	}
 
 	:global(body) {
-		background-color: #120b1e; /* Dark purple/black background */
+		background-color: $color-bg-dark; /* Dark purple/black background */
 	}
 
 	header {
@@ -86,17 +89,9 @@
 		padding-bottom: 20px;
 	}
 
-	h1 {
-		font-size: 4rem;
-		margin: 0;
-		color: #ffcc00; /* Retro gold */
-		text-shadow: 4px 4px 0px #880000;
-		line-height: 1;
-	}
-
 	.subtitle {
 		font-size: 1.5rem;
-		color: #aaa;
+		color: $color-text-dim;
 		margin-top: 10px;
 	}
 
@@ -112,47 +107,30 @@
 
 	.play-btn {
 		display: inline-block;
-		background: #00aa00;
-		color: white;
+        @include retro-button($color-primary, $color-primary-border, $color-primary-shadow);
 		font-size: 2rem;
 		padding: 15px 40px;
 		text-decoration: none;
-		border: 4px solid #00ff00;
-		box-shadow: 6px 6px 0px #004400;
-		text-transform: uppercase;
 		letter-spacing: 2px;
 	}
 
-	.play-btn:hover {
-		background: #00cc00;
-		transform: translate(-2px, -2px);
-		box-shadow: 8px 8px 0px #004400;
-	}
-
-	.play-btn:active {
-		transform: translate(4px, 4px);
-		box-shadow: 2px 2px 0px #004400;
-	}
-
 	.info-section {
-		background: #222;
+        @include retro-panel;
 		padding: 30px;
-		border: 2px solid #555;
-		box-shadow: 8px 8px 0px #000;
 		margin-bottom: 40px;
 		line-height: 1.4;
 	}
 
 	h2 {
-		color: #ff77a8;
-		border-bottom: 2px dashed #555;
+		color: $color-text-link;
+		border-bottom: 2px dashed $color-border-dim;
 		padding-bottom: 10px;
 		margin-top: 0;
 	}
 
 	footer {
 		text-align: center;
-		color: #555;
+		color: $color-border-dim;
 		margin-top: 60px;
 		font-size: 1rem;
 		border-top: 4px double #444;
@@ -170,7 +148,7 @@
 	}
 
 	.footer-links a:hover {
-		color: #ff77a8;
+		color: $color-text-link;
 		text-decoration: underline;
 	}
 

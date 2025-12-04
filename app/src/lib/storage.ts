@@ -127,6 +127,9 @@ export async function maintainConfig(currentVersion: string) {
 	let plugins = getStoredPlugins();
 
 	const defaultUrls = ['/plugins/auto-spinner.js', '/plugins/wire-shrek.js'];
+	if (import.meta.env.DEV) {
+		defaultUrls.push('/plugins/modal-showcase.js');
+	}
 	const deletedIds = getDeletedPluginIds();
 
 	let changed = false;

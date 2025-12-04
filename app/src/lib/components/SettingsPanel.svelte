@@ -210,13 +210,13 @@
 	</section>
 </div>
 
-<style>
+<style lang="scss">
+    @use '../styles/variables' as *;
+    @use '../styles/mixins' as *;
+
 	.settings-panel {
-		background: #222;
+        @include retro-panel;
 		padding: 20px;
-		border: 2px solid #555;
-		box-shadow: 8px 8px 0px #000;
-		color: white;
 		max-width: 600px;
 		margin: 0 auto;
 	}
@@ -227,14 +227,14 @@
 
 	h3 {
 		margin-top: 0;
-		border-bottom: 2px dashed #555;
+		border-bottom: 2px dashed $color-border-dim;
 		padding-bottom: 10px;
 		margin-bottom: 15px;
-		color: #ffcc00;
+		color: $color-text-gold;
 	}
 
 	.desc {
-		color: #aaa;
+		color: $color-text-dim;
 		margin-bottom: 10px;
 	}
 
@@ -242,47 +242,15 @@
 		display: flex;
 		gap: 10px;
 		margin-bottom: 15px;
-	}
 
-	input {
-		flex: 1;
-		background: #000;
-		border: 2px solid #555;
-		color: #0f0;
-		padding: 8px;
-		border-radius: 0;
-		box-shadow: inset 2px 2px 0px rgba(0, 0, 0, 0.5);
-	}
+        input {
+            flex: 1;
+            @include retro-input;
+        }
 
-	button {
-		background: #00aa00;
-		border: 2px solid #00ff00;
-		color: white;
-		padding: 8px 15px;
-		border-radius: 0;
-		cursor: pointer;
-		box-shadow: 4px 4px 0px #004400;
-		text-transform: uppercase;
-	}
-
-	button:hover {
-		background: #00cc00;
-		transform: translate(-1px, -1px);
-		box-shadow: 5px 5px 0px #004400;
-	}
-
-	button:active {
-		transform: translate(2px, 2px);
-		box-shadow: 2px 2px 0px #004400;
-	}
-
-	button:disabled {
-		background: #555;
-		border-color: #777;
-		color: #aaa;
-		box-shadow: none;
-		cursor: not-allowed;
-		transform: none;
+        button {
+            @include retro-button($color-primary, $color-primary-border, $color-primary-shadow);
+        }
 	}
 
 	/* Reuse plugin list styles */
@@ -290,31 +258,27 @@
 		list-style: none;
 		padding: 0;
 		margin: 0;
-		border: 2px solid #555;
-		background: #000;
+		border: 2px solid $color-border-dim;
+		background: $color-bg-list;
 	}
 
 	.plugin-item {
-		border-bottom: 1px dashed #333;
+		border-bottom: 1px dashed $color-border-dark;
 		cursor: pointer;
 		transition: background 0.2s;
-	}
 
-	.plugin-item:last-child {
-		border-bottom: none;
-	}
+        &:last-child {
+            border-bottom: none;
+        }
 
-	.plugin-item:hover {
-		background: #1a1a1a;
-	}
+        &:hover, &.expanded {
+            background: $color-bg-hover;
+        }
 
-	.plugin-item.expanded {
-		background: #1a1a1a;
-	}
-
-	.plugin-item.disabled .plugin-name {
-		color: #777;
-		text-decoration: line-through;
+        &.disabled .plugin-name {
+            color: #777;
+            text-decoration: line-through;
+        }
 	}
 
 	.plugin-header {
@@ -335,20 +299,20 @@
 	.toggle-switch {
 		width: 16px;
 		height: 16px;
-		border: 2px solid #555;
-		background: #000;
+		border: 2px solid $color-border-dim;
+		background: $color-bg-input;
 		cursor: pointer;
 		flex-shrink: 0;
-	}
 
-	.toggle-switch.checked {
-		background: #00aa00;
-		border-color: #00ff00;
-		box-shadow: inset 2px 2px 0px rgba(255, 255, 255, 0.3);
-	}
+        &.checked {
+            background: $color-primary;
+            border-color: $color-primary-border;
+            box-shadow: inset 2px 2px 0px rgba(255, 255, 255, 0.3);
+        }
 
-	.toggle-switch:hover {
-		border-color: #fff;
+        &:hover {
+            border-color: $color-border-light;
+        }
 	}
 
 	.plugin-name {
@@ -357,14 +321,14 @@
 		white-space: nowrap;
 		overflow: hidden;
 		text-overflow: ellipsis;
-		color: #0f0;
+		color: $color-text-terminal;
 	}
 
 	.plugin-details {
 		padding: 0 10px 10px 10px;
 		font-size: 0.85rem;
-		color: #ccc;
-		border-top: 1px dashed #333;
+		color: $color-text-main;
+		border-top: 1px dashed $color-border-dark;
 		margin-top: 5px;
 		padding-top: 10px;
 		cursor: default;
@@ -376,39 +340,31 @@
 	}
 
 	.label {
-		color: #888;
+		color: $color-text-dim;
 		font-weight: bold;
 		margin-right: 5px;
 	}
 
 	.url-link {
-		color: #ff77a8;
+		color: $color-text-link;
 		text-decoration: none;
-	}
 
-	.url-link:hover {
-		text-decoration: underline;
-		background: #ff77a8;
-		color: #000;
+        &:hover {
+            text-decoration: underline;
+            background: $color-text-link;
+            color: #000;
+        }
 	}
 
 	.remove-btn {
 		margin-top: 10px;
 		width: 100%;
-		background: #aa0000;
-		color: #ffaaaa;
-		border: 2px solid #ff0000;
-		box-shadow: 4px 4px 0px #440000;
-	}
-
-	.remove-btn:hover {
-		background: #cc0000;
-		box-shadow: 5px 5px 0px #440000;
+        @include retro-button($color-danger, $color-danger-border, $color-danger-shadow, $color-danger-text);
 	}
 
 	.empty {
 		padding: 15px;
-		color: #777;
+		color: $color-text-dim;
 		text-align: center;
 		font-style: italic;
 	}

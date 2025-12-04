@@ -1,4 +1,5 @@
 <script lang="ts">
+	import GlobalModal from '$lib/components/GlobalModal.svelte';
 	let { children } = $props();
 </script>
 
@@ -10,6 +11,7 @@
 </svelte:head>
 
 {@render children()}
+<GlobalModal />
 
 <style>
 	:global(body) {
