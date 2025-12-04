@@ -296,8 +296,6 @@ Unlike the server commands, C2S commands are primarily **line-based ASCII text**
 * **Whisper:** `wh <name> <message>`
   * Sends a private message.
   * **Offline Whisper:** `wh %%<name> <message>`
-* **Raw Command:** `<command>`
-  * Any text not matching the above prefixes is sent raw.
 
 ### 8.3 Interaction & Inventory
 
