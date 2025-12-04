@@ -1,6 +1,7 @@
 import { utils } from './utils';
 import { get } from 'svelte/store';
 import { openModal, closeModal, modalStore, type ModalOptions } from './modal-store';
+import { parseServerCommand } from './furc-protocol';
 
 export interface PluginMetadata {
 	id: string;
@@ -35,7 +36,7 @@ export class PluginContext {
 	_handlers = {
 		incoming: [] as { cb: MessageHandler; priority: number }[],
 		outgoing: [] as { cb: MessageHandler; priority: number }[],
-		loggedIn: [] as ((name: string) => void)[],
+		loggedIn: [] as ((name: string, uid: string) => void)[],
 		connected: [] as (() => void)[],
 		disconnected: [] as (() => void)[],
 		ready: [] as (() => void)[],
@@ -96,7 +97,7 @@ export class PluginContext {
 		this.core.invalidateHandlers();
 	}
 
-	onLoggedIn(cb: (name: string) => void): void {
+	onLoggedIn(cb: (name: string, uid: string) => void): void {
 		this._handlers.loggedIn.push(cb);
 	}
 
@@ -191,11 +192,11 @@ export class PluginContext {
 		});
 	}
 
-	_notifyLoggedIn(name: string): void {
+	_notifyLoggedIn(name: string, uid: string): void {
 		if (!this.enabled) return;
 		this._handlers.loggedIn.forEach((cb) => {
 			try {
-				cb(name);
+				cb(name, uid);
 			} catch (e) {
 				console.error(`[${this.metadata.name}] LoggedIn Error:`, e);
 			}
@@ -270,6 +271,7 @@ export class FurnarchyCore {
 	loadingPluginUrl: string | null = null;
 	isLoggedIn = false;
 	characterName: string | null = null;
+	characterUid: string | null = null;
 	isReady = false;
 	private _motdComplete = false;
 	private listeners: PluginRegistrationCallback[] = [];
@@ -463,12 +465,9 @@ export class FurnarchyCore {
 			return text;
 		}
 
-		if (text.startsWith(']B')) {
-			const spaceIdx = text.indexOf(' ');
-			if (spaceIdx !== -1) {
-				const name = text.substring(spaceIdx + 1);
-				this.notifyLoggedIn(name);
-			}
+		const cmd = parseServerCommand(text);
+		if (cmd.type === 'set-user-info') {
+			this.notifyLoggedIn(cmd.name, cmd.uid.toString());
 		}
 		return this._processMessage('incoming', text, sourceId, tag);
 	}
@@ -481,11 +480,12 @@ export class FurnarchyCore {
 		return this._processMessage('outgoing', text, sourceId, tag);
 	}
 
-	notifyLoggedIn(name: string): void {
+	notifyLoggedIn(name: string, uid: string): void {
 		this.isLoggedIn = true;
 		this.characterName = name;
-		console.log(`[Furnarchy] User logged in as ${name}, notifying plugins...`);
-		this.plugins.forEach((plugin) => plugin._notifyLoggedIn(name));
+		this.characterUid = uid;
+		console.log(`[Furnarchy] User logged in as ${name} (${uid}), notifying plugins...`);
+		this.plugins.forEach((plugin) => plugin._notifyLoggedIn(name, uid));
 	}
 
 	notifyConnected(): void {

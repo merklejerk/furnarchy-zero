@@ -1,4 +1,7 @@
+import { parseServerCommand } from './furc-protocol';
+
 export const utils = {
+	parseServerCommand,
 	escape: (str: string) => {
 		return str.replace(/[&<>"']|[\u0080-\uFFFF]/g, (c) => {
 			switch (c) {
