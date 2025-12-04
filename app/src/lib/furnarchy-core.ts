@@ -271,6 +271,7 @@ export class FurnarchyCore {
 	isLoggedIn = false;
 	characterName: string | null = null;
 	isReady = false;
+	private _motdComplete = false;
 	private listeners: PluginRegistrationCallback[] = [];
 	private gameInputEnabled = true;
 
@@ -454,6 +455,14 @@ export class FurnarchyCore {
 		sourceId: string | null = null,
 		tag: string | null = null
 	): Promise<string | null | undefined> {
+		if (!this._motdComplete) {
+			if (text.includes('Dragonroar')) {
+				this._motdComplete = true;
+			}
+			// Pass through to client, but skip plugins
+			return text;
+		}
+
 		if (text.startsWith(']B')) {
 			const spaceIdx = text.indexOf(' ');
 			if (spaceIdx !== -1) {
@@ -481,6 +490,7 @@ export class FurnarchyCore {
 
 	notifyConnected(): void {
 		console.log('[Furnarchy] Connected to server, notifying plugins...');
+		this._motdComplete = false;
 		this.plugins.forEach((plugin) => plugin._notifyConnected());
 	}
 
