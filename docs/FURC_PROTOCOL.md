@@ -1,397 +1,676 @@
-# **Furcadia Network Protocol Specification: Comprehensive Architecture and Instruction Set Analysis**
-
-## **1\. Introduction and Architectural Philosophy**
-
-The Furcadia Network Protocol stands as a significant artifact in the history of online virtual worlds, representing a unique evolutionary bridge between the text-based Multi-User Dungeons (MUDs) of the 1980s and the graphical Massively Multiplayer Online Games (MMOGs) that would come to dominate the 2000s. Unlike its contemporaries that rapidly shifted toward efficient, opaque binary protocols over UDP to support fast-paced combat, Furcadia’s architecture was designed with a fundamentally different set of constraints and goals: accessibility, user-generated content (UGC), and social interaction.
-
-The protocol operates strictly over the Transmission Control Protocol (TCP), prioritizing reliable, ordered delivery of data over the speed of transmission. This decision eliminates the need for the client to handle packet reordering or loss recovery, simplifying the client-side network stack significantly. Furthermore, the data stream is almost entirely character-based, utilizing 7-bit US-ASCII encoding for the majority of instructions. This design choice—essentially wrapping a graphical state machine in a text-based transport layer—has profound implications for the game's ecosystem. It allowed for the early proliferation of third-party tools, bots, and proxies, as the barrier to entry for reverse-engineering the protocol was essentially the ability to read text.
-
-However, the simplicity of ASCII presents a challenge for transmitting complex game state data such as 32-bit coordinates, unique user identifiers (UIDs), and high-fidelity color information. To address this, the protocol employs custom base-encoding algorithms—specifically Base95 and Base220—which compress numerical data into printable character strings. This approach creates a "hybrid" protocol: human-readable in its command structure (opcodes and delimiters) but machine-dense in its payload arguments.
-
-The modern iteration of the protocol, particularly following the "Second Dreaming" updates (Version 31+), has had to graft sophisticated features like 32-bit "True Color" support, web-based inventory management, and dynamic lighting onto this legacy backbone. This report provides an exhaustive specification of this evolved protocol, dissecting its connection lifecycle, encoding standards, instruction sets, and the architectural compromises required to modernize a 1990s engine for the 2020s.
-
-## **2\. The Physical and Transport Layer**
-
-### **2.1. Network Topology and Connectivity**
-
-The Furcadia network architecture is centralized, relying on a client-server topology where the server acts as the authoritative source of world state. The client is effectively a "dumb terminal" with graphical caching capabilities; it visualizes the state provided by the server and sends user input requests, but it does not perform authoritative simulation of movement or collision.
-
-The primary game service resides at the hostname lightbringer.furcadia.com, which resolves to the IP address 72.36.220.249.1 In a move that highlights the developers' foresight regarding network accessibility—particularly for users in restrictive environments like university dorms or corporate offices—the server listens on a wide array of ports. While port 6500 is the recommended standard, the service is also available on ports 5000, 2300, and the standard reserved ports 80 (HTTP), 21 (FTP), and 22 (SSH). By listening on these reserved ports, the Furcadia server can often bypass basic firewall rules that filter non-standard traffic, ensuring connectivity for a broader user base without requiring tunneling software.
-
-### **2.2. Session Lifecycle and Handshake**
-
-Establishing a valid session with the Furcadia server involves a specific "handshake" procedure that distinguishes it from standard TCP stream handling. A raw TCP connection is insufficient; the client must navigate a Message of the Day (MOTD) preamble before the server will accept input.
-
-#### **2.2.1. The "Dragonroar" Synchronization**
-
-Upon establishing the TCP connection, the server immediately begins streaming text data to the client. This data serves as a news feed, displaying update notes, marketplace advertisements, or community announcements. This stream is unidirectional; the server does not expect or process client input during this phase.
-
-The crucial synchronization signal is the line containing the string Dragonroar. This line serves as the "Ready" state indicator.
-
-* **Client Behavior:** The client must buffer and display (or discard) all incoming lines until Dragonroar is detected.  
-* **Proxy/Bot Constraints:** Automated tools must strictly observe this silence period. Attempting to send the login command before receiving Dragonroar will typically result in the server ignoring the input or terminating the connection as a flood protection measure.
-* **Legacy Artifacts:** Historically, the Dragonroar line was followed by version identifiers like V00013 and END. Modern parsers are advised to ignore these, as they are vestiges of older protocol versions and are no longer reliable indicators of state
-
-#### **2.2.2. Proxy Identification**
-
-The protocol includes a specific provision for "Third Party Proxies"—middleware software that sits between the client and server to provide features like moderation automation or accessibility tools. To prevent these tools from being flagged as malicious automated traffic, they are required to declare their presence.
-
-* **Command:** onlnprx  
-* **Timing:** This command must be sent *immediately* after the Dragonroar signal and *before* the standard connect command.
-* **Function:** This registers the connection as a proxy, potentially adjusting the server's flood control thresholds or logging the session differently to account for the non-standard latency or packet frequency introduced by the middleware.
-
-### **2.3. Authentication and Encryption**
-
-The authentication mechanism reveals the protocol's age. The standard login command is transmitted as a plaintext string.
-
-* **Command Structure:** connect \<PlayerName\> \<Password\>  
-* **Security Implications:** In the original specification, this credential transmission occurred without encryption, making it vulnerable to packet sniffing on local networks.
-
-Modern Mitigation:  
-With the "Second Dreaming" update and the integration of web-based account management, the authentication flow has evolved. While the protocol command remains connect, the "Password" field can now accept a temporary session token or a hashed credential generated via a secure HTTPS side-channel (e.g., the web-based character editor or the "Digo Market"). This "Token Passing" strategy secures the actual user credentials while maintaining backward compatibility with the legacy text-based protocol, which treats the token simply as a string password.
-
-### **2.4. Keep-Alive Mechanisms**
-
-Unlike UDP protocols that might send a "heartbeat" packet every few milliseconds, Furcadia's TCP stream relies on the inherent connectivity of the socket. However, to prevent "zombie" connections (where the socket is open but the client is unresponsive) and to keep NAT mappings open, the protocol utilizes implicit activity.
-
-* **Client-Side:** Periodic commands such as onln (checking a friend's status) or look serve as keep-alives.  
-* **Server-Side:** The server periodically pushes updates. If the TCP window fills and packets cannot be acknowledged (ACK) by the client, the OS network stack will eventually tear down the connection.  
-* **Timeout:** The server enforces an idle timeout, disconnecting characters that have not sent an input command for a specified duration, unless they are flagged with an "AFK" state, which might extend this timer.
-
-## **3\. Data Representation and Encoding Algorithms**
-
-The most distinct technical feature of the Furcadia protocol is its data encoding. To transmit integer values (coordinates, IDs, colors) within a 7-bit ASCII stream, the protocol employs two custom base-encoding schemes: **Base95** and **Base220**. These schemes maximize data density while avoiding control characters (ASCII 0-31) that could interfere with modem protocols or terminal emulators.
-
-### **3.1. Base95 Encoding**
-
-Base95 is the legacy encoding system, used primarily for values that fit within the standard printable ASCII range (32-126).
-
-#### **3.1.1. Mechanism and Character Set**
-
-The algorithm maps integer values to ASCII characters by applying a fixed offset.
-
-* **Offset:** \+32.  
-* **Range:** ASCII 32 ( Space) to ASCII 126 (\~ Tilde).  
-* **Single Byte Capacity:** 0 to 94\.
-
-Encoding Formula:
-
-$$C \= V \+ 32$$
-
-Where $C$ is the resulting ASCII character and $V$ is the integer value (0-94).  
-Decoding Formula:
-
-$$V \= C \- 32$$
-
-#### **3.1.2. Multi-Byte Base95**
-
-For values exceeding 94, a multi-byte position notation is used, similar to hexadecimal but with a base of 95\.
-
-* Two-Byte Integer: Used for legacy map coordinates (0-1000).
-
-  $$V \= (C\_{high} \- 32\) \\times 95 \+ (C\_{low} \- 32)$$  
-* **Example:** The string \!\#.  
-  * \! is ASCII 33\. Value: $33 \- 32 \= 1$.  
-  * \# is ASCII 35\. Value: $35 \- 32 \= 3$.  
-  * Total: $(1 \\times 95\) \+ 3 \= 98$.
-
-This encoding allows the protocol to represent a coordinate pair (X, Y) in just 4 bytes of text (2 bytes for X, 2 for Y), which is significantly more compact than transmitting the string "100,100" (7 bytes)
-
-### **3.2. Base220 Encoding**
-
-As the game world expanded and the user base grew into the millions, the Base95 system became insufficient for unique User IDs and larger map coordinates. Base220 was introduced to utilize the extended character set available in the ISO-8859-1 (Latin-1) standard.
-
-#### **3.2.1. Mechanism and Capacity**
-
-Base220 utilizes 220 distinct characters from the 8-bit byte range (0-255). By excluding control characters (0-31), the delete character (127), and potentially some reserved protocol delimiters (like line feeds), it achieves a much higher data density.
-
-* **Capacity:**  
-  * **2 Bytes:** $220^2 \= 48,400$. Sufficient for modern map dimensions (typically max 2000x2000, though mostly smaller).  
-  * **4 Bytes:** $220^4 \\approx 2.3 \\times 10^9$. Sufficient for over 2 billion unique User IDs.
-
-#### **3.2.2. Usage in Protocol**
-
-* **User IDs:** Always encoded as 4-byte Base220 strings in packets like "Spawn Avatar" (\<) and "Animated Move" (/).
-* **Coordinates:** Modern packets use 2-byte Base220 for X and Y, allowing for maps larger than the Base95 limit of roughly $95^2 \\approx 9000$ (though practical map limits are often lower due to memory).  
-* **Shape/Sprite IDs:** With the explosion of avatar customization (11 species, 3 genders, countless "Noble" variants), the Shape ID is also transmitted as a 2-byte Base220 value
-
-### **3.3. Color Code Structures**
-
-The representation of avatar colors illustrates the protocol's evolution from a simple lookup table to a complex rendering instruction set.
-
-#### **3.3.1. Legacy Color String (13 Bytes)**
-
-The original color string is a fixed-length sequence of 13 Base95 characters. Each character represents an index (0-94 typically, mapping to a 256-color palette) for a specific region of the avatar sprite
-
-| Byte Index | Avatar Region | Description |
-| :---- | :---- | :---- |
-| 0 | Fur | Main body color. |
-| 1 | Markings | Secondary body details. |
-| 2 | Hair | Head hair color. |
-| 3 | Eye | Eye pixel color. |
-| 4 | Badge | The "Beekin" badge or accessory. |
-| 5 | Vest | Upper body clothing. |
-| 6 | Bracer | Wrist/arm accessories. |
-| 7 | Cape | Back accessory. |
-| 8 | Boot | Footwear. |
-| 9 | Pants | Lower body clothing. |
-| 10 | Gender | 0=Female, 1=Male, 2=Unspecified. |
-| 11 | Species | Base species ID (Rodent, Equine, Feline, etc.). |
-| 12 | Reserved | Often unused or for legacy markings. |
-
-#### **3.3.2. Modern Color String (Variable Length)**
-
-The "Second Dreaming" update introduced a variable-length color string (14-30+ characters) to support 32-bit remapping.6
-
-* **Encoding:** Base220.  
-* **Structure:** This string acts as a serialized array of "Remap Instructions." It allows specific layers of the new FOX5 avatar sprites (e.g., wings, tails, glowing effects) to be tinted with True Color (24-bit RGB) values.  
-* **Parsing:** The client parses this string to build a dynamic color transform matrix, which is then applied to the grayscale layers of the 32-bit sprite assets at runtime. This allows for millions of color combinations, far exceeding the legacy palette limits.5
-
-## **4\. Server-to-Client (S2C) Instruction Set**
-
-The server controls the client's state through a stream of "Instructions." Each instruction is a line of text starting with a specific "Opcode" (a single character) that determines how the following data should be parsed.
-
-### **4.1. Entity Management: The "Spawn" Family**
-
-Managing the visibility and movement of "Furres" (avatars) is the primary function of the protocol.
-
-#### **4.1.1. Spawn Avatar (\<)**
-
-This is the most data-dense packet in the protocol. It tells the client to create a new entity in its local memory or update an existing one.
-
-Format:  
-‘\<’ \+ UserID \+ X \+ Y \+ Shape \+ Name \+ ColorCode \+ Flags \+ LF 6  
-**Field Breakdown:**
-
-| Field | Encoding | Size | Details |
+# Furcadia Technical Protocol Specification
+
+**Status:** Unofficial / Reverse Engineered
+**Target Client:** Furcadia Web Client (v32+)
+**Transport:** WebSocket (Binary/Text Hybrid) & HTTP/1.1
+**Endianness:** Mixed (See Section 1)
+
+## 1. Data Types & Encodings
+
+The protocol minimizes bandwidth using two custom variable-base integer encoding schemes that map byte values to printable ASCII ranges.
+
+### 1.1 Base-95 (Big-Endian)
+
+Used primarily for **camera coordinates** and legacy systems.
+
+* **Range:** ASCII 32 ( ) to 126 (~).
+* **Decoding:** Big-endian (Most Significant Byte first).
+* **Algorithm:**
+  ```javascript
+  // Input: Uint8Array t, Offset i, Length s
+  let value = 0, multiplier = 1;
+  for (let h = i + s - 1; h >= i; h--) {
+      value += (t[h] - 32) * multiplier;
+      multiplier *= 95;
+  }
+  ```
+
+### 1.2 Base-220 (Little-Endian)
+
+The primary encoding for **Object IDs, Coordinates, Colors, and RLE**.
+
+* **Range:** ASCII 35 (#) to 254 (þ).
+* **Decoding:** Little-endian (Least Significant Byte first).
+* **Algorithm:**
+  ```javascript
+  // Input: Uint8Array t, Offset i, Length s
+  let value = 0, multiplier = 1;
+  for (let h = i; h < i + s; h++) {
+      value += (t[h] - 35) * multiplier;
+      multiplier *= 220;
+  }
+  ```
+
+### 1.3 Coordinate Systems
+
+* **Map Coordinates:** 0-based integers (0 to MapWidth-1).
+* **Directions:**
+  * 0: Southwest (Down-Left)
+  * 1: Southeast (Down-Right)
+  * 2: Northwest (Up-Left)
+  * 3: Northeast (Up-Right)
+
+## 2. Server-to-Client OpCodes
+
+Packet type is determined by the first byte (ASCII char).
+
+| OpCode | Char | Payload Type | Description |
 | :---- | :---- | :---- | :---- |
-| **Opcode** | Char | 1 | Always \< (0x3C). |
-| **UserID** | Base220 | 4 | Unique session ID. Used for all subsequent updates. |
-| **X, Y** | Base220 | 2 ea. | Position on the map. |
-| **Shape** | Base220 | 2 | References the FOX file ID (Avatar appearance). |
-| **Name** | String | 3-65 | Display name. Spaces are valid. |
-| **ColorCode** | String | 14-30 | The Modern Color String (see 3.3.2). |
-| **Flags** | Base220 | 1 | Bitmask for state. |
+| **0x28** | `(` | Text | Chat/Console message (See §5). |
+| **0x40** | `@` | Base95 Struct | Camera/Viewport Sync. |
+| **0x3C** | `<` | Base220 Struct | **Add Avatar/Object** to view (See §3.1). |
+| **0x2F** | `/` | Base220 Struct | **Move Avatar** (Walk/Smooth) (See §3.2). |
+| **0x41** | `A` | Base220 Struct | **Move Avatar** (Teleport/Snap) (See §3.2). |
+| **0x42** | `B` | Base220 Struct | Update Avatar Appearance (See §3.3). |
+| **0x43** | `C` | Base220 ID | **Remove Object** (Furre leaves view). |
+| **0x29** | `)` | Base220 ID | **Delete Object** (Furre disconnects?). |
+| **0x44** | `D` | String | **Dragonroar** (Handshake). See §12. Otherwise ignored. |
+| **0x3E** | `>` | Map RLE | Update **Items** (Layer 2) (See §4). |
+| **0x31** | `1` | Map RLE | Update **Floors** (Layer 0). |
+| **0x32** | `2` | Map RLE | Update **Walls** (Layer 1). |
+| **0x34** | `4` | Map RLE | Update **Regions**. |
+| **0x35** | `5` | Map RLE | Update **Effects**. |
+| **0x45** | `E` | Map RLE | Update **Lighting** (Layer 3). |
+| **0x46** | `F` | Map RLE | Update **Ambience** (Layer 4). |
+| **0x21** | `!` | Base220 | Play Sound (Arg: Sound ID 1 byte). |
+| **0x5D** | `]` | Extended | **Extended Protocol** (See §6). |
 
-The Flags Bitmask:  
-The Flags byte is critical for client logic 6:
+## 3. Object & Avatar Protocols (S2C)
 
-* CHAR\_FLAG\_HAS\_PROFILE (Bit 0): Indicates the user has a written profile. The client enables the "Look" context menu option.  
-* CHAR\_FLAG\_SET\_VISIBLE (Bit 1): If 0, the avatar is "ghosted" (loaded but invisible). If 1, it renders.  
-* CHAR\_FLAG\_NEW\_AVATAR (Bit 2): Optimisation hint. If set, the client treats this as a fresh arrival (no interpolation). If unset, it may be a correction of an existing avatar.
+### 3.1 Add Avatar (`<`)
 
-#### **4.1.2. Animated Move (/)**
+Sent when an avatar enters the player's visibility range.
 
-This packet triggers the "walking" animation. It implies a smooth transition from the current coordinate to the new one.
+| Offset | Length | Type | Field | Notes |
+| :---- | :---- | :---- | :---- | :---- |
+| 0 | 1 | Char | OpCode | `<` |
+| 1 | 4 | Base220 | **Furre ID** | Unique 32-bit Session ID. |
+| 5 | 2 | Base220 | **X** | Map Coordinate. |
+| 7 | 2 | Base220 | **Y** | Map Coordinate. |
+| 9 | 1 | Base220 | **Direction** | 0-3. |
+| 10 | 1 | Base220 | **Pose** | 0=Stand, 1=Walk, 2=Sit, 3=Lie. |
+| 11 | 1 | Base220 | **Name Len** | Length of the name string (L). |
+| 12 | L | ASCII | **Name** | Visible name. |
+| 12+L | Var | Binary | **Color Code** | See §3.4. |
+| ... | 1 | Base220 | Padding? | Usually skipped. |
+| ... | 4 | Base220 | **AFK Time** | Seconds since last activity. |
+| ... | 1 | Base220 | **Scale** | 0-255 (100 = 1.0x). |
 
-Format:  
-‘/’ \+ UserID \+ X \+ Y \+ Shape \+ LF 6
+### 3.2 Move Avatar (`/` and `A`)
 
-* **Logic:** The client calculates the vector from CurrentPos to TargetPos (X,Y). It then plays the walking animation for Shape in that direction.  
-* **Shape Update:** The packet includes the Shape ID because avatars might change appearance mid-stride (e.g., triggering a "werewolf" transformation or simply changing clothes).
+`/` triggers a walking animation (interpolation). `A` triggers an instant position update.
 
-#### **4.1.3. Remove Avatar ())**
+| Offset | Length | Type | Field | Notes |
+| :---- | :---- | :---- | :---- | :---- |
+| 0 | 1 | Char | OpCode | `/` or `A` |
+| 1 | 4 | Base220 | **Furre ID** |  |
+| 5 | 2 | Base220 | **Target X** |  |
+| 7 | 2 | Base220 | **Target Y** |  |
+| 9 | 1 | Base220 | **Direction** |  |
+| 10 | 1 | Base220 | **Pose** |  |
 
-Instructs the client to delete the entity from local memory.  
-Format: ‘)’ \+ UserID \+ LF
+### 3.3 Update Avatar Appearance (`B`)
 
-* **Usage:** Sent when a player disconnects, teleports out of the visual range, or enters a dream portal.
+Sent when a player changes species/colors/gender.
 
-#### **4.1.4. Hide Avatar (C)**
+| Offset | Length | Type | Field | Notes |
+| :---- | :---- | :---- | :---- | :---- |
+| 0 | 1 | Char | OpCode | `B` |
+| 1 | 4 | Base220 | **Furre ID** |  |
+| 5 | 1 | Base220 | **Direction** |  |
+| 6 | 1 | Base220 | **Pose** |  |
+| 7 | Var | Binary | **Color Code** | See §3.4. |
 
-Used for specific game states where the avatar persists logically but should not be drawn (e.g., an invisible GM, or a player "inside" a large object).  
-Format: ‘C’ \+ UserID \+ X \+ Y \+ LF
+### 3.4 Color Code Structure
 
-### **4.2. World and Environment Updates**
+Variable length structure starting after the Name string.
 
-The Furcadia world is dynamic; users can script changes to the map using "DragonSpeak." These changes are relayed via the protocol.
+* **Header Byte:**
+  * If 0x77 ('w'): **Extended Code** (16 bytes).
+  * Otherwise: **Legacy Code** (14 bytes).
+* **Content:** Contains Species ID, Gender, Remapping colors (Fur, Markings, Vest, etc.), and Avatar Scale.
 
-#### **4.2.1. Object and Floor Placement (\>)**
+## 4. Map Data Compression (RLE)
 
-Updates the static map tiles.  
-Format: ‘\>’ \+ XX \+ YY \+ OO
+Map updates (`1`, `2`, `>`, `E`, etc.) use a specific Run-Length Encoding scheme to update multiple tiles efficiently. A single packet can contain multiple RLE blocks.
 
-* **XX, YY:** Coordinates (Base95/220).  
-* **OO:** Object ID.  
-* Batching: Crucially, a single \> line can contain multiple triplets.  
-  \> 10 10 500 10 11 501 10 12 502  
-  This allows the server to send bulk updates (like a door opening or a wall appearing) in a single TCP segment, minimizing overhead.
+**Packet Structure:** `[OpCode] [Block 1] [Block 2] ... [End of Buffer]`
 
-#### **4.2.2. Floor Change (1)**
+**RLE Block Structure (6 Bytes Base220):**
 
-Specific opcode for changing the ground tile (floor) distinct from the object layer.  
-Format: ‘1’ \+ XX \+ YY \+ OO
+* **Bytes 0-1 (Base220):** Encoded_Pos_High
+* **Bytes 2-3 (Base220):** Encoded_Pos_Low
+* **Bytes 4-5 (Base220):** Tile ID (Value to set)
 
-#### **4.2.3. Camera Control (@)**
+**Decoding Logic:**
 
-Centers the user's viewport.  
-Format: ‘@’ \+ XX \+ YY
+```javascript
+// Given Encoded_Pos_High (e) and Encoded_Pos_Low (n)
+let runLength = Math.floor(e / 1000);
+runLength = (48 * runLength) + Math.floor(n / 1000);
 
-* **Usage:** Sent immediately after a map load or a "teleport" command to ensure the player is looking at their own avatar.
+let startX = e % 1000;
+let startY = n % 1000;
 
-#### **4.2.4. Map Switching (;)**
+// Action: Set map layer at (startX, startY) to TileID.
+// Then repeat 'runLength' times, incrementing position row-major.
+```
 
-Instructs the client to load a new map file.  
-Format: ‘;’ \+ MapName
+## 5. Text & Chat Protocol (`(`)
 
-* **Context:** Used for the main "permanent" maps like *Vinca* or *New Haven*. User-created maps (Dreams) use a more complex handshake (see Section 6).
+Chat messages are sent with simple HTML-like tagging.
 
-### **4.3. Text and User Interface**
+**Tags:**
 
-Text is the primary carrier of social interaction.
+* `<name shortname='shortname'>Display Name</name>`: Clickable user name.
+* `<font color='class'>...</font>`:
+  * `'whisper'`: Whisper text.
+  * `'emote'`: Action text.
+  * `'error'`: System error.
+  * `'success'`: Success message.
+  * `'myspeech'`: Echo of user's own speech.
+* `<img src='url' />`: Inline image.
+* `<a href='url'>...</a>`: Hyperlink.
+* `<b>`, `<i>`, `<u>`: Standard styling.
 
-#### **4.3.1. Standard Text Output (()**
+### 5.1 Pre-Chat Buffer (`]-` and `]P`)
 
-**Format:** ‘(’ \+ Message
+The `]-` and `]P` commands are stateful modifiers (handled by `S_` in `Ie`). They buffer data that is attached to the *immediately following* text packet (`(`).
 
-* **Rendering:** The client renders this text in the chat box.  
-* **Formatting:** Supports a subset of HTML tags:  
-  * \<b\>, \<i\>, \<u\>: Styling.  
-  * \<font color='...'\>: Coloring.  
-  * \<a href='...'\>: Hyperlinks (strictly limited to URLs).
-  * \<name\>: Special tags for clicking on users.
+**Payload Structure:** `[OpCode 2 bytes] [Data Type 2 bytes] [Content]`
 
-#### **4.3.2. UI Control and Sub-Protocol (\])**
+**Sub-Commands (Data Types):**
 
-The \] opcode acts as a gateway for extended functionality, using a secondary type character
+* **#A (Specitag Binary):**
+  * **Example:** `]-#A...`
+  * **Content:** Binary data (starting at offset 4).
+  * **Usage:** Contains the At (Avatar/Color) structure for a "Specitag" (the graphical avatar shown next to a chat message).
+  * **Logic:** The client stores this binary blob in `this.x_`. When the next `(` arrives, it parses this blob to render the Specitag.
+* **<i (HTML Prefix):**
+  * **Example:** `]-<i...`
+  * **Content:** String data (starting at offset 4).
+  * **Usage:** Prepends raw HTML/Text to the next chat message. Often used for complex formatting or server-side timestamps.
+  * **Logic:** The client stores this string in `this.C_`. When the next `(` arrives, it prepends this string to the message.
 
-* **\]c (Change Graphic):** Patches a UI element on the fly.  
-  * \]c \+ Index \+ Filename.  
-  * Used to change the "skin" of the interface based on the Dream's theme.  
-* **\]s (Dream Portal):** Sends metadata about a portal object.  
-  * \]s \+ XXYY \+ ID \+ Title.  
-  * Populates the tooltip when a user hovers over a portal.  
-* **\]q (Dream Entry):** The handshake for entering a user dream.  
-  * \]q \+ DreamID.  
-  * Triggers the File Server connection sequence.
+## 6. Extended Commands (`]`)
 
-## **5\. Client-to-Server (C2S) Instruction Set**
+The `]` OpCode acts as a namespace for modern features. The 2nd byte determines the sub-command.
 
-The client sends a stream of commands reflecting user input. These are terse and functional.
+| Sub-Op | ASCII | Arguments (Base220/Text) | Description |
+| :---- | :---- | :---- | :---- |
+| **0x42** | `B` | Text (ID Name) | **Session Init**. Sets Player ID (ym) and Name. |
+| **0x57** | `W` | Stream (Base220) | **Map Metadata**. Width, Height, Version, Flags. |
+| **0x71** | `q` | Text ( type map patch) | **Load Dream**. Triggers download of .map and .fox files. |
+| **0x4D** | `M` | Stream (See §6.1) | **Avatar Manifest**. Updates dynamic avatar versions. |
+| **0x2D** | `-` | Mixed (See §5.1) | **Chat Buffer**. Specitags and prefixes. |
+| **0x50** | `P` | Mixed (See §5.1) | **Chat Buffer** (Alias for `-`). |
+| **0x47** | `G` | Char (0 or 1) | **Name Visibility**. 0=Show, 1=Hide. |
+| **0x60** | `` ` `` | *Unknown* | **Legacy/Ignored**. Observed in logs but ignored by this client. |
+| **0x6A** | `j` | Base220 (2 bytes) | **Play Music**. Argument is Track ID. |
+| **0x26** | `&` | Text (ID) | **Load Portrait**. User ID to load portrait for. |
+| **0x66** | `f` | Binary | **Set Portrait**. Defines current user's portrait data. |
+| **0x73** | `s` | Base220 (2b+2b) + Text | **Set Tag**. (Type, Length, String). |
+| **0x23** | `#` | Text | **Dialog Box**. Opens modal with buttons. |
+| **0x3F** | `?` | Binary Stream | **Pounce Update**. Friend list online/offline status. |
+| **0x7C** | `\|` | Char | |
+| **0x48** | `H` | Base220 (4b+2b+2b) | **Set Offsets**. Updates avatar visual offsets (yl, Al). |
+| **0x5F** | `_` | Base220 (4b+1b) | **Set Scale**. Updates avatar scale factor. |
+| **0x4F** | `O` | Base220 (4b+2b) | **Set Gloam**. Updates avatar lighting/gloam. |
+| **0x49** | `I` | Base220 + Blob | **Batch Particle/VX**. Spawns VXN particle system (See §13). |
+| **0x76** | `v` | Base95 + Char | **Legacy Visual Effect**. Spawns predefined effects (See §13). |
 
-### **5.1. Movement and Action**
+### 6.1 Avatar Manifest (`]M`)
 
-* **m \<Dir\>**: Move. Directions are mapped to the Numpad (1=SW, 3=SE, 7=NW, 9=NE).  
-  * *Note:* The client sends m repeatedly while the key is held. The server validates the rate to prevent speed hacking.  
-* **get**: Pickup object.  
-* **use**: Activate object.  
-* **look**: Request description.
+This command synchronizes the client's cached "Dynamic Avatars" (DAs) with the server. It verifies versions and triggers HTTP downloads if the client is outdated.
 
-### **5.2. State Requests**
+* **Header:** `]M%` (3 bytes).
+* **Padding:** 1 byte (Index 3 is skipped).
+* **Body:** Sequence of **8-byte** records (Base220).
 
-* **desc \<Text\>**: Update self description.  
-* **rev \<UserID\>**: "Request Avatar".
-  * **Crucial Recovery Mechanism:** If the client receives a / (Move) packet for a UserID it doesn't know (e.g., packet loss on the \< Spawn packet), it sends rev. The server responds with the full \< Spawn packet. This self-healing mechanism is vital for the stability of the long-running TCP session.  
-* **onln \<Name\>**: Queries the server for a friend's online status.
+**Record Structure:**
 
-## **6\. The Dream Architecture and File Server Protocol**
+| Offset | Length | Type | Description |
+| :---- | :---- | :---- | :---- |
+| +0 | 1 | Base220 | **Version** (Client compares this with local cache). |
+| +1 | 1 | Base220 | *Skipped/Unused*. |
+| +2 | 1 | Base220 | **ID Low Byte**. |
+| +3 | 1 | Base220 | **ID High Byte** & Flags. |
+| +4 | 4 | Base220 | **Checksum / File ID** (Used for caching). |
 
-One of Furcadia's defining features is "Dreams"—user-created worlds. These are not hosted on the main game channel but are downloaded on-demand.
+**Decoding Logic:**
 
-### **6.1. The Handoff**
+```javascript
+// Given a record starting at offset 's' in buffer 't'
+let version = decode220(t, s, 1);
+let unused = decode220(t, s + 1, 1); // Read but ignored
+let idLow = decode220(t, s + 2, 1);
+let idHigh = decode220(t, s + 3, 1);
+let checksum = decode220(t, s + 4, 4);
 
-When a user enters a portal, the Game Server sends \]q \<DreamID\>. The client effectively "pauses" the game simulation and initiates a secondary connection to the **File Server**.
+// 1. Calculate Actual Avatar ID
+let realID = idLow + 220 * (idHigh >> 1);
 
-### **6.2. The File Transfer Protocol**
+// 2. Calculate Flags
+let hopEnabled = (idHigh & 1) === 1;
 
-The File Server operates on a dynamic port and utilizes a distinct binary-heavy protocol.
+// 3. Calculate HTTP Download ID
+// The HTTP server expects IDs shifted by 135 (e.g. DPlayer1.fox corresponds to ID 136)
+let downloadID = realID - 135;
+```
+
+## 7. DragonSpeak / Scripting OpCodes
+
+The protocol includes specific OpCodes for the scripting engine variables and triggers.
+
+* `0`: **DS Variables** (Set variable index to value).
+* `3`: **DS Strings** (Update string variables).
+* `6`: **DS Trigger (Server)**.
+* `7`: **DS Trigger (Client)**.
+* `8`: **DS Init** (Initialize scripting engine state).
+
+## 8. Client-to-Server Commands (C2S)
+
+Unlike the server commands, C2S commands are primarily **line-based ASCII text**, terminated by a newline (0x0A).
+
+### 8.1 Movement & Positioning
+
+* **Move:** `m <direction>`
+  * `1`: Southwest
+  * `3`: Southeast
+  * `7`: Northwest
+  * `9`: Northeast
+* **Rotate:**
+  * `<`: Rotate Counter-Clockwise (Left).
+  * `>`: Rotate Clockwise (Right).
+* **Look:** `l <X> <Y>`
+  * Used to inspect a tile or object at a specific coordinate.
+  * **Arguments:** X and Y are **Base-95** encoded (2 bytes each).
+  * *Example:* `l` + `vt.Ie(x, 2)` + `vt.Ie(y, 2)`.
+
+### 8.2 Chat & Communication
+
+* **Speech:** `"<message>`
+  * Standard speech bubble text. The client automatically prepends `"` if no other command prefix is found.
+* **Emote:** `:<action>`
+  * Performs an action (e.g., `:waves`).
+* **Whisper:** `wh <name> <message>`
+  * Sends a private message.
+  * **Offline Whisper:** `wh %%<name> <message>`
+* **Raw Command:** `<command>`
+  * Any text not matching the above prefixes is sent raw.
+
+### 8.3 Interaction & Inventory
+
+* **Get/Drop:** `get`
+  * Toggles picking up or dropping the item at the player's feet.
+* **Use:** `use`
+  * Activates the item currently held in paw.
+* **Postures:**
+  * `sit`: Sit down.
+  * `stand`: Stand up.
+  * `lie`: Lie down (or cycle lying states).
+  * `liedown`: Force lying down state.
+
+### 8.4 Session & System
+
+* **Login:** `loginNG <auth_string>`
+  * Sent immediately after `webflag` upon connection.
+  * `auth_string` is obtained via the HTTP API (`/api/v1/gameAuth`).
+* **Ready:** `vascodagama`
+  * Sent after the client has finished downloading the map/dream files. Tells the server to "wake" the player.
+* **Quit:** `quit`
+  * Graceful disconnect.
+* **Keep Alive:** `iamhere` (implied/legacy).
+
+### 8.5 Character State
+
+* **Set Description:** `desc <text>`
+* **Set Colors:** `color <data>`
+  * `data` is a Base-220 encoded string defining the character's appearance.
+* **Costume:** `costume <args>`
+  * `costume auto`: Use default appearance.
+  * `costume %<id>`: Use specific costume ID.
+* **AFK:** `afk <reason>` / `unafk`
+
+### 8.6 Extended Interaction
+
+* **DragonSpeak Button:** `dsbtn <id>`
+  * Triggers a specific DS button ID (range 1-193+).
+* **Portrait Change:** `portrchng`
+  * Triggers the portrait selection dialog logic on the server.
+
+## 9. File & Asset Server API (HTTP)
+
+Interaction with game assets (maps, portraits, audio) occurs over standard **HTTP/1.1** (or HTTPS). These endpoints are distinct from the WebSocket game server.
+
+**Base URL:** `https://apollo.furcadia.com` (Default production host).
+
+### 9.1 Portrait API
+
+Fetches the visual portrait image for a specific user ID.
+
+* **Endpoint:** `/portrait/get.php`
+* **Method:** GET
+* **Parameters:**
+  * `id`: The numeric Portrait ID.
+  * `user`: The URI-encoded character name (for caching/validation).
+* **Response:** Binary image data (PNG/FOX).
+* **Headers:**
+  * `X-Furcadia-Allow-Caching`: `yes` | `no` (Client should respect this).
+
+### 9.2 Dream & Map API
+
+Downloads the binary map files (.map) and associated patches when entering a dream.
+
+* **Endpoint:** `/dream/get-dev.php` (Development/Default)
+* **Method:** GET
+* **Parameters:**
+  * `file`: The name/ID of the dream file (e.g., `def.map`).
+  * `server`: Server ID (typically 2).
+  * `type`: Request type (typically 1).
+* **Notes:**
+  * This URL is dynamically provided during the Game Auth phase via the `dream_url` field in the JSON response.
+  * Standard maps (Vinca, etc.) are often loaded from a static path: `[BaseURL]/maps/{name}`.
+
+### 9.3 Dynamic Avatar (DA) API
+
+Downloads "Dynamic Avatar" definitions (.fox format) which define species animations and logic.
+
+* **Endpoint:** `/species{dir}/DPlayer{id}.fox`
+* **Parameters:**
+  * `{dir}`: Environment selector.
+    * `""` (Empty string) -> Live/Production.
+    * `"1"` -> Test Server.
+    * `"S"` -> Second Dreaming (SD).
+  * `{id}`: The **Offset ID** of the avatar.
+    * **Calculation:** `OffsetID = PacketID - 135` (Derived from the `]M` server packet).
+* **Response:** Binary FOX5 container format.
+
+### 9.4 Audio Assets
+
+Fetches music and sound effects.
+
+* **Base Path:** `/audio/`
+* **Formats:**
+  * MIDI: `m{id}.mid`
+  * WebM: `{hash}.webm`
+  * MP3: `{hash}.mp3` (Fallback)
+* **Logic:**
+  * If the server requests sound `s{id}`, the client looks for it in the pre-loaded Sprite/Audio map.
+  * If missing, it attempts to fetch from the audio base path.
+
+### 9.5 Authentication API
+
+Initial handshake to get the WebSocket token.
+
+* **Endpoint:** `https://terra.furcadia.com/api/v1/gameAuth`
+* **Method:** POST
+* **Payload (JSON):**
+  ```json
+  {
+    "id": "Character ID / Name",
+    "server": "Server name (e.g., live, test)"
+  }
+  ```
+* **Response (JSON):**
+  ```json
+  {
+    "auth_string": "Token used in the WebSocket loginNG command",
+    "server_url": "WebSocket URL (e.g., wss://lightbringer.furcadia.com...)",
+    "dream_url": "Template URL for map downloads"
+  }
+  ```
+
+## 10. DragonSpeak (DS) & PhoenixSpeak (PS) Engine
+
+This specification allows for the implementation of a DS Virtual Machine (VM), typically found in the client (`As` class) and server.
+
+### 10.1 Bytecode Container Format
+
+DragonSpeak logic is often embedded in .fox files or downloaded as binary blobs.
+
+* **Magic Header:** `0x44533231` ("DS21") or `0x31325344` ("12SD") depending on version.
+* **Decryption:** Binary data is typically XOR-scrambled with a rotating key.
+* **Instruction Stream:** Array of 16-bit Unsigned Integers (Uint16).
+
+### 10.2 Instruction Line Structure
+
+Each DS "Line" is exactly **20 bytes** (10 words).
+
+| Word Index | Name | Description |
+| :---- | :---- | :---- |
+| **0** | **Type** | OpCode Category (2=Cond, 3=Trig, 5=Action). |
+| **1** | **ID** | The specific command ID (e.g., 5:300 is Variable Set). |
+| **2** | **Arg 1** | First Argument (See §10.4). |
+| **3** | **Arg 2** | Second Argument. |
+| **4** | **Arg 3** | ... |
+| **5** | **Arg 4** | ... |
+| **6** | **Arg 5** | ... |
+| **7** | **Arg 6** | ... |
+| **8** | **Arg 7** | ... |
+| **9** | **Next** | Jump Offset (Line Index) for control flow. |
+
+### 10.3 Execution Cycle
+
+The VM runs a cyclic check on the instruction stream.
+
+1. **Trigger (Type 3):** The VM scans for a matching Trigger ID (e.g., "Player Moved").
+2. **Conditions (Type 2):** If a Trigger matches, the VM executes subsequent Type 2 lines.
+   * If **any** condition fails, the VM jumps to the Next offset (Index 9).
+   * If **all** conditions pass, execution proceeds to Actions.
+3. **Actions (Type 5):** The VM executes all Type 5 lines sequentially until a new Trigger or End of Stream is reached.
+
+### 10.4 Variable & Argument Mapping
+
+Arguments in the bytecode are 16-bit integers, but they map to a larger address space using specific ranges:
+
+* `0 - 29999`: **Literal Values** (0 to 29999).
+* `32768+`: **Signed Literals** (Value - 65536).
+* `50000 - 50999`: **Variables** (`%var0` to `%var999`).
+  * *Logic:* `Index = Value - 50000`.
+  * Access `nv[Index]`.
+
+### 10.5 Memory Model
+
+The VM maintains the following state:
+
+* `nv` (Number Variables): `Int16Array(1000)`. Stores `%var0` - `%var999`.
+* `hv` (Random Stack): `Int32Array`. Pre-computed random values for dice rolls.
+* `filters`: `Int16Array`. Stack for nested condition logic.
+* `timers`: Active timers for delayed execution.
+
+### 10.6 PhoenixSpeak (Persistence)
+
+PhoenixSpeak (PS) is the database layer. In the standard client protocol, there is no direct PS bytecode. Instead, PS interactions occur via:
+
+1. **Server-Side:** DS Actions (Type 5) on the server load/save `nv` values to the database.
+2. **Client-Side:** The client simply receives updated variable values via standard DS variable opcodes (300-399).
+3. **Manual Command:** The client can send `ps <id>` to request a manual sync or specific PS operation.
+
+### 10.7 Common OpCode Ranges
+
+* **1 - 99:** Triggers (Movement, Chat, Object Interaction).
+* **100 - 199:** Filters/Conditions (Object at, Player has).
+* **300 - 399:** Variable Manipulation (Set, Add, Random).
+  * `300`: Set Variable (`nv[A] = B`).
+  * `302`: Add (`nv[A] += B`).
+  * `314`: Set to Object ID.
+* **500+:** Map Manipulation (Place Item, Move Wall).
+
+## 11. Cryptography & Obfuscation
+
+While the network stream uses standard TLS (WSS), the asset files (.map, .fox) use two distinct custom encryption/scrambling schemes to prevent tampering.
+
+### 11.1 FOX5 Container Encryption (Stream Cipher)
+
+FOX5 files (Avatars, Patches) are encrypted using a custom stream cipher variant (similar to RC4).
+
+**Implementation Reference:** `ai.nh` method in source.
+
+**Key Generation Logic:**
+
+The encryption key (`e`, 16 bytes) is constructed from a seed (`s`, 16 bytes) and hardcoded masks selected based on the data length (`n`).
+
+1. First 8 Bytes (`Key[0-7]`):
+   * **Condition:** `(length & 4) == 0` (Bit 2 is unset).
+   * **If True:** Uses Mask A1: `[105, 40, 235, 230, 43, 37, 195, 170]`.
+   * **If False:** Uses Mask A2: `[255, 119, 78, 57, 138, 24, 255, 219]`.
+   * **Operation:** `Key[i] = Mask[i] ^ Seed[i]`.
+2. Last 8 Bytes (`Key[8-15]`):
+   * **Condition:** `(length & 8) == 0` (Bit 3 is unset).
+   * **If True:** Uses Mask B1: `[102, 85, 15, 188, 102, 201, 182, 111]`.
+   * **If False:** Uses Mask B2: `[50, 186, 189, 187, 234, 79, 158, 6]`.
+   * **Operation:** `Key[8+i] = Mask[i] ^ Seed[8+i]`.
+3. **Key Permutation:**
+   * Also XORs `Key[4..7]` with the 32-bit offset (or other context value) if provided.
+
+### 11.2 Map & Asset Obfuscation (CRC-XOR)
+
+Binary Map files and some legacy assets use a simpler XOR scheme based on a CRC32 polynomial.
+
+**Implementation Reference:** `ri` function in source.
+
+**Polynomial:** `0xEDB88320` (Standard CRC32 reversed/little-endian).
+
+**Logic:**
+
+1. **Table Generation:** A standard CRC32 lookup table `ei` (256 entries) is generated using the polynomial.
+2. **Permutation Tables:** Two hardcoded 16-byte tables `ni` and `hi` define byte shuffling orders.
+3. **XOR Decryption:**
+   * Iterates through the data in 16-byte blocks.
+   * Maintains a rolling state variable initialized with a magic value.
+   * **Initial State Value:** `0x00FFFFFF ^ CRC_TABLE[0xFF ^ FIRST_BYTE_OF_DATA]`.
+   * **Note:** The "magic value" is technically `0x00FFFFFF` (16777215), but it is immediately modified by the first byte of the payload.
+
+### 11.3 Random Number Generation (Game Logic)
+
+The client uses a Linear Congruential Generator (LCG) for deterministic game logic (dice rolls, animations).
+
+**Implementation Reference:** `bs` class.
+
+**Parameters:**
+
+* **Multiplier:** `69069`
+* **Modulus:** `2^32`
+* **Magic Constant:** `0x9908B0DF` (Derived from `ws`).
+
+**Usage:** Used to maintain sync between client and server for random events (e.g., "Random Floor" DS triggers).
+
+## 12. Typical Login Handshake
+
+The login process is a multi-step dance involving both HTTPS and WebSocket protocols.
+
+### 12.1 Phase 1: HTTP Authentication
+
+**Direction:** Client -> `terra.furcadia.com`
+
+**Action:** `POST /api/v1/gameAuth`
+
+**Payload:**
+
+```json
+{
+  "id": "PlayerName",
+  "server": "live"
+}
+```
+
+**Response:**
+
+```json
+{
+  "auth_string": "abcdef123456...",
+  "server_url": "wss://lightbringer.furcadia.com:6502/...",
+  "dream_url": "https://apollo.furcadia.com/..."
+}
+```
+
+### 12.2 Phase 2: WebSocket Connection
+
+**Direction:** Client -> `server_url` (WSS)
+
+**Action:** Open WebSocket Connection.
 
 **Sequence:**
 
-1. **Connect:** Client connects to File Server.  
-2. **Welcome:** Server sends 10 Welcome to Furcadia file server  
-3. **Request:** Client sends the Dream ID.  
-4. **Header:** Server sends 44 FILESIZE CHUNKSIZE.  
-   * FILESIZE: Total bytes.  
-   * CHUNKSIZE: Bytes per packet.  
-5. **Streaming:** The server streams the map file (.map) and potentially patch files (.fox, .fsh).  
-   * **Chunk Format:** SC \+ Checksum \+ Data.  
-   * This framing allows the client to verify integrity mid-stream.  
-6. **Termination:** Client sends BYE; Server acknowledges with 99 Log out.
+1. **Server:** `Dragonroar` (Text frame).
+2. **Client:** `webflag` (Text frame).
+3. **Client:** `loginNG <auth_string>` (Text frame).
+4. **Server:** `]B <id> <name>` (Text frame).
+   * *Example:* `]B 12345 PlayerName`
+   * *Meaning:* Login successful. Sets local player ID.
+5. **Server:** `(` (MOTD Text frames).
+   * *Example:* `(Welcome to Furcadia!`
+6. **Server:** `]q <map> <patch>` (Text frame).
+   * *Example:* `]q def.map modern`
+   * *Meaning:* Load the default map.
 
-Once the file is cached, the client resumes the Game Server session, which then switches the map context to the newly downloaded Dream.
+### 12.3 Phase 3: Asset Synchronization (The "Vasco" Phase)
 
-## **7\. Modernization: The Second Dreaming (v31+)**
+**Action:** Client downloads map/dream files via HTTP based on the `]q` command.
 
-The "Second Dreaming" update required significant extensions to the protocol to support modern graphical expectations without breaking the text-based legacy proxy ecosystem.
+**Sequence:**
 
-### **7.1. 32-Bit Asset Integration (FOX5)**
+1. **Client:** Downloads `.map` and `.fox` files from `dream_url`.
+2. **Client:** Parses map and patches.
+3. **Client:** `vascodagama` (Text frame via WebSocket).
+   * *Meaning:* "I have loaded the map. Send me the world state."
+4. **Server:** Sends initial world state.
+   * `]W` (Map Metadata)
+   * `>` (Items)
+   * `1` (Floors)
+   * `<` (Avatars)
+   * `@` (Camera Position)
 
-The move from the 8-bit FSH format to the 32-bit FOX5 format was a major architectural shift.
+**Note:** If the client fails to send `vascodagama`, the server will not send any visible entities or updates, leaving the player in a black void.
 
-* **FOX5 Container:** A custom format supporting LZMA compression and 32-bit RGBA.  
-* **Protocol Abstraction:** The protocol *does not* transmit these images. It continues to transmit 2-byte Shape IDs (Base220). The client is responsible for mapping ShapeID: 12345 to the specific frame inside a local FOX5 file. This abstraction preserved the protocol's bandwidth efficiency while exponentially increasing visual fidelity.
+## 13. Visual Effects & Animation Batching
 
-### **7.2. Web-Integration Headers**
+The server can trigger complex visual effects (VX) and synchronize map object animations via specific extended commands.
 
-To support features like the "Digo Market" (real-money transactions) and Guild management, the protocol now includes HTTP-style headers in specific system messages.
+### 13.1 Particle System Batch (`]I`)
 
-* **Headers:** X-Furcadia-Access-Token, X-Furcadia-Guild-ID.  
-* **Hybrid Flow:** The client parses these headers to open authenticated web views (embedded Chromium or external browser) without requiring the user to re-login. This delegates complex, secure transactions to standard HTTPS web stacks, keeping the game protocol focused on world state.
+Spawns a complex, scriptable particle system (VXN format) at a specific map location.
 
-## **8\. Third-Party Ecosystem and Tooling**
+**Header:** `]I` (2 bytes)
 
-The transparency of the ASCII protocol fostered a rich ecosystem of third-party tools.
+**Arguments (Binary Base-220):**
 
-### **8.1. Proxies and Bots**
+* **Byte 0-1:** X Coordinate (Map X).
+* **Byte 2-3:** Y Coordinate (Map Y).
+* **Byte 4-5:** Offset X (Screen pixel offset).
+* **Byte 6-7:** Offset Y (Screen pixel offset).
+* **Byte 8+:** **VXN Blob** (Compressed/Scripted Particle Data).
 
-* **Silver Monkey:** A popular botting framework. It automates the onlnprx handshake and provides a scripting language (MonkeySpeak) to trigger actions based on incoming text (e.g., "If chat contains 'Hello', reply 'Hi'").  
-* **Mechanism:** These bots act as Man-in-the-Middle (MitM) entities. They maintain the TCP socket to the server and a local socket to the client, stripping out administrative commands or injecting automated responses.
+**VXN Blob Format:**
 
-### **8.2. Libraries: LibFurc**
+* **Magic:** `VXNASC` (Checked by client).
+* **Structure:** Contains emitters, flow fields, and particle definitions. Parsed by `cs` class.
 
-* **LibFurc:** An open-source Python library designed to handle the nuances of Base220 decoding and packet parsing.  
-* **Significance:** It abstracts the complex bitmasking of the Flags byte and the variable-length parsing of the Modern Color String, allowing developers to focus on high-level logic (e.g., "Move avatar to X,Y") rather than byte-level stream management.
+### 13.2 Legacy Visual Effects (`]v`)
 
-## **9\. Conclusion**
+Triggers built-in hardcoded visual effects using Base-95 coordinates.
 
-The Furcadia Network Protocol is a study in evolutionary software architecture. It successfully bridges the gap between the low-bandwidth, text-only era of the early Internet and the high-fidelity, always-online expectations of the modern web. By retaining a text-based core, it preserved a community of tinkers and developers. By grafting on Base220 encoding and web-based side-channels, it managed to scale to support millions of users and 32-bit graphics.
+**Header:** `]v`
 
-For the network architect, Furcadia demonstrates the viability of "Hybrid" protocols—where structure is human-readable (text) but payload is machine-dense (Base220)—as a strategy for long-term maintainability and community extensibility.
+**Format:** `]v<Type><X><Y>`
 
-### ---
+* **Type (Char):**
+  * `a`: **Dragon Breath** (Directional, reads player dir).
+  * `b`: **Phoenix Flame** (Stationary).
+  * `c`: **Splash** (Water effect).
+  * `d`: **Splash** (Alternate?).
+* **X / Y:** **Base-95** encoded (2 bytes each).
 
-**Table 1: Protocol Opcode Reference (S2C)**
+### 13.3 Map Object Animation Control
 
-| Opcode | Description | Payload Data | Context |
-| :---- | :---- | :---- | :---- |
-| \< | Spawn Avatar | UserID, X, Y, Shape, Name, Colors, Flags | New entity enters view. |
-| / | Animated Move | UserID, X, Y, Shape | Entity walks to new pos. |
-| ) | Remove Avatar | UserID | Entity leaves view/disconnects. |
-| C | Hide Avatar | UserID, X, Y | Entity exists but hidden. |
-| \> | Place Object | X, Y, ObjectID | Map update (Furniture, etc.). |
-| 1 | Place Floor | X, Y, FloorID | Map update (Ground). |
-| @ | Camera Center | X, Y | Reset viewport center. |
-| ( | Text Output | Message String | Chat, System Msg. |
-| \] | UI/Meta | Type (c,s,q) \+ Data | Dream portals, UI patching. |
+The server can strictly control the animation frame/state of specific items/walls to sync machines or traps.
 
-### **Table 2: Data Encoding Comparison**
+**DS OpCodes (430-453):**
 
-| Scheme | Base | Range | Offset | Usage |
-| :---- | :---- | :---- | :---- | :---- |
-| **Base95** | 95 | 32 ( ) to 126 (\~) | \+32 | Legacy coords, small ints. |
-| **Base220** | 220 | 35 (\#) to 255 (ÿ) | Var | UserIDs, Modern Coords, Shapes. |
+These allow the DS engine to manipulate the P (Object/Shape) structs directly.
 
-### **Table 3: Spawn Avatar Flag Bitmask**
-
-| Bit | Value | Name | Description |
-| :---- | :---- | :---- | :---- |
-| 0 | 1 | HAS\_PROFILE | Avatar has a profile description. |
-| 1 | 2 | SET\_VISIBLE | Avatar is rendered visible. |
-| 2 | 4 | NEW\_AVATAR | Avatar is a fresh spawn (no interpolation). |
-
-#### **Works cited**
-
-1. Recommendations for Third Party Proxies And Other Similar Software \- Furcadia, accessed December 3, 2025, [http://www.furcadia.com/docs/third\_party\_proxies.html](http://www.furcadia.com/docs/third_party_proxies.html)  
-2. Relatively secure faster alternative for HTTPS, accessed December 3, 2025, [https://security.stackexchange.com/questions/110723/relatively-secure-faster-alternative-for-https](https://security.stackexchange.com/questions/110723/relatively-secure-faster-alternative-for-https)  
-3. Base220 Implicit Conversion (Base220 to Byte\[\]) \- Furcadia Framework Documentation, accessed December 3, 2025, [https://documentation.help/FurcadiaFramework/M\_Furcadia\_Text\_Base220\_op\_Implicit.htm](https://documentation.help/FurcadiaFramework/M_Furcadia_Text_Base220_op_Implicit.htm)  
-4. Base95 Class, accessed December 3, 2025, [https://starship-avalon-projects.github.io/FurcadiaFramework/html/T\_Furcadia\_Text\_Base95.htm](https://starship-avalon-projects.github.io/FurcadiaFramework/html/T_Furcadia_Text_Base95.htm)  
-5. The Second Dreaming Part 1 \- Furcadia, accessed December 3, 2025, [https://cms.furcadia.com/explore/todo/wondered/updates/the-second-dreaming-part-1](https://cms.furcadia.com/explore/todo/wondered/updates/the-second-dreaming-part-1)  
-6. Update 023 Avatar Movement \- Furcadia Dev Center, accessed December 3, 2025, [http://dev.furcadia.com/docs/023\_new\_movement.pdf](http://dev.furcadia.com/docs/023_new_movement.pdf)  
-7. Protocol | Furcadia Wiki \- Fandom, accessed December 3, 2025, [https://furcadia.fandom.com/wiki/Protocol](https://furcadia.fandom.com/wiki/Protocol)  
-8. headers-fuzz.txt \- GitHub Gist, accessed December 3, 2025, [https://gist.github.com/BugAnnihilator/8762f33ca7f0088307dda621c9eadddc](https://gist.github.com/BugAnnihilator/8762f33ca7f0088307dda621c9eadddc)  
-9. Character.ini, accessed December 3, 2025, [https://starship-avalon-projects.github.io/FurcadiaFramework/html/2e782621-dd7d-4bc1-92b6-1057df3af49f.htm](https://starship-avalon-projects.github.io/FurcadiaFramework/html/2e782621-dd7d-4bc1-92b6-1057df3af49f.htm)  
-10. ColorString.Update Method \- Furcadia Framework Documentation, accessed December 3, 2025, [https://documentation.help/FurcadiaFramework/M\_Furcadia\_Movement\_ColorString\_Update.htm](https://documentation.help/FurcadiaFramework/M_Furcadia_Movement_ColorString_Update.htm)  
-11. FOX5 File Format Specification \- Furcadia, accessed December 3, 2025, [https://cms.furcadia.com/creations/third-party-development/448-fox-format-specification](https://cms.furcadia.com/creations/third-party-development/448-fox-format-specification)  
-12. Releases · StarShip-Avalon-Projects/Silver-Monkey \- GitHub, accessed December 3, 2025, [https://github.com/StarShip-Avalon-Projects/Silver-Monkey/releases](https://github.com/StarShip-Avalon-Projects/Silver-Monkey/releases)  
-13. FelixWolf/libfurc: Python library for Furcadia \- GitHub, accessed December 3, 2025, [https://github.com/FelixWolf/libfurc](https://github.com/FelixWolf/libfurc)
+* **430:** Set Frame Index (Jump to specific animation frame).
+* **434:** Play Animation (Start auto-stepping frames).
+* **438:** Set Animation Speed (Delay between frames).
+* **Target:** Can target Items, Walls, Floors, or Regions based on the sub-opcode range.
