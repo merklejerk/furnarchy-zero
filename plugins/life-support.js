@@ -2,7 +2,7 @@ Furnarchy.register({
     id: "life-support-afk-aeefd1e3",
     name: "Life Support",
     description: "Keeps you logged in and manages AFK status.",
-    version: "1.0.1",
+    version: "1.1.1",
     author: "me@merklejerk.com",
     toggle: false,
 }, (api) => {
@@ -22,6 +22,8 @@ Furnarchy.register({
         afkStart: 0,
         currentReason: null
     };
+
+    let listeners = [];
 
     let timers = {
         idleCheck: null,
@@ -57,10 +59,11 @@ Furnarchy.register({
     }
 
     function enableIdleMode(customReason) {
+        const wasIdle = state.isIdle;
         state.isIdle = true;
         state.afkStart = Date.now();
         state.currentReason = customReason || config.afkReason || "https://furnarchy.xyz";
-        api.notify("Life Support: You are now idle.");
+        api.notify("You are now idle.");
 
         api.send('unafk');
         updateAfkReason();
@@ -71,6 +74,10 @@ Furnarchy.register({
 
         if (timers.afkUpdate) clearInterval(timers.afkUpdate);
         timers.afkUpdate = setInterval(updateAfkReason, 60000); // 1 min
+
+        if (!wasIdle) {
+            listeners.forEach(cb => { try { cb(true); } catch(e) { console.error(e); } });
+        }
     }
 
     function exitIdleMode() {
@@ -86,7 +93,9 @@ Furnarchy.register({
         if (timers.keepAlive) clearInterval(timers.keepAlive);
         if (timers.afkUpdate) clearInterval(timers.afkUpdate);
         
-        api.notify("Life Support: Welcome back!");
+        api.notify("Welcome back!");
+
+        listeners.forEach(cb => { try { cb(false); } catch(e) { console.error(e); } });
     }
 
     function performKeepAlive() {
@@ -112,6 +121,16 @@ Furnarchy.register({
         state.myName = name;
         state.myShortname = utils.getShortname(name);
         state.lastActivity = Date.now();
+
+        // Load per-character AFK reason
+        const charConfig = api.loadData(`config_${state.myShortname}`);
+        if (charConfig && charConfig.afkReason) {
+            config.afkReason = charConfig.afkReason;
+        } else {
+            // No fallback to global default. Use hardcoded default.
+            config.afkReason = "https://furnarchy.xyz";
+        }
+
         startIdleCheck();
     });
 
@@ -168,6 +187,9 @@ Furnarchy.register({
         if (timers.idleCheck) clearInterval(timers.idleCheck);
         if (timers.keepAlive) clearInterval(timers.keepAlive);
         if (timers.afkUpdate) clearInterval(timers.afkUpdate);
+        if (api.getModalPluginId() === api.metadata.id) {
+            api.closeModal();
+        }
     });
 
     api.onConfigure(() => {
@@ -214,13 +236,34 @@ Furnarchy.register({
                             config.timeout = val;
                             config.afkReason = inputReason.value || "https://furnarchy.xyz";
                             config.autoReconnect = inputReconnect ? inputReconnect.checked : false;
-                            api.saveData('config', config);
-                            api.notify(`Settings saved.`);
+                            
+                            // Save shared settings to global config
+                            const globalConfig = api.loadData('config') || {};
+                            globalConfig.timeout = config.timeout;
+                            globalConfig.autoReconnect = config.autoReconnect;
+                            api.saveData('config', globalConfig);
+
+                            if (state.myShortname) {
+                                // Logged in: Save AFK reason to character config
+                                const charConfig = api.loadData(`config_${state.myShortname}`) || {};
+                                charConfig.afkReason = config.afkReason;
+                                api.saveData(`config_${state.myShortname}`, charConfig);
+                            }
                             api.closeModal();
                         }
                     }
                 };
             }
         }, 100);
+    });
+
+    // Expose API
+    api.expose({
+        name: "life-support",
+        version: "1.1.1",
+        isIdle: () => state.isIdle,
+        onModeChange: (cb) => {
+            listeners.push(cb);
+        }
     });
 });
