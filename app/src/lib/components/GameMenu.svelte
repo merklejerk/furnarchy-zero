@@ -12,6 +12,7 @@
 		type StoredPlugin
 	} from '$lib/storage';
 	import { verifyPlugin } from '$lib/plugin-sandbox';
+	import MenuIcon from '$lib/components/icons/MenuIcon.svelte';
 	import '$lib/retro.css';
 
 	let isOpen = false;
@@ -294,15 +295,18 @@
 </script>
 
 <div class="plugin-manager">
-	<button class="fab" on:click={toggle} title="Plugin Manager"> ⚙️ </button>
+	<button class="fab" on:click={toggle} title="Furnarchy Menu">
+		<MenuIcon />
+	</button>
 
 	{#if isOpen}
+
 		<!-- svelte-ignore a11y-click-events-have-key-events -->
 		<!-- svelte-ignore a11y-no-static-element-interactions -->
 		<div class="modal-backdrop" on:click={toggle}></div>
 		<div class="modal retro-theme">
 			<div class="header-row">
-				<h2>Game Menu</h2>
+				<h2>Furnarchy Zero {__APP_VERSION__}</h2>
 				<button class="close-btn" on:click={toggle} aria-label="Close">✕</button>
 			</div>
 
@@ -422,8 +426,6 @@
 
 			<div class="footer">
 				<small>Plugins have full access to your game session.</small>
-				<br />
-				<small>Furnarchy Zero v{(window as any).Furnarchy?.version || '...'}</small>
 			</div>
 		</div>
 	{/if}
@@ -435,32 +437,39 @@
 
 	.plugin-manager {
 		position: fixed;
-		top: 20px;
-		right: 20px;
+		top: 24px;
+		right: 24px;
 		z-index: 20000;
 	}
 
 	.fab {
-		width: 40px;
-		height: 40px;
-		border-radius: 0;
-		background: $color-bg-input;
-		border: 2px solid $color-border-light;
-		color: $color-text-bright;
+		width: 48px;
+		height: 48px;
+		border-radius: 50%;
+		background: transparent;
+		border-color: transparent;
+		color: red;
 		font-size: 20px;
 		cursor: pointer;
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		box-shadow: $shadow-hard;
+		box-shadow: 4px 4px 8px rgba(0, 0, 0, 0.25);
 		transition:
 			transform 0.1s,
-			box-shadow 0.1s;
+			box-shadow 0.1s,
+			background-color 0.2s;
+		padding: 6px;
+
+		:global(svg) {
+			width: 100%;
+			height: 100%;
+		}
 
 		&:hover {
 			background: $color-bg-panel;
-			transform: translate(-1px, -1px);
-			box-shadow: 5px 5px 0px #000;
+			transform: translate(-1px, -1px) scale(1.05);
+			box-shadow: 6px 6px 0px rgba(0, 0, 0, 0.5);
 		}
 
 		&:active {
