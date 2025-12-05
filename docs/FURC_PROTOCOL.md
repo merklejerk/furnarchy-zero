@@ -272,6 +272,7 @@ The `]` OpCode acts as a namespace for modern features. The 2nd byte determines 
 | **0x76** | `v` | Base95 + Char | **Legacy Visual Effect**. Spawns predefined effects (See §13). |
 | **0x74** | `t` | Base220 (2b+2b) | **Unknown**. Calls `sv.Up`. |
 | **0x7D** | `}` | Binary | **Unknown**. Calls `F_`. |
+| **0x25** | `%` | Char + Text | **Online Check**. 0=Offline, 1=Online + Display Name. |
 
 ### 6.1 Avatar Manifest (`]M`)
 
@@ -427,6 +428,8 @@ Unlike the server commands, C2S commands are primarily **line-based ASCII text**
   * Sends a private message.
   * **Exact Match:** `wh %<name> <message>` (Prevents partial name matching).
   * **Offline Whisper:** `wh %%<name> <message>`
+* **Online Check:** `onln <shortname>`
+  * Checks if a player is online. Server responds with `]%`.
 
 ### 8.3 Interaction & Inventory
 

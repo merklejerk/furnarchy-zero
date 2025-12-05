@@ -230,8 +230,11 @@ You can find more examples for plugins by browsing the [bundled plugins](app/sta
     *   `callback`: Function that receives an `api` object with the following methods:
         *   `api.send(text, tag?)`: Send a command to the server. `tag` defaults to the plugin's `id`.
         *   `api.inject(text, tag?)`: Inject a command from the server. `tag` defaults to the plugin's `id`.
-        *   `api.notify(text, tag?)`: Display a client-side message in the chat area.
+        *   `api.notify(text, tag?)`: Display a client-side message in the chat area. The text is HTML-escaped and prefixed with the plugin name.
+        *   `api.rawNotify(text, tag?)`: Display a client-side message in the chat area without escaping or prefixing.
         *   `api.disable()`: Disable the plugin programmatically.
+        *   `api.isLoggedIn`: Boolean property. True if the user is logged in.
+        *   `api.isConnected`: Boolean property. True if the WebSocket is connected.
         *   `api.onIncoming(callback, priority?)`: Intercept incoming messages. Callback receives `(text, sourceId, tag)`. `priority` is an optional number (default 0). Higher priority handlers run first.
         *   `api.onOutgoing(callback, priority?)`: Intercept outgoing messages. Callback receives `(text, sourceId, tag)`. `priority` is an optional number (default 0). Higher priority handlers run first.
         *   `api.onConnected(callback)`: Called when the WebSocket connection is established.
@@ -251,7 +254,7 @@ You can find more examples for plugins by browsing the [bundled plugins](app/sta
                 *   `width`: Optional CSS width string (e.g., "500px").
                 *   `height`: Optional CSS height string (e.g., "auto").
         *   `api.closeModal()`: Closes the currently open modal.
-        *   `api.isModalOpen()`: Returns `true` if a modal is currently open.
+        *   `api.getModalPluginId()`: Returns the ID of the plugin that opened the current modal, or `null` if no modal is open.
         *   `api.setGameInput(enabled)`: Enable or disable keyboard input to the game client. Useful when showing custom UI elements.
         *   `api.saveData(key, value)`: Save a JSON-serializable value to local storage, namespaced to the plugin.
         *   `api.loadData(key)`: Load a saved value from local storage. Returns `null` if not found.
