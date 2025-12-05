@@ -665,7 +665,14 @@ The encryption key (`e`, 16 bytes) is constructed from a seed (`s`, 16 bytes) an
    * **If False:** Uses Mask B2: `[50, 186, 189, 187, 234, 79, 158, 6]`.
    * **Operation:** `Key[8+i] = Mask[i] ^ Seed[8+i]`.
 3. **Key Permutation:**
-   * Also XORs `Key[4..7]` with the 32-bit offset (or other context value) if provided.
+   *   **Value:** The **Uncompressed Size** (32-bit Little-Endian) of the data block.
+       *   *File Level:* Read from the footer at `FileLength - 12`.
+       *   *Image Level:* Calculated as `Width * Height * (IsRGBA ? 4 : 1)`.
+   *   **Operation:** `Key[4..7] ^= Value` (Byte-wise XOR).
+       *   `Key[4] ^= (Value >> 24) & 0xFF`
+       *   `Key[5] ^= (Value >> 16) & 0xFF`
+       *   `Key[6] ^= (Value >> 8) & 0xFF`
+       *   `Key[7] ^= Value & 0xFF`
 
 ### 11.2 Map & Asset Obfuscation (CRC-XOR)
 
