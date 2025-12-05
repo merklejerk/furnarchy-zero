@@ -154,6 +154,8 @@ export type ClientProtocolCommand =
 	| { type: 'rotate'; direction: 'left' | 'right' }
 	/** Inspect a tile or object at the given coordinates. */
 	| { type: 'look'; x: number; y: number }
+	/** Look at anyone on the same map by name instead of position. */
+	| { type: 'glook'; name: string }
 	/** Speak a message in the chat. */
 	| { type: 'speech'; message: string }
 	/** Perform an emote/action (e.g., "waves"). */
@@ -279,13 +281,6 @@ export function parseServerCommand(line: string): ServerProtocolCommand {
 		}
 		return { type: 'avatar-manifest', records };
 	} else if (line.startsWith(']-') || line.startsWith(']P')) {
-		// Format: ]-[OpCode 2 bytes][Data Type 2 bytes][Content]
-		// Actually docs say: [OpCode 2 bytes] [Data Type 2 bytes] [Content]
-		// But the OpCode is ]- or ]P.
-		// Wait, docs say: Payload Structure: [OpCode 2 bytes] [Data Type 2 bytes] [Content]
-		// So ]- is the OpCode.
-		// Sub-Commands (Data Types): #A, <i, etc.
-		// Let's assume the Data Type is 2 chars.
 		const subType = line.substring(2, 4);
 		const content = line.substring(4);
 		return { type: 'chat-buffer', subType, content };
@@ -454,6 +449,8 @@ export function parseClientCommand(line: string): ClientProtocolCommand {
 			const y = base220Decode(line.substring(3, 5));
 			return { type: 'look', x, y };
 		}
+	} else if (line.startsWith('glook ')) {
+		return { type: 'glook', name: line.substring(6) };
 	} else if (line === 'vascodagama') {
 		return { type: 'ready' };
 	} else if (line === 'quit') {
@@ -595,6 +592,8 @@ export function createClientCommand(cmd: ClientProtocolCommand): string {
 			return cmd.direction === 'left' ? '<' : '>';
 		case 'look':
 			return `l${base220Encode(cmd.x, 2)}${base220Encode(cmd.y, 2)}`;
+		case 'glook':
+			return `glook ${cmd.name}`;
 		case 'speech':
 			return `"${cmd.message}`;
 		case 'emote':

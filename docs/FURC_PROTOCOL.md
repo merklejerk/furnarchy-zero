@@ -413,6 +413,9 @@ Unlike the server commands, C2S commands are primarily **line-based ASCII text**
   * Used to inspect a tile or object at a specific coordinate.
   * **Arguments:** X and Y are **Base-95** encoded (2 bytes each).
   * *Example:* `l` + `vt.Ie(x, 2)` + `vt.Ie(y, 2)`.
+* **Global Look:** `glook <NAME>`
+  * Looks at anyone on the same map by name instead of position, displaying their description in the chat if found.
+  * The name must be exact/shortname.
 
 ### 8.2 Chat & Communication
 
