@@ -1,14 +1,21 @@
 import { CommandBuffer } from './command-buffer';
 import { furnarchyCore } from './furnarchy-core';
+import type { ExtendedWindow } from './window-types';
 
-export function installWebSocketPatch() {
+export function installWebSocketPatch(targetWindow: Window) {
+	const extWindow = targetWindow as ExtendedWindow;
+	const WinMessageEvent = extWindow.MessageEvent;
+	const WinBlob = extWindow.Blob;
+	const WinUint8Array = extWindow.Uint8Array;
+	const WinArrayBuffer = extWindow.ArrayBuffer;
+
 	// --- WebSocket Hooking (Furc Bridge) ---
 	// Use custom encoder/decoder to preserve raw bytes (Latin-1)
 	// The game client expects raw bytes, but TextEncoder forces UTF-8 which corrupts binary data.
 	const encoder = {
 		encode: (str: string) => {
 			const len = str.length;
-			const bytes = new Uint8Array(len);
+			const bytes = new WinUint8Array(len);
 			for (let i = 0; i < len; i++) {
 				bytes[i] = str.charCodeAt(i) & 0xff;
 			}
@@ -19,13 +26,13 @@ export function installWebSocketPatch() {
 		decode: (data: any) => {
 			if (typeof data === 'string') return data;
 			let bytes: Uint8Array;
-			if (data instanceof Uint8Array) {
+			if (data instanceof WinUint8Array) {
 				bytes = data;
-			} else if (data instanceof ArrayBuffer) {
-				bytes = new Uint8Array(data);
+			} else if (data instanceof WinArrayBuffer || data instanceof ArrayBuffer) {
+				bytes = new WinUint8Array(data);
 			} else {
 				// Other views
-				bytes = new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
+				bytes = new WinUint8Array(data.buffer, data.byteOffset, data.byteLength);
 			}
 
 			let str = '';
@@ -41,7 +48,7 @@ export function installWebSocketPatch() {
 
 	let activeSocket: WebSocket | null = null;
 	let resolveSocket: (value: any) => void;
-	(window as any).waitForFurc = new Promise((resolve) => {
+	extWindow.waitForFurc = new Promise((resolve) => {
 		resolveSocket = resolve;
 	});
 
@@ -51,7 +58,7 @@ export function installWebSocketPatch() {
 			throw new Error('Furnarchy.inject() requires a complete command (must end with \\n)');
 		}
 		const raw = encoder.encode(text);
-		const event = new MessageEvent('message', {
+		const event = new WinMessageEvent('message', {
 			data: raw,
 			origin: 'wss://lightbringer.furcadia.com'
 		});
@@ -76,7 +83,13 @@ export function installWebSocketPatch() {
 	}
 
 	// Define custom WebSocket class
-	(window as any).FurcWebSocket = class FurcWebSocket extends WebSocket {
+	const BaseWebSocket = extWindow.WebSocket;
+	extWindow.FurcWebSocket = class FurcWebSocket extends BaseWebSocket {
+		static readonly CONNECTING = 0;
+		static readonly OPEN = 1;
+		static readonly CLOSING = 2;
+		static readonly CLOSED = 3;
+
 		private _outgoingQueue: Promise<void> = Promise.resolve();
 		private _incomingQueue: Promise<void> = Promise.resolve();
 		private _incomingBuffer = new CommandBuffer();
@@ -87,18 +100,18 @@ export function installWebSocketPatch() {
 
 			if (url.toString().includes('furcadia') || url.toString().includes('6502')) {
 				console.log('%c😈 Game Socket Captured', 'color: #ff00ff;');
-				activeSocket = this;
+				activeSocket = this as unknown as WebSocket;
 
 				// Hook up Furnarchy.send and inject
 				const furnarchy = furnarchyCore;
 				if (furnarchy) {
 					furnarchy.send = (text: string, sourceId: string | undefined, tag: string | undefined) =>
-						sendToSocket(this, text, sourceId, tag);
+						sendToSocket(this as unknown as WebSocket, text, sourceId, tag);
 					furnarchy.inject = (
 						text: string,
 						sourceId: string | undefined,
 						tag: string | undefined
-					) => injectIntoSocket(this, text, sourceId, tag);
+					) => injectIntoSocket(this as unknown as WebSocket, text, sourceId, tag);
 					console.log('[Furnarchy] Connected to Game Socket');
 				}
 
@@ -128,7 +141,7 @@ export function installWebSocketPatch() {
 			sourceId?: string,
 			tag?: string
 		): void {
-			if (activeSocket !== this) {
+			if (activeSocket !== (this as unknown as WebSocket)) {
 				super.send(data);
 				return;
 			}
@@ -208,10 +221,10 @@ export function installWebSocketPatch() {
 					if (this.binaryType === 'arraybuffer') {
 						newData = encoder.encode(processed).buffer;
 					} else if (this.binaryType === 'blob') {
-						newData = new Blob([encoder.encode(processed)]);
+						newData = new WinBlob([encoder.encode(processed)]);
 					}
 
-					const newEvent = new MessageEvent('message', {
+					const newEvent = new WinMessageEvent('message', {
 						data: newData,
 						origin: msgEvent.origin,
 						source: msgEvent.source as MessageEventSource
@@ -224,10 +237,10 @@ export function installWebSocketPatch() {
 		}
 
 		set onmessage(listener: ((this: WebSocket, ev: MessageEvent) => any) | null) {
-			if (activeSocket === this && listener) {
+			if (activeSocket === (this as unknown as WebSocket) && listener) {
 				super.onmessage = (event: MessageEvent) => {
 					this._hookMessageEvent(event, (newEvent) => {
-						listener.call(this, newEvent);
+						listener.call(this as unknown as WebSocket, newEvent);
 					});
 				};
 			} else {
@@ -244,7 +257,11 @@ export function installWebSocketPatch() {
 			listener: EventListenerOrEventListenerObject,
 			options?: boolean | AddEventListenerOptions
 		): void {
-			if (type === 'message' && activeSocket === this && typeof listener === 'function') {
+			if (
+				type === 'message' &&
+				activeSocket === (this as unknown as WebSocket) &&
+				typeof listener === 'function'
+			) {
 				const proxyListener = (event: Event) => {
 					this._hookMessageEvent(event as MessageEvent, (newEvent) => {
 						// @ts-ignore

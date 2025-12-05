@@ -1,4 +1,10 @@
-export async function loadFurcadiaScript(scriptUrl: string): Promise<void> {
+import type { ExtendedWindow } from './window-types';
+
+export async function loadFurcadiaScript(
+	targetWindow: Window,
+	scriptUrl: string
+): Promise<void> {
+	const extWindow = targetWindow as ExtendedWindow;
 	const response = await fetch(scriptUrl);
 	if (!response.ok) throw new Error(`Failed to fetch client script: ${response.statusText}`);
 
@@ -51,7 +57,7 @@ export async function loadFurcadiaScript(scriptUrl: string): Promise<void> {
 			'[Furc Loader] Warning: Could not find game instance assignment point to hook into.'
 		);
 	} else {
-		window.processGameClientInstance = (inst: any) => {
+		extWindow.processGameClientInstance = (inst: any) => {
 			console.log('[Furc Loader] Processing game client instance...');
 			const instProps = getAllObjectProps(inst);
 
@@ -92,17 +98,20 @@ export async function loadFurcadiaScript(scriptUrl: string): Promise<void> {
 			})();
 
 			if (reconnectMethod && insertChatMethod) {
-				window.__CLIENT_HOOKS = { reconnect: reconnectMethod, appendChat: insertChatMethod };
+				extWindow.__CLIENT_HOOKS = {
+					reconnect: reconnectMethod,
+					appendChat: insertChatMethod
+				};
 			}
 		};
 	}
 
 	// Inject the script
-	const script = document.createElement('script');
+	const script = targetWindow.document.createElement('script');
 	script.textContent = scriptContent;
 	script.async = true;
 
-	document.body.appendChild(script);
+	targetWindow.document.body.appendChild(script);
 }
 
 function getAllObjectProps(obj: any): Array<[string, any]> {

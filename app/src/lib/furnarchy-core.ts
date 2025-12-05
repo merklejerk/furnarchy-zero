@@ -277,14 +277,16 @@ export class FurnarchyCore {
 	private _cachedOutgoing:
 		| { cb: MessageHandler; priority: number; plugin: PluginContext }[]
 		| null = null;
+	private _gameDocument: Document | null = null;
 
 	constructor() {
-		this.setupInputInterception();
+		if (typeof document !== 'undefined') {
+			this.attachInputInterception(document);
+		}
 	}
 
-	private setupInputInterception() {
-		if (typeof document === 'undefined') return;
-
+	attachInputInterception(doc: Document) {
+		this._gameDocument = doc;
 		const handler = (e: KeyboardEvent) => {
 			if (!this.gameInputEnabled) {
 				e.stopImmediatePropagation();
@@ -292,13 +294,35 @@ export class FurnarchyCore {
 		};
 
 		// Register early to intercept events before the game client sees them
-		document.addEventListener('keydown', handler);
-		document.addEventListener('keyup', handler);
-		document.addEventListener('keypress', handler);
+		doc.addEventListener('keydown', handler);
+		doc.addEventListener('keyup', handler);
+		doc.addEventListener('keypress', handler);
 	}
 
 	setGameInput(enabled: boolean): void {
 		this.gameInputEnabled = enabled;
+		if (enabled) {
+			this.focusGame();
+		}
+	}
+
+	focusGame(): void {
+		if (this._gameDocument) {
+			const win = this._gameDocument.defaultView;
+			if (win) {
+				win.focus();
+			}
+
+			// Try to find the chat input and focus it
+			// We look for common chat input selectors or just the first visible text input
+			const input = this._gameDocument.querySelector(
+				'#chatInput, #entry, input[type="text"], textarea'
+			) as HTMLElement;
+
+			if (input) {
+				input.focus();
+			}
+		}
 	}
 
 	invalidateHandlers(): void {

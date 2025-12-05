@@ -1,8 +1,17 @@
 import { resolveAssetUrl, resolveBackendUrl, isRelativeUrl, isBackendUrl } from './url-utils';
+import type { ExtendedWindow } from './window-types';
 
-export function installXhrPatch(assetUrl: string, backendUrl: string) {
+export function installXhrPatch(targetWindow: Window, assetUrl: string, backendUrl: string) {
+	const extWindow = targetWindow as ExtendedWindow;
+	const BaseXHR = extWindow.XMLHttpRequest;
 	// Define the custom XHR class globally
-	(window as any).FurcXMLHttpRequest = class FurcXMLHttpRequest extends XMLHttpRequest {
+	extWindow.FurcXMLHttpRequest = class FurcXMLHttpRequest extends BaseXHR {
+		static readonly UNSENT = 0;
+		static readonly OPENED = 1;
+		static readonly HEADERS_RECEIVED = 2;
+		static readonly LOADING = 3;
+		static readonly DONE = 4;
+
 		open(method: string, url: string | URL, ...args: any[]) {
 			// Convert URL to string if it's not
 			let urlStr = url.toString();

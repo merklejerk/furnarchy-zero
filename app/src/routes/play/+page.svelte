@@ -5,7 +5,9 @@
 	import { installWebSocketPatch } from '$lib/furc-websocket';
 	import { loadFurcadiaScript } from '$lib/furc-loader';
 	import { getStoredAuthUrl } from '$lib/storage';
-	import PluginManager from '$lib/components/PluginManager.svelte';
+	import { furnarchyCore } from '$lib/furnarchy-core';
+	import GameMenu from '$lib/components/GameMenu.svelte';
+	import { GAME_IFRAME_HTML } from '$lib/iframe-template';
 	import { json } from '@sveltejs/kit';
 
 	const FURCADIA_CLIENT_JS = env.PUBLIC_FURCADIA_CLIENT_JS_URL;
@@ -15,24 +17,65 @@
 	let loading = false;
 	let error = '';
 	let gameLoaded = false;
+	let iframe: HTMLIFrameElement;
+	let iframeWidth = 640;
+	let iframeHeight = 480;
+	let isMobileMode = false;
+
+	// Zoom controls
+	let zoomLevel = 1.5;
+	let fitWidth = false;
+	let windowWidth = 1024;
+	let windowHeight = 768;
+
+	$: effectiveZoom = isMobileMode
+		? 1
+		: fitWidth
+			? Math.min(windowWidth / iframeWidth, windowHeight / iframeHeight)
+			: zoomLevel;
 
 	onMount(() => {
 		const storedAuth = getStoredAuthUrl();
 		const backendUrl = storedAuth || DEFAULT_AUTH_PROXY_URL;
 		console.log(`[Furnarchy] Using backend URL: ${backendUrl}`);
 
-		installXhrPatch(PLAY_URL, backendUrl);
-		installWebSocketPatch();
-		loadGame();
+		window.addEventListener('message', handleMessage);
+
+		if (iframe && iframe.contentWindow && iframe.contentDocument) {
+			const doc = iframe.contentDocument;
+			const win = iframe.contentWindow;
+
+			doc.open();
+			doc.write(GAME_IFRAME_HTML);
+			doc.close();
+
+			installXhrPatch(win, PLAY_URL, backendUrl);
+			installWebSocketPatch(win);
+			furnarchyCore.attachInputInterception(doc);
+			loadGame(win);
+		}
+
+		return () => {
+			window.removeEventListener('message', handleMessage);
+		};
 	});
 
-	async function loadGame() {
+	function handleMessage(event: MessageEvent) {
+		if (event.data && event.data.type === 'resize') {
+			// Add a small buffer to avoid scrollbars or rounding issues
+			iframeWidth = Math.ceil(event.data.width);
+			iframeHeight = Math.ceil(event.data.height);
+			isMobileMode = !!event.data.isMobile;
+		}
+	}
+
+	async function loadGame(win: Window) {
 		if (gameLoaded) return;
 		loading = true;
 		error = '';
 
 		try {
-			await loadFurcadiaScript(FURCADIA_CLIENT_JS);
+			await loadFurcadiaScript(win, FURCADIA_CLIENT_JS);
 			gameLoaded = true;
 		} catch (e: any) {
 			console.error(e);
@@ -45,21 +88,11 @@
 
 <svelte:head>
 	<title>Furnarchy Zero</title>
-	<link
-		rel="stylesheet"
-		type="text/css"
-		href="https://play.furcadia.com/web/furcadia.css?v=a1599e9c4ed5bc2f3aa66c66e96df767"
-	/>
-	<style id="variableCSS"></style>
-	<meta
-		name="viewport"
-		content="initial-scale=1.0, user-scalable=no, width=device-width"
-		id="viewportTag"
-	/>
-	<meta name="theme-color" content="#392b67" />
 </svelte:head>
 
-<PluginManager />
+<svelte:window bind:innerWidth={windowWidth} bind:innerHeight={windowHeight} />
+
+<GameMenu bind:zoomLevel bind:fitWidth {isMobileMode} />
 
 {#if loading}
 	<div class="loading">
@@ -67,20 +100,16 @@
 	</div>
 {/if}
 
-<!-- Elements required by furcadia.js, must be in root -->
-<div id="furcContainer"></div>
-<div id="firstLoadScene"></div>
-<div id="modalOverlay"></div>
-<div id="dialogBox">
-	<div id="dialogText">Would you like to transfer this Ferian Hotdoggen to Dr. Cat?</div>
-	<div id="dialogControls">
-		<button id="dialogButton1">Yes</button>
-		<button id="dialogButton2">No</button>
-		<button id="dialogButton3">Cancel</button>
-	</div>
+<div class="iframe-container">
+	<iframe
+		bind:this={iframe}
+		title="Furcadia Client"
+		class="game-iframe"
+		style="width: {isMobileMode ? '100%' : iframeWidth + 'px'}; height: {isMobileMode
+			? '100%'
+			: iframeHeight + 'px'}; --zoom: {effectiveZoom};"
+	></iframe>
 </div>
-<div id="pounce" style="display: none"><!-- coming soon, folks --></div>
-<!-- End of required furcadia.js elements -->
 
 {#if error}
 	<div class="error">
@@ -118,5 +147,25 @@
 		background: rgba(0, 0, 0, 0.8);
 		padding: 20px;
 		border-radius: 8px;
+	}
+
+	.iframe-container {
+		width: 100vw;
+		height: 100vh;
+		overflow: hidden;
+		display: flex;
+		justify-content: center;
+		align-items: center;
+		background: #000;
+	}
+
+	.game-iframe {
+		border: none;
+		transform: scale(var(--zoom));
+		transform-origin: center;
+		transition:
+			width 0.2s,
+			height 0.2s,
+			transform 0.2s;
 	}
 </style>

@@ -14,8 +14,30 @@ const PLUGINS_KEY = 'furnarchy_plugins';
 const DELETED_PLUGINS_KEY = 'furnarchy_deleted_plugins';
 const AUTH_URL_KEY = 'furnarchy_auth_url';
 const VERSION_KEY = 'furnarchy_version';
+const ZOOM_SETTINGS_KEY = 'furnarchy_zoom_settings';
 
 export const pluginStore = writable<StoredPlugin[]>([]);
+
+export interface ZoomSettings {
+	zoomLevel: number;
+	fitWidth: boolean;
+}
+
+export function getStoredZoomSettings(): ZoomSettings {
+	if (typeof localStorage === 'undefined') return { zoomLevel: 1.5, fitWidth: false };
+	const stored = localStorage.getItem(ZOOM_SETTINGS_KEY);
+	if (!stored) return { zoomLevel: 1.5, fitWidth: false };
+	try {
+		return JSON.parse(stored);
+	} catch {
+		return { zoomLevel: 1.5, fitWidth: false };
+	}
+}
+
+export function saveStoredZoomSettings(settings: ZoomSettings) {
+	if (typeof localStorage === 'undefined') return;
+	localStorage.setItem(ZOOM_SETTINGS_KEY, JSON.stringify(settings));
+}
 
 export function getDeletedPluginIds(): string[] {
 	if (typeof localStorage === 'undefined') return [];

@@ -7,6 +7,8 @@
 		maintainConfig,
 		markPluginAsDeleted,
 		pluginStore,
+		getStoredZoomSettings,
+		saveStoredZoomSettings,
 		type StoredPlugin
 	} from '$lib/storage';
 	import { verifyPlugin } from '$lib/plugin-sandbox';
@@ -17,6 +19,7 @@
 	let expandedPluginUrl: string | null = null;
 	let isVerifying = false;
 	let pluginConfigurable: Record<string, boolean> = {};
+	let settingsLoaded = false;
 
 	export let zoomLevel = 1.5;
 	export let fitWidth = false;
@@ -27,7 +30,18 @@
 	// Use the store for reactivity
 	$: plugins = $pluginStore;
 
+	// Persist zoom settings
+	$: if (typeof window !== 'undefined' && settingsLoaded) {
+		saveStoredZoomSettings({ zoomLevel, fitWidth });
+	}
+
 	onMount(() => {
+		// Load zoom settings
+		const settings = getStoredZoomSettings();
+		zoomLevel = settings.zoomLevel;
+		fitWidth = settings.fitWidth;
+		settingsLoaded = true;
+
 		// Initialize global Furnarchy object if it doesn't exist
 		(window as any).Furnarchy = core.getExposedAPI();
 
@@ -283,6 +297,8 @@
 	<button class="fab" on:click={toggle} title="Plugin Manager"> ⚙️ </button>
 
 	{#if isOpen}
+		<!-- svelte-ignore a11y-click-events-have-key-events -->
+		<!-- svelte-ignore a11y-no-static-element-interactions -->
 		<div class="modal-backdrop" on:click={toggle}></div>
 		<div class="modal retro-theme">
 			<div class="header-row">
