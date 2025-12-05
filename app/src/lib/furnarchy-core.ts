@@ -34,6 +34,14 @@ export class PluginContext {
 		return this._enabledState;
 	}
 
+	get isLoggedIn(): boolean {
+		return this.core.isLoggedIn;
+	}
+
+	get isConnected(): boolean {
+		return this.core.isConnected;
+	}
+
 	_handlers = {
 		incoming: [] as { cb: MessageHandler; priority: number }[],
 		outgoing: [] as { cb: MessageHandler; priority: number }[],
@@ -80,7 +88,17 @@ export class PluginContext {
 			console.log(`[${this.metadata.name}] ${text}`);
 			return;
 		}
-		this.core.notify(text, '[🟢]', this.metadata.id, tag);
+		const escaped = utils.escape(text);
+		const prefix = `[<b><i>f: ${utils.escape(this.metadata.name)}</i></b>]`;
+		this.core.notify(escaped, prefix, this.metadata.id, tag);
+	}
+
+	rawNotify(text: string, tag?: string): void {
+		if (!this.core.isLoggedIn) {
+			console.log(`[${this.metadata.name}] ${text}`);
+			return;
+		}
+		this.core.notify(text, '', this.metadata.id, tag);
 	}
 
 	onIncoming(cb: MessageHandler, priority: number = 0): void {
@@ -133,15 +151,16 @@ export class PluginContext {
 	}
 
 	openModal(options: ModalOptions): void {
-		openModal(options);
+		openModal({ ...options, pluginId: this.metadata.id });
 	}
 
 	closeModal(): void {
 		closeModal();
 	}
 
-	isModalOpen(): boolean {
-		return get(modalStore).isOpen;
+	getModalPluginId(): string | null {
+		const state = get(modalStore);
+		return state.isOpen ? state.pluginId ?? null : null;
 	}
 
 	setGameInput(enabled: boolean): void {
@@ -280,6 +299,7 @@ export class FurnarchyCore {
 	// Context for tracking which URL is currently loading
 	loadingPluginUrl: string | null = null;
 	isLoggedIn = false;
+	isConnected = false;
 	characterName: string | null = null;
 	characterUid: string | null = null;
 	isReady = false;
@@ -597,9 +617,9 @@ export class FurnarchyCore {
 		info.forEach((line) => this.notify(line));
 	}
 
-	notify(text: string, prefix: string = '[0]', sourceId?: string, tag?: string): void {
+	notify(text: string, prefix: string = '[<b><i>f</i></b>]', sourceId?: string, tag?: string): void {
 		if (this.clientHooks?.appendChat) {
-			this.clientHooks.appendChat(`${this.utils.escape(prefix)} ${text}`);
+			this.clientHooks.appendChat(`${prefix ? `${prefix} ` : ''}${text}`);
 		} else {
 			this.inject(`(${this.utils.escape(prefix)} ${text}`, sourceId, tag);
 		}
@@ -614,6 +634,7 @@ export class FurnarchyCore {
 	}
 
 	notifyConnected(): void {
+		this.isConnected = true;
 		console.log('[Furnarchy] Connected to server, notifying plugins...');
 		this._motdComplete = false;
 		this.plugins.forEach((plugin) => plugin._notifyConnected());
@@ -621,6 +642,7 @@ export class FurnarchyCore {
 
 	notifyDisconnected(): void {
 		this.isLoggedIn = false;
+		this.isConnected = false;
 		console.log('[Furnarchy] Disconnected from server, notifying plugins...');
 		this.plugins.forEach((plugin) => plugin._notifyDisconnected());
 	}

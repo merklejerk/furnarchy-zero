@@ -6,6 +6,7 @@ export interface ModalOptions {
 	onClose?: () => void;
 	width?: string;
 	height?: string;
+	pluginId?: string;
 }
 
 export interface ModalState extends ModalOptions {
@@ -16,7 +17,8 @@ const initialState: ModalState = {
 	isOpen: false,
 	title: '',
 	body: '',
-	onClose: undefined
+	onClose: undefined,
+	pluginId: undefined
 };
 
 export const modalStore = writable<ModalState>(initialState);

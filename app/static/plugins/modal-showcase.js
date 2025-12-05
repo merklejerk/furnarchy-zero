@@ -2,7 +2,7 @@ Furnarchy.register({
     id: "modal-showcase-dev",
     name: "Modal Showcase",
     description: "Demonstrates the modal capabilities of Furnarchy Zero.",
-    version: "1.1.0",
+    version: "1.1.1",
     author: "me@merklejerk.com"
 }, (api) => {
     
@@ -68,7 +68,9 @@ Furnarchy.register({
     });
     
     api.onUnload(() => {
-        api.closeModal();
+        if (api.getModalPluginId() === api.metadata.id) {
+            api.closeModal();
+        }
     });
     
     api.notify("Modal Showcase loaded. Click Configure to test.");

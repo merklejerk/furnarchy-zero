@@ -2,7 +2,7 @@ Furnarchy.register({
     id: "auto-spinner-73d51b4bc8625286",
     name: "Auto Spinner",
     description: "Automatically spins your character.",
-    version: "1.2.0",
+    version: "1.2.1",
     author: "me@merklerjerk.com",
     toggle: true,
 }, (api) => {
@@ -109,5 +109,8 @@ Furnarchy.register({
 
     api.onUnload(() => {
         stopSpin();
+        if (api.getModalPluginId() === api.metadata.id) {
+            api.closeModal();
+        }
     });
 });

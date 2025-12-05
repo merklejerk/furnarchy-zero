@@ -146,6 +146,8 @@ export type ServerProtocolCommand =
 	| { type: 'ds-trigger-client'; data: string }
 	/** DS Init. */
 	| { type: 'ds-init'; data: string }
+	/** Online Status Check Response. */
+	| { type: 'online-status'; online: boolean; name: string }
 	/** Unknown or unparsed command. */
 	| { type: 'unknown'; raw: string };
 
@@ -196,6 +198,8 @@ export type ClientProtocolCommand =
 	| { type: 'ds-btn'; id: number }
 	/** Request the portrait selection dialog. */
 	| { type: 'portrait-change' }
+	/** Check if a player is online. */
+	| { type: 'check-online'; name: string }
 	/** Unknown or unparsed command. */
 	| { type: 'unknown'; raw: string };
 
@@ -262,7 +266,7 @@ export function parseServerCommand(line: string): ServerProtocolCommand {
 	} else if (line.startsWith(']f')) {
 		// Format: ]f<16-char-code><name>
 		const visualCode = line.substring(2, 18);
-		const name = line.substring(18).replace(/\|/g, ' ');
+		const name = line.substring(18);
 		return { type: 'set-avatar-info', name, visualCode };
 	} else if (line.startsWith(']&')) {
 		// Format: ]&<uid>
@@ -324,6 +328,10 @@ export function parseServerCommand(line: string): ServerProtocolCommand {
 		return { type: 'set-gloam', uid, gloam };
 	} else if (line.startsWith(']I')) {
 		return { type: 'batch-particle', data: line.substring(2) };
+	} else if (line.startsWith(']%')) {
+		const online = line[2] === '1';
+		const name = line.substring(3);
+		return { type: 'online-status', online, name };
 	} else if (line.startsWith(']v')) {
 		const x = base95Decode(line.substring(2, 4));
 		const y = base95Decode(line.substring(4, 6));
@@ -483,6 +491,8 @@ export function parseClientCommand(line: string): ClientProtocolCommand {
 		return { type: 'ds-btn', id: parseInt(line.substring(6), 10) };
 	} else if (line === 'portrchng') {
 		return { type: 'portrait-change' };
+	} else if (line.startsWith('onln ')) {
+		return { type: 'check-online', name: line.substring(5) };
 	}
 
 	return { type: 'unknown', raw: line };
@@ -592,6 +602,8 @@ export function createServerCommand(cmd: ServerProtocolCommand): string {
 			return `7${cmd.data}`;
 		case 'ds-init':
 			return `8${cmd.data}`;
+		case 'online-status':
+			return `]%${cmd.online ? '1' : '0'}${cmd.name}`;
 		case 'unknown':
 			return cmd.raw;
 	}
@@ -645,6 +657,8 @@ export function createClientCommand(cmd: ClientProtocolCommand): string {
 			return `dsbtn ${cmd.id}`;
 		case 'portrait-change':
 			return 'portrchng';
+		case 'check-online':
+			return `onln ${cmd.name}`;
 		case 'unknown':
 			return cmd.raw;
 	}
