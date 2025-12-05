@@ -20,7 +20,7 @@
 	let isVerifying = false;
 
 	// Use the store for reactivity
-	$: plugins = $pluginStore;
+	$: plugins = [...$pluginStore].sort((a, b) => (a.name || a.url).localeCompare(b.name || b.url));
 
 	onMount(() => {
 		// Initialize store from storage
@@ -117,10 +117,8 @@
 			provided URL and have full access to the game environment.
 		</p>
 		<p class="desc">
-			See the <a
-				href="https://github.com/merklejerk/furnarchy-zero"
-				target="_blank"
-				rel="noopener">Github README</a
+			See the <a href="https://github.com/merklejerk/furnarchy-zero" target="_blank" rel="noopener"
+				>Github README</a
 			> for information on developing plugins.
 		</p>
 		<div class="input-group">
@@ -182,8 +180,7 @@
 							{/if}
 							<div class="detail-row">
 								<span class="label">URL:</span>
-								<a href={plugin.url} target="_blank" rel="noopener" class="url-link"
-									>{plugin.url}</a
+								<a href={plugin.url} target="_blank" rel="noopener" class="url-link">{plugin.url}</a
 								>
 							</div>
 							<button class="remove-btn" on:click={() => removePlugin(plugin.url)}
@@ -204,11 +201,15 @@
 		<p class="desc">
 			A CORS-friendly proxy server that forwards login requests to the official Furacadia auth
 			server (terra.furcadia.com). Be careful! Your password will be transmitted to this address.
-			The default is the furnarchy auth proxy (terra.furnarchy.xyz), which is secure, open source, and does not log or store credentials.
-			You can also plug in your own for peace of mind.
+			The default is the furnarchy auth proxy (terra.furnarchy.xyz), which is secure, open source,
+			and does not log or store credentials. You can also plug in your own for peace of mind.
 		</p>
 		<p class="desc">
-			Check the <a href="https://github.com/merklejerk/furnarchy-zero" target="_blank" rel="noopener">Github README</a> for why this is necessary.
+			Check the <a
+				href="https://github.com/merklejerk/furnarchy-zero"
+				target="_blank"
+				rel="noopener">Github README</a
+			> for why this is necessary.
 		</p>
 		<div class="input-group">
 			<input type="text" bind:value={authUrl} placeholder={env.PUBLIC_AUTH_PROXY_URL} />

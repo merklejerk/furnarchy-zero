@@ -29,7 +29,7 @@
 	let core: FurnarchyCore = furnarchyCore;
 
 	// Use the store for reactivity
-	$: plugins = $pluginStore;
+	$: plugins = [...$pluginStore].sort((a, b) => (a.name || a.url).localeCompare(b.name || b.url));
 
 	// Persist zoom settings
 	$: if (typeof window !== 'undefined' && settingsLoaded) {
@@ -300,7 +300,6 @@
 	</button>
 
 	{#if isOpen}
-
 		<!-- svelte-ignore a11y-click-events-have-key-events -->
 		<!-- svelte-ignore a11y-no-static-element-interactions -->
 		<div class="modal-backdrop" on:click={toggle}></div>

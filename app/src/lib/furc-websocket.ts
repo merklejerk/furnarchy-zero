@@ -55,7 +55,7 @@ export function installWebSocketPatch(targetWindow: Window) {
 	// Helper to inject messages into the socket (as if from server)
 	function injectIntoSocket(socket: WebSocket, text: string, sourceId?: string, tag?: string) {
 		if (!text.endsWith('\n')) {
-			throw new Error('Furnarchy.inject() requires a complete command (must end with \\n)');
+			text += '\n';
 		}
 		const raw = encoder.encode(text);
 		const event = new WinMessageEvent('message', {
@@ -71,7 +71,7 @@ export function installWebSocketPatch(targetWindow: Window) {
 	function sendToSocket(socket: WebSocket, text: string, sourceId?: string, tag?: string) {
 		if (socket.readyState === WebSocket.OPEN) {
 			if (!text.endsWith('\n')) {
-				throw new Error('Furnarchy.send() requires a complete command (must end with \\n)');
+				text += '\n';
 			}
 			const raw = encoder.encode(text);
 			if ((socket as any).sendTagged) {

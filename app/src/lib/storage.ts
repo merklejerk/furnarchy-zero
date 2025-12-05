@@ -1,5 +1,6 @@
 import { verifyPlugin } from './plugin-sandbox';
 import { writable } from 'svelte/store';
+import { DEFAULT_PLUGINS, DEFAULT_DEV_PLUGINS } from './default-plugins';
 
 export interface StoredPlugin {
 	url: string;
@@ -149,13 +150,14 @@ export async function maintainConfig(currentVersion: string) {
 	const storedVersion = getStoredVersion();
 	let plugins = getStoredPlugins();
 
-	const defaultUrls = ['/plugins/auto-spinner.js', '/plugins/wire-shrek.js'];
-	if (import.meta.env.DEV) {
-		defaultUrls.push('/plugins/modal-showcase.js');
-	}
 	const deletedIds = getDeletedPluginIds();
 
 	let changed = false;
+
+	const defaultUrls = [...DEFAULT_PLUGINS];
+	if (import.meta.env.DEV) {
+		defaultUrls.push(...DEFAULT_DEV_PLUGINS);
+	}
 
 	for (const url of defaultUrls) {
 		if (!plugins.some((p) => p.url === url)) {

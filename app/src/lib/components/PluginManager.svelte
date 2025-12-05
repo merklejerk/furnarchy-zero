@@ -160,15 +160,18 @@
 		const plugin = $pluginStore.find((p) => p.url === url);
 		if (plugin && plugin.id) {
 			markPluginAsDeleted(plugin.id);
+			// Unload from core
+			if (core) {
+				core.unloadPlugin(plugin.id);
+			}
 		}
+
+		// Remove script tag
+		const script = document.querySelector(`script[data-plugin-url="${url}"]`);
+		if (script) script.remove();
 
 		const newPlugins = $pluginStore.filter((p) => p.url !== url);
 		saveStoredPlugins(newPlugins);
-		// Note: We can't easily unload a script without reloading the page
-		// Ideally we'd prompt the user to reload
-		if (confirm('Plugin removed. Reload page to take effect?')) {
-			window.location.reload();
-		}
 	}
 
 	function togglePlugin(url: string) {
@@ -202,23 +205,25 @@
 	}
 
 	async function reloadPlugin(url: string) {
-		// 1. Remove existing script tag
+		// 1. Find plugin ID to unload properly
+		let pluginId: string | null = null;
+		if (core && core.plugins) {
+			const p = core.plugins.find((p: any) => p.metadata.sourceUrl === url);
+			if (p) pluginId = p.metadata.id;
+		}
+
+		// 2. Unload from core
+		if (pluginId) {
+			core.unloadPlugin(pluginId);
+		}
+
+		// 3. Remove script tag
 		const existingScript = document.querySelector(`script[data-plugin-url="${url}"]`);
 		if (existingScript) {
 			existingScript.remove();
 		}
 
-		// 2. Remove from Furnarchy core plugins list to allow re-registration
-		if (core && core.plugins) {
-			const idx = core.plugins.findIndex((p: any) => p.metadata.sourceUrl === url);
-			if (idx !== -1) {
-				// Disable first to trigger cleanup
-				core.plugins[idx]._setEnabled(false);
-				core.plugins.splice(idx, 1);
-			}
-		}
-
-		// 3. Re-inject
+		// 4. Re-inject
 		await injectPlugin(url);
 	}
 

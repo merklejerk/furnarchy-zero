@@ -261,7 +261,7 @@ describe('furc-protocol', () => {
 			},
 			{
 				name: 'whisper',
-				cmd: { type: 'whisper', target: 'Friend', message: 'Hi' }
+				cmd: { type: 'whisper', target: 'Friend', message: 'Hi', exact: false }
 			},
 			{
 				name: 'get',

@@ -42,6 +42,7 @@ export class PluginContext {
 		ready: [] as (() => void)[],
 		pause: [] as ((paused: boolean) => void)[],
 		load: [] as ((enabled: boolean) => void)[],
+		unload: [] as (() => void)[],
 		configure: [] as (() => void)[]
 	};
 	private _readyFired = false;
@@ -60,6 +61,11 @@ export class PluginContext {
 	inject(text: string, tag?: string): void {
 		if (!this.enabled) return;
 		this.core.inject(text, this.metadata.id, tag);
+	}
+
+	reconnect(): void {
+		if (!this.enabled) return;
+		this.core.reconnect();
 	}
 
 	disable(): void {
@@ -115,6 +121,10 @@ export class PluginContext {
 
 	onLoad(cb: (enabled: boolean) => void): void {
 		this._handlers.load.push(cb);
+	}
+
+	onUnload(cb: () => void): void {
+		this._handlers.unload.push(cb);
 	}
 
 	onConfigure(cb: () => void): void {
@@ -236,6 +246,16 @@ export class PluginContext {
 		});
 	}
 
+	_notifyUnload(): void {
+		this._handlers.unload.forEach((cb) => {
+			try {
+				cb();
+			} catch (e) {
+				console.error(`[${this.metadata.name}] Unload Error:`, e);
+			}
+		});
+	}
+
 	_notifyConfigure(): void {
 		this._handlers.configure.forEach((cb) => {
 			try {
@@ -335,7 +355,7 @@ export class FurnarchyCore {
 	/**
 	 * Sends a command to the game server.
 	 * This will be overwritten by the WebSocket patch when the connection is established.
-	 * @param text The command to send. Must be a complete line ending in \n.
+	 * @param text The command to send. A newline will be appended if missing.
 	 * @param sourceId Optional ID of the plugin sending the command.
 	 * @param tag Optional tag to identify the source of the command.
 	 */
@@ -346,12 +366,21 @@ export class FurnarchyCore {
 	/**
 	 * Injects a fake command from the server.
 	 * This will be overwritten by the WebSocket patch when the connection is established.
-	 * @param text The command to inject. Must be a complete line ending in \n.
+	 * @param text The command to inject. A newline will be appended if missing.
 	 * @param sourceId Optional ID of the plugin injecting the command.
 	 * @param tag Optional tag to identify the source of the command.
 	 */
 	inject(text: string, sourceId?: string, tag?: string): void {
 		console.warn('[Furnarchy] inject() called before connection established', text);
+	}
+
+	reconnect(): void {
+		if (typeof window !== 'undefined' && (window as any).__CLIENT_HOOKS?.reconnect) {
+			console.log('[Furnarchy] Triggering reconnect...');
+			(window as any).__CLIENT_HOOKS.reconnect();
+		} else {
+			console.warn('[Furnarchy] Reconnect not available.');
+		}
 	}
 
 	registerService<T extends Service>(service: T, providerId: string): void {
@@ -390,6 +419,30 @@ export class FurnarchyCore {
 				console.error(e);
 			}
 		});
+	}
+
+	unloadPlugin(id: string): void {
+		const idx = this.plugins.findIndex((p) => p.metadata.id === id);
+		if (idx === -1) return;
+
+		const plugin = this.plugins[idx];
+		console.log(`[Furnarchy] Unloading plugin: ${plugin.metadata.name} (${id})`);
+
+		// Notify plugin it is being unloaded
+		plugin._notifyUnload();
+
+		// Remove from list
+		this.plugins.splice(idx, 1);
+
+		// Invalidate handlers cache
+		this.invalidateHandlers();
+
+		// Notify UI (we pass the removed plugin so UI can update if needed,
+		// though usually UI tracks the list itself or we might need a specific 'unregistered' event)
+		// For now, re-emitting might be confusing if the UI expects the plugin to be in the list.
+		// But PluginManager listens to onRegister. It doesn't seem to listen to an 'onUnregister'.
+		// We might need to add onUnregister or just let the UI handle the removal logic itself
+		// (which it does in PluginManager.svelte).
 	}
 
 	register(meta: PluginMetadata, initFn: (api: PluginContext) => void): void {
@@ -515,33 +568,25 @@ export class FurnarchyCore {
 	}
 
 	showInfo() {
-		const info = [
-			`${this.utils.escape('⚡')} Furnarchy Zero v${this.version}`,
-		];
+		const info = [`${this.utils.escape('⚡')} Furnarchy Zero v${this.version}`];
 
 		if (this.isLoggedIn) {
-			info.push(
-				`${this.utils.escape('👤')} User: ${this.characterName} (${this.characterUid})`
-			);
+			info.push(`${this.utils.escape('👤')} User: ${this.characterName} (${this.characterUid})`);
 		} else {
 			info.push(`${this.utils.escape('👤')} User: Not logged in`);
 		}
 
-        info.push(
-            `${this.utils.escape('🔌')} Plugins: ${this.plugins.length} (${this.plugins.filter((p) => p.enabled).length} enabled)`
-        );
+		info.push(
+			`${this.utils.escape('🔌')} Plugins: ${this.plugins.length} (${this.plugins.filter((p) => p.enabled).length} enabled)`
+		);
 
 		this.plugins.forEach((p) => {
 			const status = p.enabled ? this.utils.escape('✅') : this.utils.escape('💤');
-			info.push(
-				`  - ${status} ${this.utils.escape(p.metadata.name)} v${p.metadata.version}`
-			);
+			info.push(`  - ${status} ${this.utils.escape(p.metadata.name)} v${p.metadata.version}`);
 		});
 
 		if (typeof window !== 'undefined') {
-			info.push(
-				`${this.utils.escape('🖥️')} Viewport: ${window.innerWidth}x${window.innerHeight}`
-			);
+			info.push(`${this.utils.escape('🖥️')} Viewport: ${window.innerWidth}x${window.innerHeight}`);
 		}
 
 		info.forEach((line) => this.notify(line));
@@ -551,7 +596,7 @@ export class FurnarchyCore {
 		if (typeof window !== 'undefined' && (window as any).__CLIENT_HOOKS?.appendChat) {
 			(window as any).__CLIENT_HOOKS.appendChat(`${this.utils.escape(prefix)} ${text}`);
 		} else {
-			this.inject(`(${this.utils.escape(prefix)} ${text}\n`, sourceId, tag);
+			this.inject(`(${this.utils.escape(prefix)} ${text}`, sourceId, tag);
 		}
 	}
 

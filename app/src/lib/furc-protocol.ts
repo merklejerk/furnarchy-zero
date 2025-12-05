@@ -51,6 +51,8 @@ export type ServerProtocolCommand =
 	| { type: 'speech'; message: string; from: string; fromShort: string; isSelf: false }
 	/** Emote message. */
 	| { type: 'emote'; message: string; from: string; fromShort: string }
+	/** Description text. */
+	| { type: 'description'; shortname: string; description: string }
 	/** Updates the visual appearance (species, gender, etc.) of an avatar. */
 	| { type: 'set-avatar-info'; name: string; visualCode: string }
 	/** Request to load the portrait for a specific user ID. */
@@ -202,6 +204,7 @@ const INCOMING_WHISPER_REGEX =
 const SELF_SPEECH_REGEX = /^<font color='myspeech'>You say, "(.*)"<\/font>$/;
 const OTHER_SPEECH_REGEX = /^<name shortname='([^']+)'>([^<]+)<\/name>: (.*)$/;
 const EMOTE_REGEX = /^<font color='emote'><name shortname='([^']+)'>([^<]+)<\/name> (.*)<\/font>$/;
+const DESCRIPTION_REGEX = /^<desc shortname='([^']+)' \/>&gt; (.*)$/;
 
 export function parseServerCommand(line: string): ServerProtocolCommand {
 	if (line.startsWith(']B')) {
@@ -245,6 +248,14 @@ export function parseServerCommand(line: string): ServerProtocolCommand {
 				fromShort: emoteMatch[1],
 				from: emoteMatch[2],
 				message: emoteMatch[3]
+			};
+		}
+		const descMatch = content.match(DESCRIPTION_REGEX);
+		if (descMatch) {
+			return {
+				type: 'description',
+				shortname: descMatch[1],
+				description: descMatch[2]
 			};
 		}
 		return { type: 'chat', text: content };
@@ -493,6 +504,8 @@ export function createServerCommand(cmd: ServerProtocolCommand): string {
 			}
 		case 'emote':
 			return `(<font color='emote'><name shortname='${cmd.fromShort}'>${cmd.from}</name> ${cmd.message}</font>`;
+		case 'description':
+			return `(<desc shortname='${cmd.shortname}' />&gt; ${cmd.description}`;
 		case 'set-avatar-info':
 			return `]f${cmd.visualCode}${cmd.name.replace(/ /g, '|')}`;
 		case 'load-portrait':

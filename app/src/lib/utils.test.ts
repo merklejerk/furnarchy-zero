@@ -16,6 +16,19 @@ describe('utils', () => {
 		});
 	});
 
+	describe('unescape', () => {
+		it('should unescape HTML special characters', () => {
+			expect(utils.unescape('&lt;script&gt;')).toBe('<script>');
+			expect(utils.unescape('&quot;quoted&quot;')).toBe('"quoted"');
+			expect(utils.unescape('&#39;single&#39;')).toBe("'single'");
+			expect(utils.unescape('&amp;')).toBe('&');
+		});
+
+		it('should unescape numeric entities', () => {
+			expect(utils.unescape('&#128;')).toBe('\u0080');
+		});
+	});
+
 	describe('base95', () => {
 		it('should encode values correctly', () => {
 			expect(utils.base95Encode(0)).toBe(' ');

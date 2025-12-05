@@ -1,9 +1,6 @@
 import type { ExtendedWindow } from './window-types';
 
-export async function loadFurcadiaScript(
-	targetWindow: Window,
-	scriptUrl: string
-): Promise<void> {
+export async function loadFurcadiaScript(targetWindow: Window, scriptUrl: string): Promise<void> {
 	const extWindow = targetWindow as ExtendedWindow;
 	const response = await fetch(scriptUrl);
 	if (!response.ok) throw new Error(`Failed to fetch client script: ${response.statusText}`);
