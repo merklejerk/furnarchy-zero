@@ -10,6 +10,7 @@ export const GAME_IFRAME_HTML = `
 <head>
     <title>Furnarchy Zero Client</title>
     <link rel="stylesheet" type="text/css" href="https://play.furcadia.com/web/furcadia.css?v=a1599e9c4ed5bc2f3aa66c66e96df767" />
+	<link rel="icon" id="favicon" href="/favicon.ico" />
     <style id="variableCSS"></style>
     <meta name="viewport" content="initial-scale=1.0, user-scalable=no, width=device-width" id="viewportTag" />
     <meta name="theme-color" content="#392b67" />
@@ -58,18 +59,18 @@ export const GAME_IFRAME_HTML = `
 <body>
     <div id="game-wrapper">
         <div id="furcContainer"></div>
-        <div id="firstLoadScene"></div>
-        <div id="modalOverlay"></div>
-        <div id="dialogBox">
-            <div id="dialogText">Would you like to transfer this Ferian Hotdoggen to Dr. Cat?</div>
-            <div id="dialogControls">
-                <button id="dialogButton1">Yes</button>
-                <button id="dialogButton2">No</button>
-                <button id="dialogButton3">Cancel</button>
-            </div>
-        </div>
-        <div id="pounce" style="display: none"></div>
     </div>
+    <div id="firstLoadScene"></div>
+    <div id="modalOverlay"></div>
+    <div id="dialogBox">
+        <div id="dialogText">Would you like to transfer this Ferian Hotdoggen to Dr. Cat?</div>
+        <div id="dialogControls">
+            <button id="dialogButton1">Yes</button>
+            <button id="dialogButton2">No</button>
+            <button id="dialogButton3">Cancel</button>
+        </div>
+    </div>
+    <div id="pounce" style="display: none"></div>
     <script>
         const wrapper = document.getElementById('game-wrapper');
         const container = document.getElementById('furcContainer');

@@ -94,11 +94,17 @@ export async function loadFurcadiaScript(targetWindow: Window, scriptUrl: string
 				}
 			})();
 
-			if (reconnectMethod && insertChatMethod) {
+			if (reconnectMethod || insertChatMethod) {
 				extWindow.__CLIENT_HOOKS = {
 					reconnect: reconnectMethod,
 					appendChat: insertChatMethod
 				};
+
+				console.log('[Furc Loader] Installed client hooks:', extWindow.__CLIENT_HOOKS);
+			} else {
+				console.warn(
+					'[Furc Loader] Warning: Could not establish any client hooks.'
+				);
 			}
 		};
 	}
@@ -114,7 +120,8 @@ export async function loadFurcadiaScript(targetWindow: Window, scriptUrl: string
 function getAllObjectProps(obj: any): Array<[string, any]> {
 	const allProps = new Set<[string, any]>();
 	const collectProps = (obj: any) => {
-		if (!obj || !(obj instanceof Object)) return;
+		// Use typeof check instead of instanceof Object to handle cross-frame objects (iframe)
+		if (!obj || typeof obj !== 'object') return;
 		Object.getOwnPropertyNames(obj)
 			.filter((k) => k !== 'constructor' && obj[k])
 			.forEach((k) => allProps.add([k, obj[k]]));
@@ -125,7 +132,8 @@ function getAllObjectProps(obj: any): Array<[string, any]> {
 }
 
 function getConstructor(obj: any): Function | null {
-	if (obj && obj instanceof Object) {
+	// Use typeof check instead of instanceof Object to handle cross-frame objects (iframe)
+	if (obj && typeof obj === 'object') {
 		return Object.getPrototypeOf(obj).constructor;
 	}
 	return null;

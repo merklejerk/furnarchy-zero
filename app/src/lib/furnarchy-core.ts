@@ -2,6 +2,7 @@ import { utils } from './utils';
 import { get } from 'svelte/store';
 import { openModal, closeModal, modalStore, type ModalOptions } from './modal-store';
 import { parseServerCommand } from './furc-protocol';
+import type { ExtendedWindow } from './window-types';
 
 export interface PluginMetadata {
 	id: string;
@@ -314,6 +315,10 @@ export class FurnarchyCore {
 		doc.addEventListener('keypress', handler);
 	}
 
+	private get clientHooks() {
+		return (this._gameDocument?.defaultView as ExtendedWindow | null | undefined)?.__CLIENT_HOOKS;
+	}
+
 	setGameInput(enabled: boolean): void {
 		this.gameInputEnabled = enabled;
 		if (enabled) {
@@ -375,9 +380,9 @@ export class FurnarchyCore {
 	}
 
 	reconnect(): void {
-		if (typeof window !== 'undefined' && (window as any).__CLIENT_HOOKS?.reconnect) {
+		if (this.clientHooks?.reconnect) {
 			console.log('[Furnarchy] Triggering reconnect...');
-			(window as any).__CLIENT_HOOKS.reconnect();
+			this.clientHooks.reconnect();
 		} else {
 			console.warn('[Furnarchy] Reconnect not available.');
 		}
@@ -593,8 +598,8 @@ export class FurnarchyCore {
 	}
 
 	notify(text: string, prefix: string = '[0]', sourceId?: string, tag?: string): void {
-		if (typeof window !== 'undefined' && (window as any).__CLIENT_HOOKS?.appendChat) {
-			(window as any).__CLIENT_HOOKS.appendChat(`${this.utils.escape(prefix)} ${text}`);
+		if (this.clientHooks?.appendChat) {
+			this.clientHooks.appendChat(`${this.utils.escape(prefix)} ${text}`);
 		} else {
 			this.inject(`(${this.utils.escape(prefix)} ${text}`, sourceId, tag);
 		}

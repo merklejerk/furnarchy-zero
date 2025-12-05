@@ -61,11 +61,13 @@
 	});
 
 	function handleMessage(event: MessageEvent) {
-		if (event.data && event.data.type === 'resize') {
-			// Add a small buffer to avoid scrollbars or rounding issues
-			iframeWidth = Math.ceil(event.data.width);
-			iframeHeight = Math.ceil(event.data.height);
-			isMobileMode = !!event.data.isMobile;
+		if (event.data) {
+			if (event.data.type === 'resize') {
+				// Add a small buffer to avoid scrollbars or rounding issues
+				iframeWidth = Math.ceil(event.data.width);
+				iframeHeight = Math.ceil(event.data.height);
+				isMobileMode = !!event.data.isMobile;
+			}
 		}
 	}
 
