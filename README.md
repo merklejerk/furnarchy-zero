@@ -4,7 +4,8 @@
 
 **Furnarchy Zero** is a web client wrapper for [Furcadia](https://furcadia.com/). It enhances the official web client with a plugin system.
 
-[**Play Now at furnarchy.xyz**](https://furnarchy.xyz)
+* [**Play Now at furnarchy.xyz.**](https://furnarchy.xyz)
+* I have also been compiling a comprehensive game protocol spec [HERE](docs/FURC_PROTOCOL.md).
 
 ## Project Structure
 
