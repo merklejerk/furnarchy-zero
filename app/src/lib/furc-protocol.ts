@@ -159,7 +159,7 @@ export type ClientProtocolCommand =
 	/** Perform an emote/action (e.g., "waves"). */
 	| { type: 'emote'; message: string }
 	/** Send a private whisper to a user. */
-	| { type: 'whisper'; target: string; message: string }
+	| { type: 'whisper'; target: string; message: string; exact?: boolean }
 	/** Pick up or drop an item at the avatar's feet. */
 	| { type: 'get' }
 	/** Use the item currently held in the avatar's paws. */
@@ -421,9 +421,14 @@ export function parseClientCommand(line: string): ClientProtocolCommand {
 		return { type: 'emote', message: line.substring(1) };
 	} else if (line.startsWith('wh ')) {
 		const parts = line.substring(3).split(' ');
-		const target = parts[0];
+		let target = parts[0];
 		const message = parts.slice(1).join(' ');
-		return { type: 'whisper', target, message };
+		let exact = false;
+		if (target.startsWith('%') && !target.startsWith('%%')) {
+			exact = true;
+			target = target.substring(1);
+		}
+		return { type: 'whisper', target, message, exact };
 	} else if (line.startsWith('m ')) {
 		const direction = parseInt(line.substring(2), 10);
 		return { type: 'move', direction };
@@ -595,7 +600,7 @@ export function createClientCommand(cmd: ClientProtocolCommand): string {
 		case 'emote':
 			return `:${cmd.message}`;
 		case 'whisper':
-			return `wh ${cmd.target} ${cmd.message}`;
+			return `wh ${cmd.exact ? '%' : ''}${cmd.target} ${cmd.message}`;
 		case 'get':
 			return 'get';
 		case 'use':

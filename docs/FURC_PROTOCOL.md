@@ -422,6 +422,7 @@ Unlike the server commands, C2S commands are primarily **line-based ASCII text**
   * Performs an action (e.g., `:waves`).
 * **Whisper:** `wh <name> <message>`
   * Sends a private message.
+  * **Exact Match:** `wh %<name> <message>` (Prevents partial name matching).
   * **Offline Whisper:** `wh %%<name> <message>`
 
 ### 8.3 Interaction & Inventory

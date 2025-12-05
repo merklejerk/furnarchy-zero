@@ -73,12 +73,7 @@ export class PluginContext {
 			console.log(`[${this.metadata.name}] ${text}`);
 			return;
 		}
-
-		if (window.__CLIENT_HOOKS?.appendChat) {
-			window.__CLIENT_HOOKS.appendChat(`${utils.escape('[🟢]')} ${text}`);
-		} else {
-			this.inject(`(${utils.escape('[🟢]')} ${text}\n`, tag);
-		}
+		this.core.notify(text, '[🟢]', this.metadata.id, tag);
 	}
 
 	onIncoming(cb: MessageHandler, priority: number = 0): void {
@@ -510,7 +505,54 @@ export class FurnarchyCore {
 		sourceId: string | null = null,
 		tag: string | null = null
 	): Promise<string | null | undefined> {
+		// Intercept `finfo command
+		if (text === 'finfo') {
+			this.showInfo();
+			return null;
+		}
+
 		return this._processMessage('outgoing', text, sourceId, tag);
+	}
+
+	showInfo() {
+		const info = [
+			`${this.utils.escape('⚡')} Furnarchy Zero v${this.version}`,
+		];
+
+		if (this.isLoggedIn) {
+			info.push(
+				`${this.utils.escape('👤')} User: ${this.characterName} (${this.characterUid})`
+			);
+		} else {
+			info.push(`${this.utils.escape('👤')} User: Not logged in`);
+		}
+
+        info.push(
+            `${this.utils.escape('🔌')} Plugins: ${this.plugins.length} (${this.plugins.filter((p) => p.enabled).length} enabled)`
+        );
+
+		this.plugins.forEach((p) => {
+			const status = p.enabled ? this.utils.escape('✅') : this.utils.escape('💤');
+			info.push(
+				`  - ${status} ${this.utils.escape(p.metadata.name)} v${p.metadata.version}`
+			);
+		});
+
+		if (typeof window !== 'undefined') {
+			info.push(
+				`${this.utils.escape('🖥️')} Viewport: ${window.innerWidth}x${window.innerHeight}`
+			);
+		}
+
+		info.forEach((line) => this.notify(line));
+	}
+
+	notify(text: string, prefix: string = '[0]', sourceId?: string, tag?: string): void {
+		if (typeof window !== 'undefined' && (window as any).__CLIENT_HOOKS?.appendChat) {
+			(window as any).__CLIENT_HOOKS.appendChat(`${this.utils.escape(prefix)} ${text}`);
+		} else {
+			this.inject(`(${this.utils.escape(prefix)} ${text}\n`, sourceId, tag);
+		}
 	}
 
 	notifyLoggedIn(name: string, uid: string): void {

@@ -257,6 +257,17 @@ It is automatically loaded in development mode. To try it in production, add the
     *   `base95Decode(str)`: Decodes a Base95 string to a number.
     *   `base220Encode(val, length?)`: Encodes a number to Base220 string.
     *   `base220Decode(str)`: Decodes a Base220 string to a number.
+    *   `getShortname(name)`: Converts a Furcadia name to its "shortname" format (lowercase, no spaces, no special characters).
+    *   `parseServerCommand(line)`: Parses a raw server command string into a structured object.
+        *   Returns a `ServerProtocolCommand` object with a `type` property (e.g., `'chat'`, `'move-avatar'`, `'set-user-info'`) and relevant data fields.
+        *   Example: `parseServerCommand("(Hello")` -> `{ type: 'chat', text: 'Hello' }`
+    *   `parseClientCommand(line)`: Parses a raw client command string into a structured object.
+        *   Returns a `ClientProtocolCommand` object with a `type` property (e.g., `'move'`, `'speech'`, `'look'`) and relevant data fields.
+        *   Example: `parseClientCommand("m 1")` -> `{ type: 'move', direction: 1 }`
+    *   `createServerCommand(cmd)`: Converts a structured `ServerProtocolCommand` object back into a raw server command string.
+        *   Example: `createServerCommand({ type: 'chat', text: 'Hello' })` -> `"(Hello"`
+    *   `createClientCommand(cmd)`: Converts a structured `ClientProtocolCommand` object back into a raw client command string.
+        *   Example: `createClientCommand({ type: 'move', direction: 1 })` -> `"m 1"`
 
 ### Hosting Plugins
 Since Furnarchy Zero runs in the browser, plugins must be hosted on a web server accessible via HTTPS (or HTTP if running locally).
