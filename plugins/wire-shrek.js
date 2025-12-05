@@ -2,8 +2,8 @@ Furnarchy.register({
     id: "wire-shrek-f3a66d300de24038",
     name: "Wire Shrek",
     description: "Network traffic inspector. Opens a popout window to view raw traffic.",
-    version: "1.2.1",
-    author: "Furnarchy Zero",
+    version: "1.3.0",
+    author: "me@merklejerk.com",
     toggle: true
 }, (api) => {
     let popup = null;
@@ -132,7 +132,7 @@ Furnarchy.register({
         const sendCmd = () => {
             const text = cmdInput.value;
             if (text) {
-                api.send(text.endsWith('\n') ? text : text + '\n');
+                api.send(text);
                 cmdInput.value = '';
             }
         };
@@ -140,7 +140,7 @@ Furnarchy.register({
         const injectCmd = () => {
              const text = cmdInput.value;
             if (text) {
-                api.inject(text.endsWith('\n') ? text : text + '\n');
+                api.inject(text);
                 cmdInput.value = '';
             }
         };
@@ -192,5 +192,9 @@ Furnarchy.register({
         if (enabled) {
             openPopup();
         }
+    });
+
+    api.onUnload(() => {
+        closePopup();
     });
 });

@@ -2,8 +2,8 @@ Furnarchy.register({
     id: "modal-showcase-dev",
     name: "Modal Showcase",
     description: "Demonstrates the modal capabilities of Furnarchy Zero.",
-    version: "1.0.0",
-    author: "Furnarchy Team"
+    version: "1.1.0",
+    author: "me@merklejerk.com"
 }, (api) => {
     
     const showModal = () => {
@@ -65,6 +65,10 @@ Furnarchy.register({
             return null; // Consume
         }
         return line;
+    });
+    
+    api.onUnload(() => {
+        api.closeModal();
     });
     
     api.notify("Modal Showcase loaded. Click Configure to test.");
