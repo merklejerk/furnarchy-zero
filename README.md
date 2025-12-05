@@ -234,8 +234,10 @@ It is automatically loaded in development mode. To try it in production, add the
         *   `api.onLoggedIn(callback)`: Called when login succeeds. Callback receives `(name)`.
         *   `api.onPause(callback)`: Called when plugin is enabled/disabled. Callback receives `(paused)`.
         *   `api.onLoad(callback)`: Called immediately after registration with the initial enabled state. Callback receives `(enabled)`.
+        *   `api.onUnload(callback)`: Called when the plugin is removed or reloaded. Use this to clean up intervals, event listeners, or UI elements.
         *   `api.onConfigure(callback)`: Called when the user clicks the configure button in the plugin manager.
         *   `api.onReady(callback)`: Called when all plugins have been loaded. Use this to safely access services exposed by other plugins.
+        *   `api.reconnect()`: Triggers the game client's native reconnect sequence. Useful for auto-reconnect logic.
         *   `api.openModal(options)`: Opens a modal dialog.
             *   `options`: Object containing:
                 *   `title`: String title of the modal.
@@ -253,6 +255,7 @@ It is automatically loaded in development mode. To try it in production, add the
 
 *   `Furnarchy.utils`
     *   `escape(str)`: Escapes HTML special characters and converts Unicode characters to HTML entities.
+    *   `unescape(str)`: Unescapes HTML entities back to their character representation.
     *   `base95Encode(val, length?)`: Encodes a number to Base95 string.
     *   `base95Decode(str)`: Decodes a Base95 string to a number.
     *   `base220Encode(val, length?)`: Encodes a number to Base220 string.
