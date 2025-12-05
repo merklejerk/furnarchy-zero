@@ -44,11 +44,12 @@ The primary encoding for **Object IDs, Coordinates, Colors, and RLE**.
 ### 1.3 Coordinate Systems
 
 * **Map Coordinates:** 0-based integers (0 to MapWidth-1).
-* **Directions:**
+* **Avatar Directions (S2C):**
   * 0: Southwest (Down-Left)
   * 1: Southeast (Down-Right)
   * 2: Northwest (Up-Left)
   * 3: Northeast (Up-Right)
+* **Movement Directions (C2S):** See Section 15.2.
 
 ## 2. Server-to-Client OpCodes
 
@@ -77,11 +78,11 @@ Packet type is determined by the first byte (ASCII char).
 | **0x26** | `&` | - | **Login/Ready**. Triggers costume request and buffer start. |
 | **0x3B** | `;` | Text | **Load Map (Legacy)**. |
 | **0x5E** | `^` | Base220 | **Unknown**. Calls `sv.Om`. |
-| **0x30** | `0` | Base220 | **DS Variable**. Calls `sv.cp.Kv`. |
-| **0x33** | `3` | Base220 | **DS String**. Calls `sv.cp.Sm`. |
-| **0x36** | `6` | Base220 | **DS Trigger (Server)**. Calls `M_`. |
-| **0x37** | `7` | Base220 | **DS Trigger (Client)**. Calls `M_`. |
-| **0x38** | `8` | Base220 | **DS Init**. Calls `sv.cp.Zv`. |
+| **0x30** | `0` | Base220 | **DS Variable**. Updates `nv` array. |
+| **0x33** | `3` | Base220 | **DS Value Stack**. Updates `hv` stack. |
+| **0x36** | `6` | Base220 | **DS Trigger (Server)**. Contextual event. |
+| **0x37** | `7` | Base220 | **DS Trigger (Client)**. Contextual event. |
+| **0x38** | `8` | Base220 | **DS Context Sync**. Syncs RNG & Globals. |
 
 ## 3. Object & Avatar Protocols (S2C)
 
@@ -131,12 +132,49 @@ Sent when a player changes species/colors/gender.
 
 ### 3.4 Color Code Structure
 
-Variable length structure starting after the Name string.
+The color code is a binary structure that defines the avatar's colors, species, and gender. It appears in `<` (Add Avatar), `B` (Update Appearance), and `]-#A` (Specitag) packets.
 
-* **Header Byte:**
-  * If 0x77 ('w'): **Extended Code** (16 bytes).
-  * Otherwise: **Legacy Code** (14 bytes).
-* **Content:** Contains Species ID, Gender, Remapping colors (Fur, Markings, Vest, etc.), and Avatar Scale.
+**Parsing Logic (`At` Class):**
+
+1.  **Header Byte (Offset 0):** Determines the format.
+    *   `0x77` ('w'): **Extended Format** (16 bytes).
+    *   `0x74` ('t'): **Legacy Format** (14 bytes).
+    *   Other: **Old Format** (12 bytes).
+
+2.  **Extended Format ('w'):**
+    *   **Offsets 1-12:** Color Indices (12 bytes). See §3.5.
+        *   Value = `Byte - 35`.
+    *   **Offset 13:** Gender (0=Female, 1=Male, 2=Unspecified).
+        *   Value = `Byte - 35`.
+    *   **Offsets 14-15:** Species ID (Little-Endian Base220).
+        *   Value = `(Byte14 - 35) + 220 * (Byte15 - 35)`.
+
+3.  **Legacy Format ('t'):**
+    *   **Offsets 1-10:** Color Indices (10 bytes).
+        *   Value = `Byte - 35`.
+    *   **Offset 11:** Gender.
+        *   Value = `Byte - 35`.
+    *   **Offset 12:** Species ID (1 byte).
+        *   Value = `(Byte - 35) + 1`.
+
+### 3.5 Remapping Indices
+
+The color indices map to specific body parts for the avatar remapping engine.
+
+| Index | Body Part | Palette | Notes |
+| :---- | :---- | :---- | :---- |
+| 0 | **Fur** | `le` | Main body color. |
+| 1 | **Markings** | `le` | Secondary body color. |
+| 2 | **Hair** | `ue` | |
+| 3 | **Eyes** | `de` | |
+| 4 | **Badge** | `ve` | |
+| 5 | **Vest** | `fe` | |
+| 6 | **Bracers** | `fe` | |
+| 7 | **Cape** | `fe` | |
+| 8 | **Boots** | `fe` | |
+| 9 | **Trousers** | `fe` | |
+| 10 | **Wings** | `le` | Extended only. |
+| 11 | **Accent** | `fe` | Extended only (Glasses/Masks). |
 
 ## 4. Map Data Compression (RLE)
 
@@ -192,8 +230,14 @@ The `]-` and `]P` commands are stateful modifiers (handled by `S_` in `Ie`). The
 * **#A (Specitag Binary):**
   * **Example:** `]-#A...`
   * **Content:** Binary data (starting at offset 4).
-  * **Usage:** Contains the At (Avatar/Color) structure for a "Specitag" (the graphical avatar shown next to a chat message).
-  * **Logic:** The client stores this binary blob in `this.x_`. When the next `(` arrives, it parses this blob to render the Specitag.
+  * **Usage:** Contains the **Color Code** structure (See §3.4) for the "Specitag" (the graphical avatar shown next to a chat message).
+  * **Logic:**
+    1.  Client receives `]-#A[Blob]`.
+    2.  Client extracts `Blob` and stores it in a temporary buffer (`this.x_`).
+    3.  Client receives `(` (Chat Packet).
+    4.  Client parses `this.x_` using the `At` class (Color Code Parser).
+    5.  Client renders the chat line with the parsed avatar data.
+    6.  `this.x_` is cleared.
 * **<i (HTML Prefix):**
   * **Example:** `]-<i...`
   * **Content:** String data (starting at offset 4).
@@ -270,13 +314,86 @@ let downloadID = realID - 135;
 
 ## 7. DragonSpeak / Scripting OpCodes
 
-The protocol includes specific OpCodes for the scripting engine variables and triggers.
+The protocol includes specific OpCodes for synchronizing the DragonSpeak (DS) engine state between server and client.
 
-* `0`: **DS Variables** (Set variable index to value).
-* `3`: **DS Strings** (Update string variables).
-* `6`: **DS Trigger (Server)**.
-* `7`: **DS Trigger (Client)**.
-* `8`: **DS Init** (Initialize scripting engine state).
+### 7.1 DS Variable (`0`)
+
+Updates the values of the "Number Variables" (`nv` array, `%var0` - `%var999`).
+
+*   **OpCode:** `0` (ASCII 48)
+*   **Payload:** Sequence of Variable Updates.
+*   **Format:** `[Index (2b)] [Value (3b)] ...`
+    *   **Index:** Base220 offset in `nv`.
+    *   **Value:** Base220 value.
+    *   **RLE Compression:** If `Value == 16384`, the next 6 bytes define a run:
+        *   `[Count (3b)] [Value (3b)]`
+        *   Sets `Count` consecutive variables to `Value`.
+
+### 7.2 DS Value Stack (`3`)
+
+Populates the "Random/Value Stack" (`hv` array). These values are consumed by the DS engine during trigger execution (e.g., for `random` results or specific parameters).
+
+*   **OpCode:** `3` (ASCII 51)
+*   **Payload:** Sequence of 3-byte values.
+*   **Format:** `[Value (3b)] [Value (3b)] ...`
+*   **Logic:** Resets the stack pointer (`ov`) to 0 and fills `hv`.
+
+### 7.3 DS Triggers (`6` and `7`)
+
+Triggers a specific DS line (event) on the client.
+
+*   **OpCode:**
+    *   `6`: **Server Trigger** (Sets `cp.Cv = true`).
+    *   `7`: **Client Trigger** (Sets `cp.Cv = false`).
+*   **Header (8 bytes):**
+    *   `[Arg1 (2b)]`: Context X / Source.
+    *   `[Arg2 (2b)]`: Context Y / Source.
+    *   `[Arg3 (2b)]`: Target X / Dest.
+    *   `[Arg4 (2b)]`: Target Y / Dest.
+*   **Payload:** Sequence of Trigger IDs.
+    *   `[LineID (2b)]`
+    *   **Extended ID:** If `LineID >= 8000`:
+        *   `RealID = (LineID - 8000) + 1000 * [Next 2b]`
+*   **Action:** Executes the DS code starting at `LineID` with the provided context arguments.
+
+### 7.4 DS Context / State Sync (`8`)
+
+Synchronizes the DragonSpeak engine's global state. While named "Init" in some contexts, this packet is sent **frequently** during gameplay (not just at login) to ensure the client's execution context matches the server's.
+
+**Usage:**
+*   **RNG Sync:** Reseeds the client's Random Number Generator (`bs` class) to match the server. This ensures that "Random" DS effects (like random floor tiles) render identically on both sides.
+*   **Event Context:** Updates the "Triggering Furre" (`_v`), "Target Furre" (`gv`), and other context variables before a DS Trigger (`6` or `7`) is fired.
+
+*   **OpCode:** `8` (ASCII 56)
+*   **Payload:** Fixed structure (Base220).
+
+| Offset | Length | Variable | Description |
+| :--- | :--- | :--- | :--- |
+| 1 | 1 | `wv` | **Context Flag**. (0=Source, 1=Target). |
+| 2 | 5 | - | **RNG Seed**. Seeds the `bs` random number generator. |
+| 7 | 3 | `gv` | **Target Furre UID**. |
+| 10 | 1 | `yv` | **Direction**. (0=SW, 1=SE, 2=NW, 3=NE). |
+| 11 | 3 | `kv` | **Object ID / Shape**. (Source Furre). |
+| 14 | 3 | `Mv` | **Color Code / Spec**. (Source Furre). |
+| 17 | 2 | `xv` | *Reserved*. |
+| 19 | 6 | `_v` | **Triggering Furre UID**. |
+| 25 | 2 | `Iv` | *Reserved*. |
+| 27 | 3 | `Tv` | *Reserved*. |
+| 30 | 2 | `Dv` | *Reserved*. |
+| 32 | 2 | `Uv` | **Aux X**. (e.g. Last Clicked / Portal). |
+| 34 | 2 | `Bv` | **Aux Y**. |
+| 36 | 1 | `Ev` | *Reserved*. |
+| 37 | 1 | `Pv` | *Reserved*. |
+| 38 | 1 | `Nv` | *Reserved*. |
+| 39 | 1 | `$v` | *Reserved*. |
+| 40 | 1 | `Lv` | *Reserved*. |
+| 41 | 2 | `Rv` | *Reserved*. |
+| 43 | 2 | `Ov` | **Aux X 2**. |
+| 45 | 2 | `Wv` | **Aux Y 2**. |
+
+### 7.5 DS Strings
+
+While OpCode `3` handles the value stack, string variables (`sv` array) are typically handled via extended commands or specific DS lines that parse string arguments. (Note: The legacy "DS String" label for OpCode 3 appears to be a misnomer in modern clients, as it handles numeric stack data).
 
 ## 8. Client-to-Server Commands (C2S)
 
@@ -447,8 +564,8 @@ Each DS "Line" is exactly **20 bytes** (10 words).
 
 | Word Index | Name | Description |
 | :---- | :---- | :---- |
-| **0** | **Type** | OpCode Category (2=Cond, 3=Trig, 5=Action). |
-| **1** | **ID** | The specific command ID (e.g., 5:300 is Variable Set). |
+| **0** | **Type** | OpCode Category (See below). |
+| **1** | **ID** | The specific command ID / Sub-type. |
 | **2** | **Arg 1** | First Argument (See §10.4). |
 | **3** | **Arg 2** | Second Argument. |
 | **4** | **Arg 3** | ... |
@@ -457,6 +574,13 @@ Each DS "Line" is exactly **20 bytes** (10 words).
 | **7** | **Arg 6** | ... |
 | **8** | **Arg 7** | ... |
 | **9** | **Next** | Jump Offset (Line Index) for control flow. |
+
+**Line Types (Word 0):**
+
+*   **2**: **Control / Variable**. Handles variable assignment and internal flow.
+*   **3**: **Trigger**. Marks the start of a code block (Event Handler).
+*   **4**: **Condition**. (Filter). Must pass for execution to continue.
+*   **5**: **Action**. Effect that changes the game state.
 
 ### 10.3 Execution Cycle
 
@@ -497,13 +621,24 @@ PhoenixSpeak (PS) is the database layer. In the standard client protocol, there 
 
 ### 10.7 Common OpCode Ranges
 
-* **1 - 99:** Triggers (Movement, Chat, Object Interaction).
-* **100 - 199:** Filters/Conditions (Object at, Player has).
-* **300 - 399:** Variable Manipulation (Set, Add, Random).
-  * `300`: Set Variable (`nv[A] = B`).
-  * `302`: Add (`nv[A] += B`).
-  * `314`: Set to Object ID.
-* **500+:** Map Manipulation (Place Item, Move Wall).
+*   **1 - 99:** **Triggers** (Movement, Chat, Object Interaction).
+*   **100 - 199:** **Conditions/Filters** (Object at, Player has).
+*   **300 - 399:** **Variable Manipulation** (Client-Side).
+    *   `300`: Set Variable (`nv[A] = B`).
+    *   `301`: Copy Variable (`nv[B] = nv[A]`).
+    *   `302`: Add (`nv[A] += B`).
+    *   `303`: Add Variable (`nv[A] += nv[B]`).
+    *   `304`: Subtract (`nv[A] -= B`).
+    *   `305`: Subtract Variable.
+    *   `306`: Multiply.
+    *   `308`: Divide (`nv[A] / B` -> `nv[A]`, Remainder -> `nv[C]`).
+    *   `314`: Set to Target Furre ID (`nv[A] = gv`).
+    *   `315`: Set to Source Shape (`nv[A] = kv`).
+    *   `316`: Set Source Shape (`kv = A`).
+*   **500+:** **Map Manipulation**.
+    *   `500-502`: Random Position Selection.
+    *   `510-512`: Floor Checks.
+    *   `530-532`: Object Checks.
 
 ## 11. Cryptography & Obfuscation
 
@@ -566,9 +701,54 @@ The client uses a Linear Congruential Generator (LCG) for deterministic game log
 
 ## 12. Typical Login Handshake
 
-The login process is a multi-step dance involving both HTTPS and WebSocket protocols.
+The login process is a multi-step dance involving both HTTPS and WebSocket protocols. It begins with account authentication and character selection before establishing the game connection.
 
-### 12.1 Phase 1: HTTP Authentication
+### 12.1 Phase 1: Account Authentication (HTTP)
+
+**Base URL:** `https://terra.furcadia.com` (or `https://cms.furcadia.com` for some endpoints).
+
+**Headers:**
+* `X-Furcadia-FJ-CSRFToken`: Required for state-changing requests. Obtained from `verify_credentials` or `login`.
+
+#### Step 1: Verify Session
+Checks if the user is already logged in.
+
+* **Endpoint:** `GET /api/v1/verify_credentials`
+* **Response:**
+  ```json
+  {
+    "email": "user@example.com",
+    "csrf_token": "..."
+  }
+  ```
+
+#### Step 2: Login (If Session Invalid)
+* **Endpoint:** `POST /api/v1/login`
+* **Payload:**
+  ```json
+  {
+    "email": "user@example.com",
+    "password": "password123",
+    "permanent": false
+  }
+  ```
+* **Response:** Same as `verify_credentials`.
+
+#### Step 3: List Characters
+Retrieves the list of characters associated with the account.
+
+* **Endpoint:** `GET /api/v1/characters`
+* **Response:**
+  ```json
+  {
+    "12345": { "id": 12345, "name": "CharacterName", "costume": 0, ... },
+    ...
+  }
+  ```
+
+### 12.2 Phase 2: Game Authentication (HTTP)
+
+Once a character is selected, the client requests a one-time token for the WebSocket connection.
 
 **Direction:** Client -> `terra.furcadia.com`
 
@@ -578,7 +758,7 @@ The login process is a multi-step dance involving both HTTPS and WebSocket proto
 
 ```json
 {
-  "id": "PlayerName",
+  "id": 12345,
   "server": "live"
 }
 ```
@@ -589,11 +769,12 @@ The login process is a multi-step dance involving both HTTPS and WebSocket proto
 {
   "auth_string": "abcdef123456...",
   "server_url": "wss://lightbringer.furcadia.com:6502/...",
-  "dream_url": "https://apollo.furcadia.com/..."
+  "dream_url": "https://apollo.furcadia.com/...",
+  "audio_url_prefix": "https://apollo.furcadia.com/audio/"
 }
 ```
 
-### 12.2 Phase 2: WebSocket Connection
+### 12.3 Phase 3: WebSocket Connection
 
 **Direction:** Client -> `server_url` (WSS)
 
@@ -613,7 +794,7 @@ The login process is a multi-step dance involving both HTTPS and WebSocket proto
    * *Example:* `]q def.map modern`
    * *Meaning:* Load the default map.
 
-### 12.3 Phase 3: Asset Synchronization (The "Vasco" Phase)
+### 12.4 Phase 4: Asset Synchronization (The "Vasco" Phase)
 
 **Action:** Client downloads map/dream files via HTTP based on the `]q` command.
 
@@ -682,3 +863,80 @@ These allow the DS engine to manipulate the P (Object/Shape) structs directly.
 * **434:** Play Animation (Start auto-stepping frames).
 * **438:** Set Animation Speed (Delay between frames).
 * **Target:** Can target Items, Walls, Floors, or Regions based on the sub-opcode range.
+
+## 14. News Feed API
+
+The client fetches the latest news from a simple text-based endpoint.
+
+* **Endpoint:** `https://news.furcadia.com/current`
+* **Format:** Plain text, one entry per line.
+* **Entry Marker:** Lines starting with `NewsEntry `.
+* **Delimiters:** Fields are separated by tabs (`\t`). Newlines within text are encoded as `#LF#`.
+
+**Field Structure:**
+
+| Index | Field | Description |
+| :---- | :---- | :---- |
+| 0 | **Date** | Date string (e.g., "Oct 27"). |
+| 1 | **Author** | Author name. |
+| 2 | **Category** | News category (e.g., "Community"). |
+| 3 | **Title** | Headline text. |
+| 4 | **Body** | Main content text. |
+| 5 | **Link URL** | URL to full article. |
+| 6 | **Image URL** | URL to thumbnail image. |
+| 7 | **ID** | Unique ID string. |
+
+
+## 15. Coordinate System & Rendering
+
+Furcadia uses a **Staggered Isometric** projection (specifically, a variation of "Odd-r" horizontal staggering). The map is stored as a 2D grid, but rendered with every even row shifted to the right.
+
+### 15.1 Screen Projection
+
+To convert a Map Coordinate `(x, y)` to a Screen Pixel Coordinate `(sx, sy)`:
+
+```javascript
+// Constants
+const TILE_WIDTH = 64;
+const TILE_HEIGHT = 32; // Effective step is 16
+const ROW_SHIFT = 32;   // Half tile width
+
+// Calculation
+let sx = CameraX + (x * TILE_WIDTH);
+let sy = CameraY + (y * (TILE_HEIGHT / 2));
+
+// Stagger: Even rows (y % 2 == 0) are shifted RIGHT by 32 pixels.
+if ((y & 1) == 0) {
+    sx += ROW_SHIFT;
+}
+```
+
+* **Note:** The client's internal camera logic (`ns.tl`) actually calculates offsets inversely, but the visual result matches the formula above.
+* **Camera Center:** The camera coordinates `Cc` and `_c` are typically set such that the player is centered.
+
+### 15.2 Directional Movement
+
+Due to the staggered grid, movement vectors depend on the parity of the **Y** coordinate (whether the player is on an Even or Odd row).
+
+**Keypad Directions (Client Command `m <dir>`):**
+
+| Direction | Keypad | Vector (Even Row) | Vector (Odd Row) |
+| :---- | :---- | :---- | :---- |
+| **Northeast** | `9` | `y--` | `x++, y--` |
+| **Southeast** | `3` | `y++` | `x++, y++` |
+| **Southwest** | `1` | `x--, y++` | `y++` |
+| **Northwest** | `7` | `x--, y--` | `y--` |
+
+* **Even Row (Shifted Right):** Moving vertically (`y--` or `y++`) effectively moves "Left" relative to the staggered grid, resulting in NW/SW movement. To go East (NE/SE), you must increment X.
+* **Odd Row (Not Shifted):** Moving vertically effectively moves "Right" relative to the staggered grid, resulting in NE/SE movement. To go West (NW/SW), you must decrement X.
+
+### 15.3 Hit Detection (Color Picking)
+
+The web client does **not** use a mathematical inverse function for mouse-to-map conversion. Instead, it uses **GPU Color Picking**:
+
+1. **Hidden Render:** The scene is rendered to an off-screen framebuffer (`ns.canvas.oc`).
+2. **Color Encoding:** Each tile and object is rendered with a unique solid color corresponding to its ID.
+   * `Color = ID + 1`
+   * `ID = (x << 12) | y` (Packed Coordinate)
+3. **Read Pixel:** On `mousedown`, the client reads the pixel color at the mouse coordinates (`gl.readPixels`).
+4. **Decode:** The color is converted back to the ID, which is then unpacked to `(x, y)`.
