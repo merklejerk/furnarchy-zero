@@ -111,20 +111,6 @@
 
 <div class="settings-panel retro-theme">
 	<section>
-		<h3>Auth Proxy Server</h3>
-		<p class="desc">
-			A CORS-friendly proxy server that forwards login requests to the official Furacadia auth
-			server (terra.furcadia.com). Be careful! Your password will be transmitted to this address. By
-			default we provide our own, which does not log or store credentials, but you can instead use
-			yours for peace of mind.
-		</p>
-		<div class="input-group">
-			<input type="text" bind:value={authUrl} placeholder={env.PUBLIC_AUTH_PROXY_URL} />
-			<button on:click={saveAuth}>Save</button>
-		</div>
-	</section>
-
-	<section>
 		<h3>Plugins</h3>
 		<p class="desc">
 			Load external JavaScript plugins to enhance your game client. Plugins are loaded from the
@@ -134,8 +120,8 @@
 			See the <a
 				href="https://github.com/merklejerk/furnarchy-zero"
 				target="_blank"
-				rel="noopener noreferrer">Github README</a
-			> for more information.
+				rel="noopener">Github README</a
+			> for information on developing plugins.
 		</p>
 		<div class="input-group">
 			<input
@@ -196,7 +182,7 @@
 							{/if}
 							<div class="detail-row">
 								<span class="label">URL:</span>
-								<a href={plugin.url} target="_blank" rel="noopener noreferrer" class="url-link"
+								<a href={plugin.url} target="_blank" rel="noopener" class="url-link"
 									>{plugin.url}</a
 								>
 							</div>
@@ -211,6 +197,23 @@
 				<li class="empty">No plugins installed</li>
 			{/if}
 		</ul>
+	</section>
+
+	<section>
+		<h3>Auth Proxy Server</h3>
+		<p class="desc">
+			A CORS-friendly proxy server that forwards login requests to the official Furacadia auth
+			server (terra.furcadia.com). Be careful! Your password will be transmitted to this address.
+			The default is the furnarchy auth proxy (terra.furnarchy.xyz), which is secure, open source, and does not log or store credentials.
+			You can also plug in your own for peace of mind.
+		</p>
+		<p class="desc">
+			Check the <a href="https://github.com/merklejerk/furnarchy-zero" target="_blank" rel="noopener">Github README</a> for why this is necessary.
+		</p>
+		<div class="input-group">
+			<input type="text" bind:value={authUrl} placeholder={env.PUBLIC_AUTH_PROXY_URL} />
+			<button on:click={saveAuth}>Save</button>
+		</div>
 	</section>
 </div>
 
