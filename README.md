@@ -212,6 +212,10 @@ It is automatically loaded in development mode. To try it in production, add the
 
 [View Source](app/static/plugins/modal-showcase.js)
 
+### More Example Plugins
+
+You can find more examples for plugins by browsing the [bundled plugins](app/static/plugins).
+
 ### API Reference
 
 * `Furnarchy.register(meta, callback)`
