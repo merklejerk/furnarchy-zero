@@ -15,13 +15,13 @@ interface PluginMetadata {
     version: string;     // Semantic version (e.g., "1.0.0")
     description?: string;// Optional description
     author?: string;     // Optional author name
-    toggle?: boolean;    // If true, the plugin starts disabled and can be toggled
+    toggle?: boolean;    // If true, the plugin starts disabled and must be toggled on
 }
 
 version: "1.0.0",
     description: "A brief description of what this plugin does.",
     author: "Your Name",
-    toggle: true // If true, the plugin starts disabled and can be toggled
+    toggle: true
 }, (api: PluginContext) => {
     // Your plugin logic goes here
     
