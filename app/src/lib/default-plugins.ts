@@ -4,7 +4,8 @@ export const DEFAULT_PLUGINS = [
 	'/plugins/wire-shrek.js',
 	'/plugins/stalker.js',
 	'/plugins/fly.js',
-    '/plugins/hush.js'
+    '/plugins/hush.js',
+    '/plugins/notifier.js'
 ];
 
 export const DEFAULT_DEV_PLUGINS = ['/plugins/modal-showcase.js'];

@@ -20,7 +20,12 @@
 	let isVerifying = false;
 
 	// Use the store for reactivity
-	$: plugins = [...$pluginStore].sort((a, b) => (a.name || a.url).localeCompare(b.name || b.url));
+	$: plugins = [...$pluginStore].sort((a, b) => {
+		const aEnabled = a.enabled !== false;
+		const bEnabled = b.enabled !== false;
+		if (aEnabled !== bEnabled) return aEnabled ? -1 : 1;
+		return (a.name || a.url).localeCompare(b.name || b.url);
+	});
 
 	onMount(() => {
 		// Initialize store from storage

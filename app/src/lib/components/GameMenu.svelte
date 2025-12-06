@@ -29,7 +29,12 @@
 	let core: FurnarchyCore = furnarchyCore;
 
 	// Use the store for reactivity
-	$: plugins = [...$pluginStore].sort((a, b) => (a.name || a.url).localeCompare(b.name || b.url));
+	$: plugins = [...$pluginStore].sort((a, b) => {
+		const aEnabled = a.enabled !== false;
+		const bEnabled = b.enabled !== false;
+		if (aEnabled !== bEnabled) return aEnabled ? -1 : 1;
+		return (a.name || a.url).localeCompare(b.name || b.url);
+	});
 
 	// Persist zoom settings
 	$: if (typeof window !== 'undefined' && settingsLoaded) {
@@ -346,7 +351,7 @@
 			</div>
 
 			<ul class="plugin-list">
-				{#each $pluginStore as plugin}
+				{#each plugins as plugin}
 					<!-- svelte-ignore a11y-click-events-have-key-events -->
 					<!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
 					<li
