@@ -1,7 +1,7 @@
 Furnarchy.register({
     id: "stalker-plugin-b9307b7cdc558",
     name: "Stalker",
-    version: "1.2.0",
+    version: "1.2.1",
     description: "Tracks online status of friends.",
     author: "me@merklejerk.com"
 }, (api) => {
@@ -47,35 +47,35 @@ Furnarchy.register({
             const statusEmoji = f.isOnline === true ? '🟢' : (f.isOnline === false ? '🔴' : '⚪');
             const statusText = f.isOnline === true ? 'Online' : (f.isOnline === false ? 'Offline' : 'Unknown');
             return `
-                <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px; border-bottom: 1px solid #eee;">
+                <div class="list-row" style="display: flex; justify-content: space-between; align-items: center;">
                     <div style="display: flex; align-items: center;">
                         <span id="status-icon-${f.shortname}" style="font-size: 1.2em; margin-right: 8px;">${statusEmoji}</span>
                         <div>
                             <strong id="name-${f.shortname}">${utils.escape(f.name)}</strong>
-                            <div id="status-text-${f.shortname}" style="font-size: 0.8em; color: #666;">${statusText}</div>
+                            <div id="status-text-${f.shortname}" class="text-dim" style="font-size: 0.8em;">${statusText}</div>
                         </div>
                     </div>
-                    <button class="btn-danger" data-short="${f.shortname}" style="padding: 4px 8px; font-size: 0.8em; cursor: pointer; border: none; border-radius: 4px; background: #ff5252; color: white;">Remove</button>
+                    <button class="btn-danger" data-short="${f.shortname}">Remove</button>
                 </div>
             `;
         }).join('');
 
         const body = `
             <div style="min-width: 300px;">
-                <div style="margin-bottom: 15px; display: flex; gap: 5px;">
-                    <input type="text" id="stalker-add-input" placeholder="Character Name" style="flex: 1; padding: 8px; border: 1px solid #ccc; border-radius: 4px;" />
-                    <button id="stalker-add-btn" style="padding: 8px 15px; background: #2196f3; color: white; border: none; border-radius: 4px; cursor: pointer;">Add</button>
+                <div style="margin-bottom: 15px; display: flex; gap: 10px;">
+                    <input type="text" id="stalker-add-input" placeholder="Character Name" style="flex: 1;" />
+                    <button id="stalker-add-btn" class="btn-primary">Add</button>
                 </div>
-                <div style="max-height: 400px; overflow-y: auto; border: 1px solid #eee; border-radius: 4px;">
-                    ${friends.length ? listHtml : '<div style="padding: 20px; text-align: center; color: #888;">No friends added yet.</div>'}
+                <div class="list-box">
+                    ${friends.length ? listHtml : '<div class="text-dim" style="padding: 20px; text-align: center;">No friends added yet.</div>'}
                 </div>
-                <div style="margin-top: 10px; display: flex; justify-content: flex-end; align-items: center; font-size: 0.8em; color: #888;">
+                <div class="text-dim" style="margin-top: 10px; display: flex; justify-content: flex-end; align-items: center; font-size: 0.8em;">
                     <label style="margin-right: 5px;">Poll Interval (s):</label>
-                    <input type="number" id="stalker-poll-interval" value="${pollInterval / 1000}" style="width: 60px; padding: 4px; border: 1px solid #ccc; border-radius: 4px;" min="0.1" step="0.1">
+                    <input type="number" id="stalker-poll-interval" value="${pollInterval / 1000}" style="width: 60px;" min="0.1" step="0.1">
                 </div>
-                <div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #eee;">
+                <div style="margin-top: 20px; padding-top: 15px; border-top: 2px solid #555;">
                     <p style="margin-bottom: 5px; font-weight: bold;">Chat Commands:</p>
-                    <ul style="margin: 0; padding-left: 20px; font-size: 0.9em; color: #555;">
+                    <ul style="margin: 0; padding-left: 20px; font-size: 0.9em;" class="text-dim">
                         <li><code>\`stalk [name]</code> - Add a friend (targets last viewed description if name omitted)</li>
                         <li><code>\`unstalk [name]</code> - Remove a friend (targets last viewed description if name omitted)</li>
                         <li><code>\`stalker</code> - View status in chat</li>

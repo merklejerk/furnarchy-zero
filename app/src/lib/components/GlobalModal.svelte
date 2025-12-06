@@ -180,6 +180,24 @@
 			.text-gold {
 				color: $color-text-gold;
 			}
+
+			.list-box {
+				border: 2px solid $color-border-dim;
+				background: $color-bg-list;
+				max-height: 300px;
+				overflow-y: auto;
+				margin-bottom: 15px;
+				@include retro-scrollbar;
+			}
+
+			.list-row {
+				border-bottom: 1px solid $color-border-dim;
+				padding: 8px;
+				
+				&:last-child {
+					border-bottom: none;
+				}
+			}
 		}
 	}
 </style>

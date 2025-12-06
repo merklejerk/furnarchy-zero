@@ -338,6 +338,12 @@ export class FurnarchyCore {
 		this._gameDocument = doc;
 		const handler = (e: KeyboardEvent) => {
 			if (!this.gameInputEnabled) {
+				const target = e.target as HTMLElement;
+				// Allow input if the target is inside a modal
+				if (target && target.closest && target.closest('.modal-window')) {
+					return;
+				}
+
 				e.stopImmediatePropagation();
 				e.preventDefault();
 			}

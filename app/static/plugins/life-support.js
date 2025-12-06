@@ -2,7 +2,7 @@ Furnarchy.register({
     id: "life-support-afk-aeefd1e3",
     name: "Life Support",
     description: "Keeps you logged in and manages AFK status.",
-    version: "1.2.0",
+    version: "1.2.1",
     author: "me@merklejerk.com",
     toggle: false,
 }, (api) => {
@@ -87,13 +87,14 @@ Furnarchy.register({
         state.isIdle = false;
         state.currentReason = null;
         
-        api.send('unafk');
+        if (api.isLoggedIn) {
+            api.send('unafk');
+            api.notify("Welcome back!");
+        }
 
         // Clear timers
         if (timers.keepAlive) clearInterval(timers.keepAlive);
         if (timers.afkUpdate) clearInterval(timers.afkUpdate);
-        
-        api.notify("Welcome back!");
 
         listeners.forEach(cb => { try { cb(false); } catch(e) { console.error(e); } });
     }
@@ -107,6 +108,7 @@ Furnarchy.register({
     function startIdleCheck() {
         if (timers.idleCheck) clearInterval(timers.idleCheck);
         timers.idleCheck = setInterval(() => {
+            if (!api.isLoggedIn) return;
             if (!state.isIdle && state.myName) {
                 const idleTime = Date.now() - state.lastActivity;
                 if (idleTime > config.timeout * 60000) {
@@ -175,6 +177,18 @@ Furnarchy.register({
     });
 
     api.onDisconnected(() => {
+        if (state.isIdle) {
+            exitIdleMode();
+        }
+
+        if (timers.idleCheck) {
+            clearInterval(timers.idleCheck);
+            timers.idleCheck = null;
+        }
+        
+        state.myName = null;
+        state.myShortname = null;
+
         if (config.autoReconnect) {
             log("Disconnected. Reconnecting in 5 seconds...");
             setTimeout(() => {

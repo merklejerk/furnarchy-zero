@@ -52,6 +52,15 @@ describe('furc-protocol', () => {
 				}
 			},
 			{
+				name: 'roll',
+				cmd: {
+					type: 'roll',
+					message: '1d20 8==D & gets 19.',
+					from: 'Roller',
+					fromShort: 'roller'
+				}
+			},
+			{
 				name: 'set-avatar-info',
 				cmd: { type: 'set-avatar-info', name: 'Avatar|Name', visualCode: 'abcdefghijklmnop' }
 			},
@@ -362,6 +371,7 @@ describe('furc-protocol', () => {
 			']B12345 Name',
 			'(Hello',
 			"(<font color='whisper'>[ <name shortname='sender' src='whisper-from'>Sender</name> whispers, \"Secret\" to you. ]</font>",
+			"(<font color='roll'><img src='fsh://system.fsh:101' alt='@roll' /><channel name='@roll' /> <name shortname='roller'>Roller</name> rolls 1d20 & gets 20.</font>",
 			']f0123456789abcdefName',
 			']&12345',
 			'@! ! ',

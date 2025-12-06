@@ -51,6 +51,8 @@ export type ServerProtocolCommand =
 	| { type: 'speech'; message: string; from: string; fromShort: string; isSelf: false }
 	/** Emote message. */
 	| { type: 'emote'; message: string; from: string; fromShort: string }
+	/** Roll message. */
+	| { type: 'roll'; message: string; from: string; fromShort: string }
 	/** Description text. */
 	| { type: 'description'; shortname: string; description: string }
 	/** Updates the visual appearance (species, gender, etc.) of an avatar. */
@@ -219,6 +221,7 @@ const INCOMING_WHISPER_REGEX =
 const SELF_SPEECH_REGEX = /^<font color='myspeech'>You say, "(.*)"<\/font>$/;
 const OTHER_SPEECH_REGEX = /^<name shortname='([^']+)'>([^<]+)<\/name>: (.*)$/;
 const EMOTE_REGEX = /^<font color='emote'><name shortname='([^']+)'>([^<]+)<\/name> (.*)<\/font>$/;
+const ROLL_REGEX = /^<font color='roll'>.*?<name shortname='([^']+)'>([^<]+)<\/name> rolls (.*)<\/font>$/;
 const DESCRIPTION_REGEX = /^<desc shortname='([^']+)' \/>&gt; (.*)$/;
 
 export function parseServerCommand(line: string): ServerProtocolCommand {
@@ -263,6 +266,15 @@ export function parseServerCommand(line: string): ServerProtocolCommand {
 				fromShort: emoteMatch[1],
 				from: emoteMatch[2],
 				message: emoteMatch[3]
+			};
+		}
+		const rollMatch = content.match(ROLL_REGEX);
+		if (rollMatch) {
+			return {
+				type: 'roll',
+				fromShort: rollMatch[1],
+				from: rollMatch[2],
+				message: rollMatch[3]
 			};
 		}
 		const descMatch = content.match(DESCRIPTION_REGEX);
@@ -547,6 +559,8 @@ export function createServerCommand(cmd: ServerProtocolCommand): string {
 			}
 		case 'emote':
 			return `(<font color='emote'><name shortname='${cmd.fromShort}'>${cmd.from}</name> ${cmd.message}</font>`;
+		case 'roll':
+			return `(<font color='roll'><img src='fsh://system.fsh:101' alt='@roll' /><channel name='@roll' /> <name shortname='${cmd.fromShort}'>${cmd.from}</name> rolls ${cmd.message}</font>`;
 		case 'description':
 			return `(<desc shortname='${cmd.shortname}' />&gt; ${cmd.description}`;
 		case 'set-avatar-info':

@@ -3,7 +3,8 @@ export const DEFAULT_PLUGINS = [
 	'/plugins/auto-spinner.js',
 	'/plugins/wire-shrek.js',
 	'/plugins/stalker.js',
-	'/plugins/fly.js'
+	'/plugins/fly.js',
+    '/plugins/hush.js'
 ];
 
 export const DEFAULT_DEV_PLUGINS = ['/plugins/modal-showcase.js'];
