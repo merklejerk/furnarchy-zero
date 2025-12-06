@@ -2,14 +2,22 @@
 
 **Status:** Unofficial / Reverse Engineered
 **Target Client:** Furcadia Web Client (v32+)
-**Transport:** WebSocket (Binary/Text Hybrid) & HTTP/1.1
+**Transport:** WebSocket (Subprotocol: `binary`) & HTTP/1.1
 **Endianness:** Mixed (See Section 1)
 
 ## 1. Data Types & Encodings
 
 The protocol minimizes bandwidth using two custom variable-base integer encoding schemes that map byte values to printable ASCII ranges.
 
-### 1.1 Base-95 (Big-Endian)
+### 1.1 WebSocket Framing
+
+*   **Subprotocol:** The connection must specify the `binary` subprotocol.
+*   **Frame Type:** All messages (both C2S and S2C) are sent as **Binary Frames** (OpCode 0x02).
+*   **Line Delimiter:** Packets are separated by a newline byte (`0x0A`).
+*   **Text Encoding:** Text is encoded as Latin-1 (ISO-8859-1) bytes within the binary frame.
+*   **Whitespace:** Leading and trailing whitespace is significant and must be preserved (do not trim lines).
+
+### 1.2 Base-95 (Big-Endian)
 
 Used primarily for **camera coordinates** and legacy systems.
 
@@ -50,6 +58,17 @@ The primary encoding for **Object IDs, Coordinates, Colors, and RLE**.
   * 2: Northwest (Up-Left)
   * 3: Northeast (Up-Right)
 * **Movement Directions (C2S):** See Section 15.2.
+
+### 1.4 Name Canonicalization (Shortnames)
+
+The protocol uses a "shortname" format for identifying players in commands (e.g., `join`, `summon`, `wh`) to resolve ambiguities caused by spaces, punctuation, or HTML formatting in display names.
+
+**Algorithm:**
+1.  **Normalize Entities:** Replace HTML entities (e.g., `&Agrave;`, `&ntilde;`) with their base ASCII characters (e.g., `a`, `n`).
+2.  **Strip:** Remove all non-alphanumeric characters (spaces, punctuation, symbols).
+3.  **Lowercase:** Convert the result to lowercase.
+
+*Example:* `| Dark-Wing_Duck |` becomes `darkwingduck`.
 
 ## 2. Server-to-Client OpCodes
 
@@ -456,6 +475,12 @@ Unlike the server commands, C2S commands are primarily **line-based ASCII text**
   * **Offline Whisper:** `wh %%<name> <message>`
 * **Online Check:** `onln <shortname>`
   * Checks if a player is online. Server responds with `]%`.
+* **Summon:** `summon <name>`
+  * Invites a player to join you.
+  * **Exact Match:** `summon %<name>` (Prevents partial name matching).
+* **Join:** `join <name>`
+  * Accepts a summon request or attempts to join a player.
+  * **Exact Match:** `join %<name>` (Prevents partial name matching).
 
 ### 8.3 Interaction & Inventory
 
@@ -563,7 +588,8 @@ Initial handshake to get the WebSocket token.
 
 * **Endpoint:** `https://terra.furcadia.com/api/v1/gameAuth`
 * **Method:** POST
-* **Payload (JSON):**
+* **Payload (JSON or Form-Encoded):**
+  *   *Note:* The official client uses `application/x-www-form-urlencoded`, but the server accepts `application/json`.
   ```json
   {
     "id": "Character ID / Name",
@@ -747,8 +773,13 @@ The login process is a multi-step dance involving both HTTPS and WebSocket proto
 
 **Base URL:** `https://terra.furcadia.com` (or `https://cms.furcadia.com` for some endpoints).
 
-**Headers:**
-* `X-Furcadia-FJ-CSRFToken`: Required for state-changing requests. Obtained from `verify_credentials` or `login`.
+**Session Management:**
+*   The API uses **Session Cookies**. The client must maintain a cookie jar across requests (specifically between `/login` and `/gameAuth`).
+*   **Critical Cookies:**
+    *   `fj_token`: The primary session identifier.
+    *   `fj_csrfToken`: The CSRF token (mirrors the header).
+*   **Headers:**
+    *   `X-Furcadia-FJ-CSRFToken`: Required for `POST` requests (e.g., `/gameAuth`). Obtained from `verify_credentials` or `login`.
 
 #### Step 1: Verify Session
 Checks if the user is already logged in.
@@ -779,9 +810,11 @@ Retrieves the list of characters associated with the account.
 
 * **Endpoint:** `GET /api/v1/characters`
 * **Response:**
+  *   Returns a JSON object where **Keys** are Character IDs and **Values** are character details.
+  *   *Note:* The `id` field is often missing from the value object itself.
   ```json
   {
-    "12345": { "id": 12345, "name": "CharacterName", "costume": 0, ... },
+    "12345": { "name": "CharacterName", "costume": 0, ... },
     ...
   }
   ```
@@ -793,6 +826,9 @@ Once a character is selected, the client requests a one-time token for the WebSo
 **Direction:** Client -> `terra.furcadia.com`
 
 **Action:** `POST /api/v1/gameAuth`
+
+**Headers:**
+*   `X-Furcadia-FJ-CSRFToken`: Required.
 
 **Payload:**
 
@@ -818,21 +854,23 @@ Once a character is selected, the client requests a one-time token for the WebSo
 
 **Direction:** Client -> `server_url` (WSS)
 
-**Action:** Open WebSocket Connection.
+**Action:** Open WebSocket Connection (Subprotocol: `binary`).
 
 **Sequence:**
 
-1. **Server:** `Dragonroar` (Text frame).
-2. **Client:** `webflag` (Text frame).
-3. **Client:** `loginNG <auth_string>` (Text frame).
-4. **Server:** `]B <id> <name>` (Text frame).
-   * *Example:* `]B 12345 PlayerName`
-   * *Meaning:* Login successful. Sets local player ID.
-5. **Server:** `(` (MOTD Text frames).
-   * *Example:* `(Welcome to Furcadia!`
-6. **Server:** `]q <map> <patch>` (Text frame).
-   * *Example:* `]q def.map modern`
-   * *Meaning:* Load the default map.
+1.  **Pre-Handshake:** Server sends raw text lines (e.g., Build version, "Good morning", News). These are **not** standard packets and should be treated as console output until `Dragonroar` is received.
+2.  **Server:** `Dragonroar` (Raw Text Line).
+    *   Marks the end of the pre-handshake phase.
+3.  **Client:** `webflag` (Raw Text Line).
+4.  **Client:** `loginNG <auth_string>` (Raw Text Line).
+5.  **Server:** `]B <id> <name>` (Packet).
+    *   *Example:* `]B 12345 PlayerName`
+    *   *Meaning:* Login successful. Sets local player ID.
+6.  **Server:** `(` (MOTD Text frames).
+    *   *Example:* `(Welcome to Furcadia!`
+7.  **Server:** `]q <map> <patch>` (Text frame).
+    *   *Example:* `]q def.map modern`
+    *   *Meaning:* Load the default map.
 
 ### 12.4 Phase 4: Asset Synchronization (The "Vasco" Phase)
 
