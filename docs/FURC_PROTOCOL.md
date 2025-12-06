@@ -501,6 +501,8 @@ Unlike the server commands, C2S commands are primarily **line-based ASCII text**
   * `auth_string` is obtained via the HTTP API (`/api/v1/gameAuth`).
 * **Ready:** `vascodagama`
   * Sent after the client has finished downloading the map/dream files. Tells the server to "wake" the player.
+* **Buffer Control:** `buf <action>`
+  * `buf start`: Tells the server to start sending buffered events (after login).
 * **Quit:** `quit`
   * Graceful disconnect.
 * **Keep Alive:** `iamhere` (implied/legacy).
@@ -866,9 +868,13 @@ Once a character is selected, the client requests a one-time token for the WebSo
 5.  **Server:** `]B <id> <name>` (Packet).
     *   *Example:* `]B 12345 PlayerName`
     *   *Meaning:* Login successful. Sets local player ID.
-6.  **Server:** `(` (MOTD Text frames).
+6.  **Server:** `&` (Login/Ready).
+    *   *Meaning:* Server is ready for avatar setup.
+7.  **Client:** `costume <args>` (e.g., `costume auto`).
+8.  **Client:** `buf start` (Start event buffer).
+9.  **Server:** `(` (MOTD Text frames).
     *   *Example:* `(Welcome to Furcadia!`
-7.  **Server:** `]q <map> <patch>` (Text frame).
+10. **Server:** `]q <map> <patch>` (Text frame).
     *   *Example:* `]q def.map modern`
     *   *Meaning:* Load the default map.
 
