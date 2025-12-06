@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import SettingsPanel from '$lib/components/SettingsPanel.svelte';
+	import MenuIcon from '$lib/components/icons/MenuIcon.svelte';
 	import { FurnarchyCore } from '$lib/furnarchy-core';
 	import { maintainConfig } from '$lib/storage';
 	import '$lib/retro.css';
@@ -38,6 +39,10 @@
 				is hard).
 			</p>
 			<p>
+				While in-game, look for the <span class="inline-icon"><MenuIcon /></span>
+				icon in the top-right corner to access plugins, settings, and zoom controls.
+			</p>
+			<p class="disclaimer">
 				<strong>Disclaimer:</strong> This is an experimental third-party tool and is not affiliated with
 				Dragon's Eye Productions. Use at your own risk. Plugins have full access to your game session.
 				Only install plugins from trusted sources.
@@ -154,5 +159,28 @@
 
 	.separator {
 		color: #444;
+	}
+
+	.disclaimer {
+		margin-top: 20px;
+		padding-top: 15px;
+		border-top: 1px dashed $color-border-dim;
+	}
+
+	.inline-icon {
+		display: inline-block;
+		width: 24px;
+		height: 24px;
+		vertical-align: middle;
+		color: red;
+		background: rgba(0, 0, 0, 0.3);
+		border-radius: 50%;
+		padding: 4px;
+		margin: 0 2px;
+
+		:global(svg) {
+			width: 100%;
+			height: 100%;
+		}
 	}
 </style>
