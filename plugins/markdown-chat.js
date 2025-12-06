@@ -1,7 +1,7 @@
 Furnarchy.register({
     id: "markdown-chat-75197f979",
     name: "Markdown Chat",
-    version: "1.0.0",
+    version: "1.0.1",
     description: "Adds basic markdown support (*italic*, **bold**, _underline_, [text](link)) to chat.",
     author: "me@merklejerk.com",
 }, (api) => {
@@ -12,7 +12,7 @@ Furnarchy.register({
         let processed = text;
 
         // Links: [text](url) -> <a href="url">text</a>
-        processed = processed.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (match, text, url) => {
+        processed = processed.replace(/\[([^\[\]]+)\]\(([^)]+)\)/g, (match, text, url) => {
             return `<a href="${url}">${text}</a>`;
         });
 
