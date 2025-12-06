@@ -1,0 +1,1 @@
+import{o,t as l,v as e,l as u,u as a}from"./ClPHtEvL.js";function f(n){e===null&&o(),u&&e.l!==null?c(e).m.push(n):l(()=>{const t=a(n);if(typeof t=="function")return t})}function c(n){var t=n.l;return t.u??={a:[],b:[],m:[]}}export{f as o};
