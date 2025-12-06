@@ -38,6 +38,77 @@ export function base220Decode(str: string): number {
 	return val;
 }
 
+export interface ColorCode {
+	species: number;
+	gender: number;
+	colors: number[]; // 12 integers
+}
+
+export function parseColorCode(code: string): ColorCode {
+	const result: ColorCode = {
+		species: 1,
+		gender: 0,
+		colors: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+	};
+
+	if (!code) return result;
+
+	if (code.startsWith('w')) {
+		// Extended Format (16 chars)
+		// w + 12 colors + gender + species (2 bytes)
+		const len = Math.min(code.length, 16);
+		for (let i = 0; i < 12 && i + 1 < len; i++) {
+			result.colors[i] = base220Decode(code[i + 1]);
+		}
+		if (len > 13) result.gender = base220Decode(code[13]);
+		if (len > 14) result.species = base220Decode(code.substring(14, 16));
+	} else if (code.startsWith('t')) {
+		// Legacy Format (14 chars)
+		// t + 10 colors + gender + species (1 byte)
+		const len = Math.min(code.length, 14);
+		for (let i = 0; i < 10 && i + 1 < len; i++) {
+			result.colors[i] = base220Decode(code[i + 1]);
+		}
+		if (len > 11) result.gender = base220Decode(code[11]);
+		if (len > 12) result.species = base220Decode(code[12]) + 1;
+	} else {
+		// Old Format (12 chars, Base95-like offset 32)
+		// 10 colors + gender + species (1 byte)
+		const len = Math.min(code.length, 12);
+		for (let i = 0; i < 10 && i < len; i++) {
+			result.colors[i] = base95Decode(code[i]);
+		}
+		if (len > 10) result.gender = base95Decode(code[10]);
+		if (len > 11) result.species = base95Decode(code[11]) + 1;
+	}
+
+	return result;
+}
+
+export function encodeColorCode(cc: ColorCode): string {
+	// Infer format: Use Extended ('w') if species > 220 or using extra colors
+	const useExtended = cc.species > 220 || cc.colors[10] > 0 || cc.colors[11] > 0;
+
+	if (useExtended) {
+		let res = 'w';
+		for (let i = 0; i < 12; i++) res += base220Encode(cc.colors[i] || 0, 1);
+		res += base220Encode(cc.gender, 1);
+		res += base220Encode(cc.species, 2);
+		return res;
+	} else {
+		let res = 't';
+		for (let i = 0; i < 10; i++) res += base220Encode(cc.colors[i] || 0, 1);
+		res += base220Encode(cc.gender, 1);
+		// Legacy species is offset by -1
+		res += base220Encode(Math.max(0, cc.species - 1), 1);
+		return res;
+	}
+}
+
+function resolveColorCode(raw: string | undefined, parsed: ColorCode | undefined): string {
+	return raw || (parsed ? encodeColorCode(parsed) : '');
+}
+
 export type ServerProtocolCommand =
 	/** Sets the current user's session ID and name. Sent upon successful login. */
 	| { type: 'set-user-info'; uid: number; name: string }
@@ -55,8 +126,8 @@ export type ServerProtocolCommand =
 	| { type: 'roll'; message: string; from: string; fromShort: string }
 	/** Description text. */
 	| { type: 'description'; shortname: string; description: string }
-	/** Updates the visual appearance (species, gender, etc.) of an avatar. */
-	| { type: 'set-avatar-info'; name: string; visualCode: string }
+	/** Sets the character info (avatar data + name) for the info window/portrait. */
+	| { type: 'set-character-info'; name: string; colorCode: string; colorCodeParsed: ColorCode }
 	/** Request to load the portrait for a specific user ID. */
 	| { type: 'load-portrait'; uid: number }
 	/** Camera/Viewport Sync. */
@@ -70,7 +141,8 @@ export type ServerProtocolCommand =
 			direction: number;
 			pose: number;
 			name: string;
-			colorCode: string;
+			colorCode?: string;
+			colorCodeParsed?: ColorCode;
 			afkTime: number;
 			scale: number;
 	  }
@@ -90,7 +162,8 @@ export type ServerProtocolCommand =
 			uid: number;
 			direction: number;
 			pose: number;
-			colorCode: string;
+			colorCode?: string;
+			colorCodeParsed?: ColorCode;
 	  }
 	/** Remove Object (Furre leaves view). */
 	| { type: 'remove-object'; uid: number }
@@ -199,10 +272,12 @@ export type ClientProtocolCommand =
 	| { type: 'keep-alive' }
 	/** Set the user's description. */
 	| { type: 'set-desc'; description: string }
-	/** Set the user's colors (Base220 encoded string). */
-	| { type: 'set-color'; data: string }
+	/** Set the user's colors (Color Code string). */
+	| { type: 'set-color'; data?: string; dataParsed?: ColorCode }
 	/** Set the user's costume (e.g., "auto" or specific ID). */
 	| { type: 'costume'; args: string }
+	/** Change the user's colors/species in-game (Silver Sponsor+). */
+	| { type: 'chcol'; colorCode?: string; colorCodeParsed?: ColorCode }
 	/** Set AFK status with an optional message. */
 	| { type: 'afk'; message?: string }
 	/** Return from AFK status. */
@@ -288,9 +363,9 @@ export function parseServerCommand(line: string): ServerProtocolCommand {
 		return { type: 'chat', text: content };
 	} else if (line.startsWith(']f')) {
 		// Format: ]f<16-char-code><name>
-		const visualCode = line.substring(2, 18);
-		const name = line.substring(18);
-		return { type: 'set-avatar-info', name, visualCode };
+		const colorCode = line.substring(2, 18);
+		const name = line.substring(18).replace(/\|/g, ' ');
+		return { type: 'set-character-info', name, colorCode, colorCodeParsed: parseColorCode(colorCode) };
 	} else if (line.startsWith(']&')) {
 		// Format: ]&<uid>
 		const uid = parseInt(line.substring(2), 10);
@@ -378,9 +453,9 @@ export function parseServerCommand(line: string): ServerProtocolCommand {
 		const name = line.substring(3);
 		return { type: 'online-status', online, name };
 	} else if (line.startsWith(']v')) {
-		const x = base95Decode(line.substring(2, 4));
-		const y = base95Decode(line.substring(4, 6));
-		const effectId = line.charCodeAt(6); // Char
+		const effectId = line.charCodeAt(2);
+		const x = base95Decode(line.substring(3, 5));
+		const y = base95Decode(line.substring(5, 7));
 		return { type: 'legacy-visual-effect', x, y, effectId };
 	} else if (line.startsWith('@')) {
 		const x = base95Decode(line.substring(1, 3));
@@ -397,6 +472,7 @@ export function parseServerCommand(line: string): ServerProtocolCommand {
 		const colorCodeStart = 12 + nameLen;
 		const colorCodeLen = line[colorCodeStart] === 'w' ? 16 : 14;
 		const colorCode = line.substring(colorCodeStart, colorCodeStart + colorCodeLen);
+		const colorCodeParsed = parseColorCode(colorCode);
 		// Skip padding (1 byte)
 		const afkTime = base220Decode(
 			line.substring(colorCodeStart + colorCodeLen + 1, colorCodeStart + colorCodeLen + 5)
@@ -413,6 +489,7 @@ export function parseServerCommand(line: string): ServerProtocolCommand {
 			pose,
 			name,
 			colorCode,
+			colorCodeParsed,
 			afkTime,
 			scale
 		};
@@ -429,7 +506,8 @@ export function parseServerCommand(line: string): ServerProtocolCommand {
 		const direction = base220Decode(line.substring(5, 6));
 		const pose = base220Decode(line.substring(6, 7));
 		const colorCode = line.substring(7);
-		return { type: 'update-avatar-appearance', uid, direction, pose, colorCode };
+		const colorCodeParsed = parseColorCode(colorCode);
+		return { type: 'update-avatar-appearance', uid, direction, pose, colorCode, colorCodeParsed };
 	} else if (line.startsWith('C')) {
 		const uid = base220Decode(line.substring(1, 5));
 		return { type: 'remove-object', uid };
@@ -524,9 +602,13 @@ export function parseClientCommand(line: string): ClientProtocolCommand {
 	} else if (line.startsWith('desc ')) {
 		return { type: 'set-desc', description: line.substring(5) };
 	} else if (line.startsWith('color ')) {
-		return { type: 'set-color', data: line.substring(6) };
+		const data = line.substring(6);
+		return { type: 'set-color', data, dataParsed: parseColorCode(data) };
 	} else if (line.startsWith('costume ')) {
 		return { type: 'costume', args: line.substring(8) };
+	} else if (line.startsWith('chcol ')) {
+		const colorCode = line.substring(6);
+		return { type: 'chcol', colorCode, colorCodeParsed: parseColorCode(colorCode) };
 	} else if (line.startsWith('afk')) {
 		if (line === 'afk') return { type: 'afk' };
 		if (line.startsWith('afk ')) return { type: 'afk', message: line.substring(4) };
@@ -563,18 +645,24 @@ export function createServerCommand(cmd: ServerProtocolCommand): string {
 			return `(<font color='roll'><img src='fsh://system.fsh:101' alt='@roll' /><channel name='@roll' /> <name shortname='${cmd.fromShort}'>${cmd.from}</name> rolls ${cmd.message}</font>`;
 		case 'description':
 			return `(<desc shortname='${cmd.shortname}' />&gt; ${cmd.description}`;
-		case 'set-avatar-info':
-			return `]f${cmd.visualCode}${cmd.name.replace(/ /g, '|')}`;
+		case 'set-character-info': {
+			const cc = resolveColorCode(cmd.colorCode, cmd.colorCodeParsed);
+			return `]f${cc}${cmd.name.replace(/ /g, '|')}`;
+		}
 		case 'load-portrait':
 			return `]&${cmd.uid}`;
 		case 'camera-sync':
 			return `@${base95Encode(cmd.x, 2)}${base95Encode(cmd.y, 2)}`;
-		case 'add-avatar':
-			return `<${base220Encode(cmd.uid, 4)}${base220Encode(cmd.x, 2)}${base220Encode(cmd.y, 2)}${base220Encode(cmd.direction, 1)}${base220Encode(cmd.pose, 1)}${base220Encode(cmd.name.length, 1)}${cmd.name}${cmd.colorCode}${base220Encode(0, 1)}${base220Encode(cmd.afkTime, 4)}${base220Encode(cmd.scale, 1)}`;
+		case 'add-avatar': {
+			const cc = resolveColorCode(cmd.colorCode, cmd.colorCodeParsed);
+			return `<${base220Encode(cmd.uid, 4)}${base220Encode(cmd.x, 2)}${base220Encode(cmd.y, 2)}${base220Encode(cmd.direction, 1)}${base220Encode(cmd.pose, 1)}${base220Encode(cmd.name.length, 1)}${cmd.name}${cc}${base220Encode(0, 1)}${base220Encode(cmd.afkTime, 4)}${base220Encode(cmd.scale, 1)}`;
+		}
 		case 'move-avatar':
 			return `${cmd.moveType === 'walk' ? '/' : 'A'}${base220Encode(cmd.uid, 4)}${base220Encode(cmd.x, 2)}${base220Encode(cmd.y, 2)}${base220Encode(cmd.direction, 1)}${base220Encode(cmd.pose, 1)}`;
-		case 'update-avatar-appearance':
-			return `B${base220Encode(cmd.uid, 4)}${base220Encode(cmd.direction, 1)}${base220Encode(cmd.pose, 1)}${cmd.colorCode}`;
+		case 'update-avatar-appearance': {
+			const cc = resolveColorCode(cmd.colorCode, cmd.colorCodeParsed);
+			return `B${base220Encode(cmd.uid, 4)}${base220Encode(cmd.direction, 1)}${base220Encode(cmd.pose, 1)}${cc}`;
+		}
 		case 'remove-object':
 			return `C${base220Encode(cmd.uid, 4)}`;
 		case 'delete-object':
@@ -622,7 +710,7 @@ export function createServerCommand(cmd: ServerProtocolCommand): string {
 		case 'batch-particle':
 			return `]I${cmd.data}`;
 		case 'legacy-visual-effect':
-			return `]v${base95Encode(cmd.x, 2)}${base95Encode(cmd.y, 2)}${String.fromCharCode(cmd.effectId)}`;
+			return `]v${String.fromCharCode(cmd.effectId)}${base95Encode(cmd.x, 2)}${base95Encode(cmd.y, 2)}`;
 		case 'update-map': {
 			const layerCharMap: Record<string, string> = {
 				floor: '1',
@@ -692,10 +780,14 @@ export function createClientCommand(cmd: ClientProtocolCommand): string {
 			return 'iamhere';
 		case 'set-desc':
 			return `desc ${cmd.description}`;
-		case 'set-color':
-			return `color ${cmd.data}`;
+		case 'set-color': {
+			return `color ${resolveColorCode(cmd.data, cmd.dataParsed)}`;
+		}
 		case 'costume':
 			return `costume ${cmd.args}`;
+		case 'chcol': {
+			return `chcol ${resolveColorCode(cmd.colorCode, cmd.colorCodeParsed)}`;
+		}
 		case 'afk':
 			return cmd.message ? `afk ${cmd.message}` : 'afk';
 		case 'unafk':

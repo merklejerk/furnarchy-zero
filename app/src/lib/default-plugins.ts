@@ -6,7 +6,8 @@ export const DEFAULT_PLUGINS = [
 	'/plugins/fly.js',
     '/plugins/hush.js',
     '/plugins/notifier.js',
-    '/plugins/markdown-chat.js'
+    '/plugins/markdown-chat.js',
+    '/plugins/color-copy.js'
 ];
 
 export const DEFAULT_DEV_PLUGINS = ['/plugins/modal-showcase.js'];

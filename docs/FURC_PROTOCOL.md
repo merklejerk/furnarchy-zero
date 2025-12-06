@@ -119,7 +119,7 @@ Sent when an avatar enters the player's visibility range.
 | 10 | 1 | Base220 | **Pose** | 0=Stand, 1=Walk, 2=Sit, 3=Lie. |
 | 11 | 1 | Base220 | **Name Len** | Length of the name string (L). |
 | 12 | L | ASCII | **Name** | Visible name. |
-| 12+L | Var | Binary | **Color Code** | See §3.4. |
+| 12+L | 14/16 | Binary | **Color Code** | 'w' (16b) or 't' (14b). See §3.4. |
 | ... | 1 | Base220 | Padding? | Usually skipped. |
 | ... | 4 | Base220 | **AFK Time** | Seconds since last activity. |
 | ... | 1 | Base220 | **Scale** | 0-255 (100 = 1.0x). |
@@ -147,7 +147,7 @@ Sent when a player changes species/colors/gender.
 | 1 | 4 | Base220 | **Furre ID** |  |
 | 5 | 1 | Base220 | **Direction** |  |
 | 6 | 1 | Base220 | **Pose** |  |
-| 7 | Var | Binary | **Color Code** | See §3.4. |
+| 7 | 14/16 | Binary | **Color Code** | 'w' (16b) or 't' (14b). See §3.4. |
 
 ### 3.4 Color Code Structure
 
@@ -175,6 +175,19 @@ The color code is a binary structure that defines the avatar's colors, species, 
         *   Value = `Byte - 35`.
     *   **Offset 12:** Species ID (1 byte).
         *   Value = `(Byte - 35) + 1`.
+
+4.  **Old Format (No Prefix):**
+    *   **Offsets 0-9:** Color Indices (10 bytes).
+        *   Value = `Byte - 32`.
+    *   **Offset 10:** Gender.
+        *   Value = `Byte - 32`.
+    *   **Offset 11:** Species ID (1 byte).
+        *   Value = `(Byte - 32) + 1`.
+
+**Note:** Modern server packets (`<` and `B`) only support the Extended ('w') and Legacy ('t') formats. The Old format is not used in these contexts.
+
+**Encoding Inference:**
+When encoding a Color Code, use **Extended ('w')** format if `Species > 220` or if `Colors[10]` or `Colors[11]` are non-zero. Otherwise, use **Legacy ('t')** format to save bandwidth.
 
 ### 3.5 Remapping Indices
 
@@ -279,8 +292,8 @@ The `]` OpCode acts as a namespace for modern features. The 2nd byte determines 
 | **0x47** | `G` | Char (0 or 1) | **Name Visibility**. 0=Show, 1=Hide. |
 | **0x60** | `` ` `` | *Unknown* | **Legacy/Ignored**. Observed in logs but ignored by this client. |
 | **0x6A** | `j` | Base220 (2 bytes) | **Play Music**. Argument is Track ID. |
-| **0x26** | `&` | Text (ID) | **Load Portrait**. User ID to load portrait for. |
-| **0x66** | `f` | Binary | **Set Portrait**. Defines current user's portrait data. |
+| **0x26** | `&` | Text (ID) | **Load Portrait**. Triggers HTTP fetch using ID and Name (from `]f`). |
+| **0x66** | `f` | Binary + Text | **Set Character Info**. Sets Color Code (16b) and Name for info window. |
 | **0x73** | `s` | Base220 (2b+2b) + Text | **Set Tag**. (Type, Length, String). |
 | **0x23** | `#` | Text | **Dialog Box**. Opens modal with buttons. |
 | **0x3F** | `?` | Binary Stream | **Pounce Update**. Friend list online/offline status. |
@@ -357,6 +370,22 @@ let hopEnabled = (idHigh & 1) === 1;
 // The HTTP server expects IDs shifted by 135 (e.g. DPlayer1.fox corresponds to ID 136)
 let downloadID = realID - 135;
 ```
+
+### 6.3 Character Info & Portrait (`]f` and `]&`)
+
+These commands work together to display character information and load the portrait image (e.g. when clicking on a furre).
+
+*   **Set Character Info (`]f`)**:
+    *   **Header:** `]f` (2 bytes).
+    *   **Color Code:** 16 bytes (Extended Format, see §3.4).
+    *   **Name:** Remaining string (Pipes `|` replaced by spaces).
+    *   **Action:** Updates the client's "Info Window" state with the avatar appearance and name.
+
+*   **Load Portrait (`]&`)**:
+    *   **Header:** `]&` (2 bytes).
+    *   **User ID:** ASCII Integer (Base 10).
+    *   **Action:** Triggers an HTTP request to fetch the portrait image using the ID from this packet and the Name from the preceding `]f` packet.
+    *   **URL:** `https://apollo.furcadia.com/portrait/get.php?id={ID}&user={Name}`.
 
 ## 7. DragonSpeak / Scripting OpCodes
 
@@ -511,10 +540,13 @@ Unlike the server commands, C2S commands are primarily **line-based ASCII text**
 
 * **Set Description:** `desc <text>`
 * **Set Colors:** `color <data>`
-  * `data` is a Base-220 encoded string defining the character's appearance.
+  * `data` is the **Color Code** string (See §3.4).
 * **Costume:** `costume <args>`
   * `costume auto`: Use default appearance.
   * `costume %<id>`: Use specific costume ID.
+* **Change Colors:** `chcol <COLORCODE>`
+  * Updates the character's colors and species while in-game (Silver Sponsor+).
+  * `COLORCODE` is the **Color Code** string (See §3.4).
 * **AFK:** `afk <reason>` / `unafk`
 
 ### 8.6 Extended Interaction

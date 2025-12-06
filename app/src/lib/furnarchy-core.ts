@@ -47,6 +47,14 @@ export class PluginContext {
 		return { x: this.core.playerX, y: this.core.playerY };
 	}
 
+	get name(): string | null {
+		return this.core.characterName;
+	}
+
+	get uid(): string | null {
+		return this.core.characterUid;
+	}
+
 	_handlers = {
 		incoming: [] as { cb: MessageHandler; priority: number }[],
 		outgoing: [] as { cb: MessageHandler; priority: number }[],

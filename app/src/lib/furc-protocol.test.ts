@@ -4,11 +4,84 @@ import {
 	createServerCommand,
 	parseClientCommand,
 	createClientCommand,
+	parseColorCode,
+	encodeColorCode,
 	type ServerProtocolCommand,
 	type ClientProtocolCommand
 } from './furc-protocol';
 
 describe('furc-protocol', () => {
+	describe('Color Code Parsing & Encoding', () => {
+		it('should parse legacy format (t)', () => {
+			// t + 10 colors + gender + species
+			// t = 116
+			// colors: ########## (35, 35...) -> 0
+			// gender: # (35) -> 0
+			// species: # (35) -> 1
+			const code = 't############';
+			const parsed = parseColorCode(code);
+			expect(parsed.gender).toBe(0);
+			expect(parsed.species).toBe(1);
+			expect(parsed.colors.length).toBe(12); // Always 12 slots
+			expect(parsed.colors[0]).toBe(0);
+
+			// Re-encode (should use t because species 1 < 220 and no extra colors)
+			const encoded = encodeColorCode(parsed);
+			expect(encoded).toBe(code);
+		});
+
+		it('should parse extended format (w)', () => {
+			// w + 12 colors + gender + species (2 bytes)
+			// w = 119
+			// colors: ############ (35...) -> 0
+			// gender: # (35) -> 0
+			// species: ## (35, 35) -> 0 + 220*0 = 0
+			const code = 'w###############';
+			const parsed = parseColorCode(code);
+			expect(parsed.gender).toBe(0);
+			expect(parsed.species).toBe(0);
+			expect(parsed.colors.length).toBe(12);
+
+			// Re-encode (should use t because species 0 < 220 and no extra colors)
+			// Wait, if we parse 'w' but it fits in 't', encodeColorCode will produce 't'.
+			// This is acceptable behavior (normalization).
+			const encoded = encodeColorCode(parsed);
+			expect(encoded.startsWith('t')).toBe(true);
+		});
+
+		it('should force extended format (w) for high species ID', () => {
+			const parsed = {
+				species: 300, // > 220
+				gender: 0,
+				colors: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+			};
+			const encoded = encodeColorCode(parsed);
+			expect(encoded.startsWith('w')).toBe(true);
+		});
+
+		it('should force extended format (w) for extra colors', () => {
+			const parsed = {
+				species: 1,
+				gender: 0,
+				colors: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0] // Index 10 used
+			};
+			const encoded = encodeColorCode(parsed);
+			expect(encoded.startsWith('w')).toBe(true);
+		});
+
+		it('should parse old format', () => {
+			// 10 colors + gender + species
+			// colors: "          " (32...) -> 0
+			// gender: " " (32) -> 0
+			// species: " " (32) -> 1
+			const code = '            ';
+			const parsed = parseColorCode(code);
+			expect(parsed.gender).toBe(0);
+			expect(parsed.species).toBe(1);
+			expect(parsed.colors.length).toBe(12);
+		});
+	});
+
 	describe('Server Commands', () => {
 		const testCases: { name: string; cmd: ServerProtocolCommand }[] = [
 			{
@@ -61,8 +134,13 @@ describe('furc-protocol', () => {
 				}
 			},
 			{
-				name: 'set-avatar-info',
-				cmd: { type: 'set-avatar-info', name: 'Avatar|Name', visualCode: 'abcdefghijklmnop' }
+				name: 'set-character-info',
+				cmd: {
+					type: 'set-character-info',
+					name: 'Avatar Name',
+					colorCode: 'abcdefghijklmnop',
+					colorCodeParsed: parseColorCode('abcdefghijklmnop')
+				}
 			},
 			{
 				name: 'load-portrait',
@@ -83,6 +161,7 @@ describe('furc-protocol', () => {
 					pose: 0,
 					name: 'Player',
 					colorCode: 'colorcode#####',
+					colorCodeParsed: parseColorCode('colorcode#####'),
 					afkTime: 0,
 					scale: 100
 				}
@@ -118,7 +197,8 @@ describe('furc-protocol', () => {
 					uid: 444,
 					direction: 1,
 					pose: 0,
-					colorCode: 'newcolors'
+					colorCode: 'newcolors',
+					colorCodeParsed: parseColorCode('newcolors')
 				}
 			},
 			{
@@ -329,11 +409,47 @@ describe('furc-protocol', () => {
 			},
 			{
 				name: 'set-color',
-				cmd: { type: 'set-color', data: 'colors' }
+				cmd: {
+					type: 'set-color',
+					data: 'colors',
+					dataParsed: {
+						species: 1,
+						gender: 0,
+						colors: [67, 79, 76, 79, 82, 83, 0, 0, 0, 0, 0, 0]
+					}
+				}
+			},
+			{
+				name: 'set-color (parsed)',
+				cmd: {
+					type: 'set-color',
+					data: 't############',
+					dataParsed: { species: 1, gender: 0, colors: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] }
+				}
 			},
 			{
 				name: 'costume',
 				cmd: { type: 'costume', args: 'auto' }
+			},
+			{
+				name: 'chcol',
+				cmd: {
+					type: 'chcol',
+					colorCode: 'newcolorcode',
+					colorCodeParsed: {
+						species: 70,
+						gender: 68,
+						colors: [78, 69, 87, 67, 79, 76, 79, 82, 67, 79, 0, 0]
+					}
+				}
+			},
+			{
+				name: 'chcol (parsed)',
+				cmd: {
+					type: 'chcol',
+					colorCode: 't############',
+					colorCodeParsed: { species: 1, gender: 0, colors: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] }
+				}
 			},
 			{
 				name: 'afk',
@@ -373,6 +489,7 @@ describe('furc-protocol', () => {
 			"(<font color='whisper'>[ <name shortname='sender' src='whisper-from'>Sender</name> whispers, \"Secret\" to you. ]</font>",
 			"(<font color='roll'><img src='fsh://system.fsh:101' alt='@roll' /><channel name='@roll' /> <name shortname='roller'>Roller</name> rolls 1d20 & gets 20.</font>",
 			']f0123456789abcdefName',
+			']f0123456789abcdefName|With|Spaces',
 			']&12345',
 			'@! ! ',
 			'<####$#$##$#$Namecolorcode#$###$',
@@ -393,7 +510,7 @@ describe('furc-protocol', () => {
 			']_####$',
 			']O####$#',
 			']Idata',
-			']v! ! \x05',
+			']v\x05! ! ',
 			'1data',
 			'&',
 			';map',
@@ -437,6 +554,7 @@ describe('furc-protocol', () => {
 			'desc My description',
 			'color colors',
 			'costume auto',
+			'chcol newcolorcode',
 			'afk',
 			'afk brb',
 			'unafk',
