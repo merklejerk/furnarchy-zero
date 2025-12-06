@@ -47,7 +47,8 @@
 						name: meta.name,
 						description: meta.description,
 						version: meta.version,
-						author: meta.author
+						author: meta.author,
+						toggle: meta.toggle
 						// Note: We do NOT update 'enabled' based on 'toggle' here.
 						// User preference should persist on the landing page.
 					});
@@ -77,7 +78,8 @@
 					description: metadata.description,
 					version: metadata.version,
 					author: metadata.author,
-					enabled: metadata.toggle !== undefined ? !metadata.toggle : true
+					enabled: metadata.toggle !== undefined ? !metadata.toggle : true,
+					toggle: metadata.toggle
 				}
 			];
 			saveStoredPlugins(newPlugins);
@@ -118,8 +120,13 @@
 	<section>
 		<h3>Plugins</h3>
 		<p class="desc">
-			Load external JavaScript plugins to enhance your game client. Plugins are loaded from the
-			provided URL and have full access to the game environment.
+			Manage your library of installed plugins. These scripts are loaded into the game client to
+			provide extra features. Use the toggle switch to enable or disable them. You can also toggle
+			them in-game via the Furnarchy menu.
+		</p>
+		<p class="desc warning">
+			<strong>Warning:</strong> Plugins have full access to your game session. Only install plugins
+			from trusted sources.
 		</p>
 		<p class="desc">
 			See the <a href="https://github.com/merklejerk/furnarchy-zero" target="_blank" rel="noopener"
@@ -146,7 +153,7 @@
 				<li
 					class="plugin-item"
 					class:expanded={expandedPluginUrl === plugin.url}
-					class:disabled={plugin.enabled === false}
+					class:disabled={plugin.enabled === false && !plugin.toggle}
 					on:click={() =>
 						(expandedPluginUrl = expandedPluginUrl === plugin.url ? null : plugin.url)}
 				>
@@ -249,6 +256,10 @@
 	.desc {
 		color: $color-text-dim;
 		margin-bottom: 10px;
+
+		&.warning {
+			color: $color-danger;
+		}
 	}
 
 	.input-group {

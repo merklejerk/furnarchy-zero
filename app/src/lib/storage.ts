@@ -10,6 +10,7 @@ export interface StoredPlugin {
 	version?: string;
 	author?: string;
 	enabled?: boolean;
+	toggle?: boolean;
 }
 const PLUGINS_KEY = 'furnarchy_plugins';
 const DELETED_PLUGINS_KEY = 'furnarchy_deleted_plugins';
@@ -177,7 +178,8 @@ export async function maintainConfig(currentVersion: string) {
 					description: meta.description,
 					version: meta.version,
 					author: meta.author,
-					enabled: typeof meta.toggle === 'boolean' ? !meta.toggle : true
+					enabled: typeof meta.toggle === 'boolean' ? !meta.toggle : true,
+					toggle: meta.toggle
 				});
 				changed = true;
 			} catch (e) {
