@@ -864,6 +864,7 @@ Once a character is selected, the client requests a one-time token for the WebSo
 2.  **Server:** `Dragonroar` (Raw Text Line).
     *   Marks the end of the pre-handshake phase.
 3.  **Client:** `webflag` (Raw Text Line).
+    *   *Note:* This step appears to be optional for a successful login, but omitting it may have unknown side effects.
 4.  **Client:** `loginNG <auth_string>` (Raw Text Line).
 5.  **Server:** `]B <id> <name>` (Packet).
     *   *Example:* `]B 12345 PlayerName`
