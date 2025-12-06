@@ -346,7 +346,7 @@
 		white-space: nowrap;
 		overflow: hidden;
 		text-overflow: ellipsis;
-		color: $color-text-terminal;
+		color: $color-text-bright;
 	}
 
 	.plugin-details {

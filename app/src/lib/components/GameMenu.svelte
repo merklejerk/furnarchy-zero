@@ -123,6 +123,10 @@
 						updated.author = meta.author;
 						changed = true;
 					}
+					if (current.toggle !== meta.toggle) {
+						updated.toggle = meta.toggle;
+						changed = true;
+					}
 
 					// Note: We do NOT sync 'toggle' here because that's an initial state preference,
 					// not a persistent state we want to overwrite user preference with.
@@ -163,7 +167,8 @@
 					description: metadata.description,
 					version: metadata.version,
 					author: metadata.author,
-					enabled: metadata.toggle !== undefined ? !metadata.toggle : true
+					enabled: metadata.toggle !== undefined ? !metadata.toggle : true,
+					toggle: metadata.toggle
 				}
 			];
 			saveStoredPlugins(newPlugins);
@@ -357,7 +362,7 @@
 					<li
 						class="plugin-item"
 						class:expanded={expandedPluginUrl === plugin.url}
-						class:disabled={plugin.enabled === false}
+						class:disabled={plugin.enabled === false && !plugin.toggle}
 						on:click={() =>
 							(expandedPluginUrl = expandedPluginUrl === plugin.url ? null : plugin.url)}
 					>
@@ -691,7 +696,7 @@
 		white-space: nowrap;
 		overflow: hidden;
 		text-overflow: ellipsis;
-		color: $color-text-terminal;
+		color: $color-text-bright;
 	}
 
 	.plugin-details {
