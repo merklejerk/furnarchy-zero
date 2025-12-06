@@ -2,7 +2,7 @@ Furnarchy.register({
     id: "fly-cam-dc131583002",
     name: "Fly",
     description: "Fly the camera freely with WASD or Arrow keys.",
-    version: "1.1.2",
+    version: "1.1.3",
     author: "me@merklejerk.com",
     toggle: true,
 }, (api) => {
@@ -12,6 +12,17 @@ Furnarchy.register({
     let overlayId = "fly-overlay-" + api.metadata.id;
     let styleId = "fly-style-" + api.metadata.id;
     let borderOverlayId = "fly-border-" + api.metadata.id;
+    let myUid = null;
+    let lastTeleport = null;
+
+    // Try to get UID if already logged in (accessing core directly if available)
+    if (api.core && api.core.characterUid) {
+        myUid = parseInt(api.core.characterUid);
+    }
+
+    api.onLoggedIn((name, uid) => {
+        myUid = parseInt(uid);
+    });
 
     // Inject styles
     function injectStyles() {
@@ -236,6 +247,12 @@ Furnarchy.register({
             const raw = utils.createServerCommand(cmd);
             api.inject(raw);
         }
+
+        // Re-inject last blocked teleport to snap avatar/camera
+        if (lastTeleport) {
+            api.inject(lastTeleport);
+            lastTeleport = null;
+        }
         
         api.notify("Fly mode disabled.");
 
@@ -377,6 +394,35 @@ Furnarchy.register({
             el.style.display = 'none';
         }
     }
+
+    api.onIncoming((line, sourceId) => {
+        const cmd = utils.parseServerCommand(line);
+        
+        if (cmd.type === 'set-user-info') {
+            myUid = cmd.uid;
+        }
+
+        if (!active) return line;
+        // Allow our own camera syncs
+        if (sourceId === api.metadata.id) return line;
+        
+        if (cmd.type === 'camera-sync') return null;
+
+        // Block teleport commands for our own avatar to prevent camera snap
+        if (cmd.type === 'move-avatar' && cmd.moveType === 'teleport') {
+            // Try to refresh UID if missing
+            if (myUid === null && api.core && api.core.characterUid) {
+                myUid = parseInt(api.core.characterUid);
+            }
+
+            if (myUid !== null && cmd.uid === myUid) {
+                lastTeleport = line;
+                return null;
+            }
+        }
+
+        return line;
+    });
 
     api.onOutgoing((line, sourceId) => {
         const cmd = line.trim().toLowerCase();
