@@ -104,10 +104,21 @@ export type ServerProtocolCommand =
 	  }
 	/** Play Sound. */
 	| { type: 'play-sound'; soundId: number }
-	/** Map Metadata. */
-	| { type: 'map-metadata'; width: number; height: number; version: number; flags: number }
+	/** Map Metadata (World Defaults). */
+	| {
+			type: 'world-metadata';
+			wallDef: number;
+			roofDef: number;
+			floorDef: number;
+			objDef: number;
+			wallAlt: number;
+			roofAlt: number;
+			floorAlt: number;
+			objAlt: number;
+			regionThreshold: number;
+	  }
 	/** Load Dream. */
-	| { type: 'load-dream'; patch: string }
+	| { type: 'load-dream'; map: string; patch: string; modern: boolean }
 	/** Avatar Manifest. */
 	| { type: 'avatar-manifest'; records: { version: number; id: number; checksum: number }[] }
 	/** Chat Buffer. */
@@ -273,13 +284,35 @@ export function parseServerCommand(line: string): ServerProtocolCommand {
 		const uid = parseInt(line.substring(2), 10);
 		return { type: 'load-portrait', uid };
 	} else if (line.startsWith(']W')) {
-		const width = base220Decode(line.substring(2, 4));
-		const height = base220Decode(line.substring(4, 6));
-		const version = base220Decode(line.substring(6, 8));
-		const flags = base220Decode(line.substring(8, 12));
-		return { type: 'map-metadata', width, height, version, flags };
+		// Updated based on reverse engineering (furcadia.beautified.js)
+		// This is World Metadata (Defaults), NOT Map Size.
+		const wallDef = base220Decode(line.substring(2, 4));
+		const roofDef = base220Decode(line.substring(4, 6));
+		const floorDef = base220Decode(line.substring(6, 8));
+		const objDef = base220Decode(line.substring(8, 10));
+		const wallAlt = base220Decode(line.substring(10, 12));
+		const roofAlt = base220Decode(line.substring(12, 14));
+		const floorAlt = base220Decode(line.substring(14, 16));
+		const objAlt = base220Decode(line.substring(16, 18));
+		const regionThreshold = base220Decode(line.substring(18, 20));
+		return {
+			type: 'world-metadata',
+			wallDef,
+			roofDef,
+			floorDef,
+			objDef,
+			wallAlt,
+			roofAlt,
+			floorAlt,
+			objAlt,
+			regionThreshold
+		};
 	} else if (line.startsWith(']q')) {
-		return { type: 'load-dream', patch: line.substring(2) };
+		const parts = line.substring(2).split(' ');
+		const map = parts[0] || '';
+		const patch = parts[1] || '';
+		const modern = line.endsWith(' modern');
+		return { type: 'load-dream', map, patch, modern };
 	} else if (line.startsWith(']M%')) {
 		// Skip header (3 bytes) and padding (1 byte)
 		let offset = 4;
@@ -536,10 +569,10 @@ export function createServerCommand(cmd: ServerProtocolCommand): string {
 			return `D${cmd.message}`;
 		case 'play-sound':
 			return `!${base220Encode(cmd.soundId, 1)}`;
-		case 'map-metadata':
-			return `]W${base220Encode(cmd.width, 2)}${base220Encode(cmd.height, 2)}${base220Encode(cmd.version, 2)}${base220Encode(cmd.flags, 4)}`;
+		case 'world-metadata':
+			return `]W${base220Encode(cmd.wallDef, 2)}${base220Encode(cmd.roofDef, 2)}${base220Encode(cmd.floorDef, 2)}${base220Encode(cmd.objDef, 2)}${base220Encode(cmd.wallAlt, 2)}${base220Encode(cmd.roofAlt, 2)}${base220Encode(cmd.floorAlt, 2)}${base220Encode(cmd.objAlt, 2)}${base220Encode(cmd.regionThreshold, 2)}`;
 		case 'load-dream':
-			return `]q${cmd.patch}`;
+			return `]q${cmd.map} ${cmd.patch}${cmd.modern ? ' modern' : ''}`;
 		case 'avatar-manifest': {
 			let res = ']M% '; // Header + Padding
 			for (const record of cmd.records) {

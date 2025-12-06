@@ -251,8 +251,8 @@ The `]` OpCode acts as a namespace for modern features. The 2nd byte determines 
 | Sub-Op | ASCII | Arguments (Base220/Text) | Description |
 | :---- | :---- | :---- | :---- |
 | **0x42** | `B` | Text (ID Name) | **Session Init**. Sets Player ID (ym) and Name. |
-| **0x57** | `W` | Stream (Base220) | **Map Metadata**. Width, Height, Version, Flags. |
-| **0x71** | `q` | Text ( type map patch) | **Load Dream**. Triggers download of .map and .fox files. |
+| **0x57** | `W` | Stream (Base220) | **World Metadata**. Defines default/fallback tile IDs for layers (void tiles). |
+| **0x71** | `q` | Text (Space-separated) | **Load Dream**. `]q <map> <patch> [modern]`. Triggers download of map/patch files. Map dimensions are defined in the `.map` file header, not in the protocol. |
 | **0x4D** | `M` | Stream (See §6.1) | **Avatar Manifest**. Updates dynamic avatar versions. |
 | **0x2D** | `-` | Mixed (See §5.1) | **Chat Buffer**. Specitags and prefixes. |
 | **0x50** | `P` | Mixed (See §5.1) | **Chat Buffer** (Alias for `-`). |
@@ -274,7 +274,32 @@ The `]` OpCode acts as a namespace for modern features. The 2nd byte determines 
 | **0x7D** | `}` | Binary | **Unknown**. Calls `F_`. |
 | **0x25** | `%` | Char + Text | **Online Check**. 0=Offline, 1=Online + Display Name. |
 
-### 6.1 Avatar Manifest (`]M`)
+### 6.1 World Metadata (`]W`)
+
+This command defines the "Void" or "Default" tiles used when rendering outside the map bounds or in hidden regions. It does **not** define the map dimensions.
+
+* **Header:** `]W` (2 bytes).
+* **Body:** Sequence of Base220 values.
+
+| Offset | Length | Field | Description |
+| :---- | :---- | :---- | :---- |
+| +2 | 2 | `ol` | **Wall Default**. Fallback for Wall layer. |
+| +4 | 2 | `Il` | **Roof Default**. Fallback for Roof/Mask layer. |
+| +6 | 2 | `nl` | **Floor Default**. Fallback for Floor layer. |
+| +8 | 2 | `ul` | **Object Default**. Fallback for Object layer. |
+| +10 | 2 | `hl` | **Wall Alt**. Alternate fallback for Wall layer. |
+| +12 | 2 | `Fl` | **Roof Alt**. Alternate fallback for Roof/Mask layer. |
+| +14 | 2 | `el` | **Floor Alt**. Alternate fallback for Floor layer. |
+| +16 | 2 | `ll` | **Object Alt**. Alternate fallback for Object layer. |
+| +18 | 2 | `mc` | **Region Threshold**. Determines which fallback set to use. |
+| +20 | 1 | `Cl` | **Show Roofs**. Boolean flag. |
+| +21 | 1 | `_l` | **Show Walls**. Boolean flag. |
+| +22 | 2 | `Vl` | **Region Default**. Fallback for Region layer. |
+| +24 | 2 | `jl` | **Effect Default**. Fallback for Effect layer. |
+| +26 | 2 | `Gl` | **Region Alt**. Alternate fallback for Region layer. |
+| +28 | 2 | `Hl` | **Effect Alt**. Alternate fallback for Effect layer. |
+
+### 6.2 Avatar Manifest (`]M`)
 
 This command synchronizes the client's cached "Dynamic Avatars" (DAs) with the server. It verifies versions and triggers HTTP downloads if the client is outdated.
 

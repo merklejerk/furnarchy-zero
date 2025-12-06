@@ -42,6 +42,11 @@ export class PluginContext {
 		return this.core.isConnected;
 	}
 
+	get playerPosition(): { x: number; y: number } | null {
+		if (this.core.playerX === null || this.core.playerY === null) return null;
+		return { x: this.core.playerX, y: this.core.playerY };
+	}
+
 	_handlers = {
 		incoming: [] as { cb: MessageHandler; priority: number }[],
 		outgoing: [] as { cb: MessageHandler; priority: number }[],
@@ -80,6 +85,12 @@ export class PluginContext {
 	disable(): void {
 		if (!this.enabled) return;
 		this._setEnabled(false);
+		this.core.notifyUpdate(this);
+	}
+
+	enable(): void {
+		if (this.enabled) return;
+		this._setEnabled(true);
 		this.core.notifyUpdate(this);
 	}
 
@@ -302,6 +313,8 @@ export class FurnarchyCore {
 	isConnected = false;
 	characterName: string | null = null;
 	characterUid: string | null = null;
+	playerX: number | null = null;
+	playerY: number | null = null;
 	isReady = false;
 	private _motdComplete = false;
 	private listeners: PluginRegistrationCallback[] = [];
@@ -326,13 +339,14 @@ export class FurnarchyCore {
 		const handler = (e: KeyboardEvent) => {
 			if (!this.gameInputEnabled) {
 				e.stopImmediatePropagation();
+				e.preventDefault();
 			}
 		};
 
 		// Register early to intercept events before the game client sees them
-		doc.addEventListener('keydown', handler);
-		doc.addEventListener('keyup', handler);
-		doc.addEventListener('keypress', handler);
+		doc.addEventListener('keydown', handler, true);
+		doc.addEventListener('keyup', handler, true);
+		doc.addEventListener('keypress', handler, true);
 	}
 
 	private get clientHooks() {
@@ -517,7 +531,6 @@ export class FurnarchyCore {
 
 		const handlers = [];
 		for (const plugin of this.plugins) {
-			if (!plugin.enabled) continue;
 			// Access the correct handler list based on type
 			const pluginHandlers =
 				type === 'incoming' ? plugin._handlers.incoming : plugin._handlers.outgoing;
@@ -572,8 +585,20 @@ export class FurnarchyCore {
 		}
 
 		const cmd = parseServerCommand(text);
-		if (cmd.type === 'set-user-info') {
+		if (cmd.type === 'world-metadata') {
+			// This packet contains default tile IDs, not map size.
+			// We currently don't use this info in Core.
+		} else if (cmd.type === 'set-user-info') {
 			this.notifyLoggedIn(cmd.name, cmd.uid.toString());
+		} else if (this.characterUid) {
+			const myUid = parseInt(this.characterUid, 10);
+			if (cmd.type === 'add-avatar' && cmd.uid === myUid) {
+				this.playerX = cmd.x;
+				this.playerY = cmd.y;
+			} else if (cmd.type === 'move-avatar' && cmd.uid === myUid) {
+				this.playerX = cmd.x;
+				this.playerY = cmd.y;
+			}
 		}
 		return this._processMessage('incoming', text, sourceId, tag);
 	}
@@ -643,6 +668,8 @@ export class FurnarchyCore {
 	notifyDisconnected(): void {
 		this.isLoggedIn = false;
 		this.isConnected = false;
+		this.playerX = null;
+		this.playerY = null;
 		console.log('[Furnarchy] Disconnected from server, notifying plugins...');
 		this.plugins.forEach((plugin) => plugin._notifyDisconnected());
 	}

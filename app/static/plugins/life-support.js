@@ -2,7 +2,7 @@ Furnarchy.register({
     id: "life-support-afk-aeefd1e3",
     name: "Life Support",
     description: "Keeps you logged in and manages AFK status.",
-    version: "1.1.1",
+    version: "1.2.0",
     author: "me@merklejerk.com",
     toggle: false,
 }, (api) => {
@@ -135,6 +135,7 @@ Furnarchy.register({
     });
 
     api.onOutgoing((line, sourceId) => {
+        if (!api.enabled) return line;
         // Ignore commands sent by this plugin to prevent loops
         if (sourceId === api.metadata.id) return line;
 

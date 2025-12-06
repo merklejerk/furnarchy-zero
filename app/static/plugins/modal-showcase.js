@@ -2,7 +2,7 @@ Furnarchy.register({
     id: "modal-showcase-dev",
     name: "Modal Showcase",
     description: "Demonstrates the modal capabilities of Furnarchy Zero.",
-    version: "1.1.1",
+    version: "1.1.2",
     author: "me@merklejerk.com"
 }, (api) => {
     
@@ -47,25 +47,6 @@ Furnarchy.register({
         showModal();
     });
 
-    api.onOutgoing((line) => {
-        if (line.trim() === "m /modal") { // Furcadia commands often start with 'm ' or similar if it's a message, but raw send is what we catch here.
-             // Wait, outgoing handler receives what is sent to send().
-             // If the user types "/modal" in the input box, the client might send "say /modal" or just "/modal" depending on implementation.
-             // Standard Furcadia client sends "m /modal" for speech.
-             // But let's assume we catch raw input if we hook early enough, or we catch the protocol command.
-             // In `furnarchy-core.ts`, `send` is called.
-             // If the user types `/modal`, the web client likely processes it.
-             // Let's just check for exact match or "m /modal".
-        }
-        
-        // Actually, let's just stick to onConfigure for now as it is reliable.
-        // But I'll add a simple check for "/modal" just in case.
-        if (line.trim() === "/modal" || line.trim() === "m /modal") {
-            showModal();
-            return null; // Consume
-        }
-        return line;
-    });
     
     api.onUnload(() => {
         if (api.getModalPluginId() === api.metadata.id) {

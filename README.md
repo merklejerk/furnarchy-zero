@@ -232,9 +232,11 @@ You can find more examples for plugins by browsing the [bundled plugins](app/sta
         *   `api.inject(text, tag?)`: Inject a command from the server. `tag` defaults to the plugin's `id`.
         *   `api.notify(text, tag?)`: Display a client-side message in the chat area. The text is HTML-escaped and prefixed with the plugin name.
         *   `api.rawNotify(text, tag?)`: Display a client-side message in the chat area without escaping or prefixing.
+        *   `api.enable()`: Enable the plugin programmatically.
         *   `api.disable()`: Disable the plugin programmatically.
         *   `api.isLoggedIn`: Boolean property. True if the user is logged in.
         *   `api.isConnected`: Boolean property. True if the WebSocket is connected.
+        *   `api.playerPosition`: Read-only property. Returns `{ x, y }` or `null`. The last known map coordinates of the player.
         *   `api.onIncoming(callback, priority?)`: Intercept incoming messages. Callback receives `(text, sourceId, tag)`. `priority` is an optional number (default 0). Higher priority handlers run first.
         *   `api.onOutgoing(callback, priority?)`: Intercept outgoing messages. Callback receives `(text, sourceId, tag)`. `priority` is an optional number (default 0). Higher priority handlers run first.
         *   `api.onConnected(callback)`: Called when the WebSocket connection is established.

@@ -53,7 +53,7 @@ describe('furc-protocol', () => {
 			},
 			{
 				name: 'set-avatar-info',
-				cmd: { type: 'set-avatar-info', name: 'Avatar Name', visualCode: 'abcdefghijklmnop' }
+				cmd: { type: 'set-avatar-info', name: 'Avatar|Name', visualCode: 'abcdefghijklmnop' }
 			},
 			{
 				name: 'load-portrait',
@@ -129,12 +129,27 @@ describe('furc-protocol', () => {
 				cmd: { type: 'play-sound', soundId: 5 }
 			},
 			{
-				name: 'map-metadata',
-				cmd: { type: 'map-metadata', width: 100, height: 200, version: 1, flags: 0 }
+				name: 'world-metadata',
+				cmd: {
+					type: 'world-metadata',
+					wallDef: 0,
+					roofDef: 0,
+					floorDef: 100,
+					objDef: 0,
+					wallAlt: 0,
+					roofAlt: 0,
+					floorAlt: 200,
+					objAlt: 0,
+					regionThreshold: 0
+				}
 			},
 			{
 				name: 'load-dream',
-				cmd: { type: 'load-dream', patch: 'dream.patch' }
+				cmd: { type: 'load-dream', map: 'map.map', patch: 'dream.patch', modern: false }
+			},
+			{
+				name: 'load-dream (modern)',
+				cmd: { type: 'load-dream', map: 'map.map', patch: 'dream.patch', modern: true }
 			},
 			{
 				name: 'avatar-manifest',
@@ -357,8 +372,8 @@ describe('furc-protocol', () => {
 			')####',
 			'DRoar!',
 			'!$',
-			']W$#$#$#$###',
-			']qpatch',
+			']W####$#######$#####',
+			']qmap patch',
 			']G0',
 			']j$#',
 			']s$#&#tag',
