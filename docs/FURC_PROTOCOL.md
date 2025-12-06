@@ -94,7 +94,7 @@ Packet type is determined by the first byte (ASCII char).
 | **0x46** | `F` | Map RLE | Update **Ambience** (Layer 4). |
 | **0x21** | `!` | Base220 | Play Sound (Arg: Sound ID 1 byte). |
 | **0x5D** | `]` | Extended | **Extended Protocol** (See §6). |
-| **0x26** | `&` | - | **Login/Ready**. Triggers costume request and buffer start. |
+| **0x26** | `&` | - | **Login/Ready**. Sent as a sequence (`&&&&...`). Triggers costume request and buffer start. |
 | **0x3B** | `;` | Text | **Load Map (Legacy)**. |
 | **0x5E** | `^` | Base220 | **Unknown**. Calls `sv.Om`. |
 | **0x30** | `0` | Base220 | **DS Variable**. Updates `nv` array. |
@@ -868,8 +868,9 @@ Once a character is selected, the client requests a one-time token for the WebSo
 5.  **Server:** `]B <id> <name>` (Packet).
     *   *Example:* `]B 12345 PlayerName`
     *   *Meaning:* Login successful. Sets local player ID.
-6.  **Server:** `&` (Login/Ready).
+6.  **Server:** `&&&&&&&&&&&&&` (Login/Ready).
     *   *Meaning:* Server is ready for avatar setup.
+    *   *Note:* Always sent as a sequence of ampersands, never a single character.
 7.  **Client:** `costume <args>` (e.g., `costume auto`).
 8.  **Client:** `buf start` (Start event buffer).
 9.  **Server:** `(` (MOTD Text frames).
