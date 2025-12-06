@@ -33,7 +33,7 @@
 		<div class="info-section">
 			<h2>About</h2>
 			<p>
-				Furnarchy Zero is a wrapper around the official Furcadia web client that enables client-side
+				Furnarchy Zero is an open source wrapper around the official Furcadia web client that enables client-side
 				scripting and plugins. Brought to you by the author of Furnarchy 1, 3, and 2 (yes, counting
 				is hard).
 			</p>
