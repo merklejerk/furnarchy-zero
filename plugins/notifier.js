@@ -1,7 +1,7 @@
 Furnarchy.register({
     id: "notifier-744cfc59",
     name: "Notifier",
-    version: "1.0.0",
+    version: "1.0.1",
     description: "Sends browser notifications when specific words or patterns appear in chat.",
     author: "me@merklejerk.com",
     toggle: false
@@ -165,7 +165,7 @@ Furnarchy.register({
                 <div style="margin-bottom: 10px;">
                     <label class="text-dim" style="font-size: 0.9em;">Add Pattern (Text, Glob *, or /Regex/):</label>
                     <div style="display: flex; gap: 5px; margin-top: 5px;">
-                        <input type="text" id="notifier-input" class="full-width" placeholder="e.g. hello, *pizza*, /foo/i" />
+                        <input type="text" id="notifier-input" class="full-width" placeholder="e.g. hello, *pizza*, /foo/" />
                         <button id="notifier-add-btn" class="btn-primary">Add</button>
                     </div>
                 </div>
@@ -179,7 +179,7 @@ Furnarchy.register({
                     <ul style="margin-top: 5px; padding-left: 20px;">
                         <li><code>hello</code> - Matches the word "hello" (case-insensitive)</li>
                         <li><code>*pizza*</code> - Matches anything containing "pizza"</li>
-                        <li><code>/b(oo|ee)p/i</code> - Regex match for "boop" or "beep"</li>
+                        <li><code>/b(oo|ee)p/</code> - Regex match for "boop" or "beep"</li>
                     </ul>
                 </div>
             </div>
