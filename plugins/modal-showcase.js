@@ -2,8 +2,9 @@ Furnarchy.register({
     id: "modal-showcase-dev",
     name: "Modal Showcase",
     description: "Demonstrates the modal capabilities of Furnarchy Zero.",
-    version: "1.1.3",
-    author: "me@merklejerk.com"
+    version: "1.1.4",
+    author: "me@merklejerk.com",
+    toggle: true
 }, (api) => {
     
     const showModal = () => {
@@ -41,7 +42,7 @@ Furnarchy.register({
                 </div>
             `,
             onClose: () => {
-                api.notify("Modal closed.");
+                api.disable();
             }
         });
 
@@ -53,16 +54,19 @@ Furnarchy.register({
         }, 100);
     };
 
-    api.onConfigure(() => {
-        showModal();
+    api.onPause((paused) => {
+        if (!paused) {
+            showModal();
+        } else {
+            if (api.getModalPluginId() === api.metadata.id) {
+                api.closeModal();
+            }
+        }
     });
-
     
     api.onUnload(() => {
         if (api.getModalPluginId() === api.metadata.id) {
             api.closeModal();
         }
     });
-    
-    api.notify("Modal Showcase loaded. Click Configure to test.");
 });
