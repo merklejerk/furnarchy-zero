@@ -111,6 +111,8 @@ To deploy the proxy to Google Cloud Functions:
 
 Plugins are JavaScript files that interact with the exposed `Furnarchy` global object. They allow you to intercept messages, send commands, and automate gameplay.
 
+**[📚 Read the Full Plugin Development Guide](docs/PLUGIN_DEVELOPMENT.md)**
+
 ### Basic Structure
 
 A plugin registers itself using `Furnarchy.register()`.
@@ -124,163 +126,13 @@ Furnarchy.register({
     version: "1.0.0",
     author: "Your Name"
 }, (api) => {
-
-    // Called when the plugin is loaded
-    console.log("Plugin loaded!");
-    
-    // You can send commands immediately
-    // api.send("look\n"); 
-
-    // Intercept incoming messages from the server
-    // Priority 10: Run this before default (0) handlers
-    api.onIncoming((line, sourceId, tag) => {
-        // Example: Detect when someone says "pizza"
-        if (line.startsWith("(") && line.includes("pizza")) {
-            api.notify("Someone mentioned pizza!");
-        }
-        return line;
-    }, 10);
-
-    // Intercept outgoing commands from the user
-    api.onOutgoing((line, sourceId, tag) => {
-        // Example: Custom command
-        if (line === "/hello") {
-            api.send("\"Hello everyone!\n");
-            return null; // Block the original /hello command
-        }
-        return line;
-    });
-    
-    // Called when user logs in
-    api.onLoggedIn(() => {
-        console.log("Logged in!");
-    });
-    
-    // Called when plugin is enabled/disabled
-    api.onPause((paused) => {
-        console.log("Plugin paused:", paused);
-    });
+    // ... plugin logic ...
 });
 ```
 
-### Example: Auto Spinner
+### Example Plugins
 
-This plugin waits for the user to log in, then rotates the character every 5 seconds.
-
-```javascript
-Furnarchy.register({
-    id: "auto-spinner-73d51b4bc8625286",
-    name: "Auto Spinner",
-    description: "Automatically spins your character every 5 seconds.",
-    version: "1.0.0",
-    author: "me@merklerjerk.com"
-}, (api) => {
-    
-    let interval;
-    
-    api.onLoggedIn(() => {
-        api.notify("Logged in! Starting spin cycle...");
-        startSpin();
-    });
-    
-    api.onPause((paused) => {
-        if (paused) stopSpin();
-        else startSpin();
-    });
-    
-    function startSpin() {
-        if (interval) return;
-        interval = setInterval(() => {
-            // Send the '<' command every 5 seconds
-            api.send("<\n");
-        }, 5000);
-    }
-    
-    function stopSpin() {
-        if (interval) {
-            clearInterval(interval);
-            interval = null;
-        }
-    }
-});
-```
-
-### Example: Modal Showcase
-
-This plugin demonstrates how to create custom UI modals with styled inputs and buttons.
-It is automatically loaded in development mode. To try it in production, add the plugin URL: `/plugins/modal-showcase.js`.
-
-[View Source](app/static/plugins/modal-showcase.js)
-
-### More Example Plugins
-
-You can find more examples for plugins by browsing the [bundled plugins](app/static/plugins).
-
-### API Reference
-
-* `Furnarchy.register(meta, callback)`
-    Registers a new plugin.
-    *   `meta`: Object containing plugin metadata.
-        *   `id` (Required): Unique string identifier for the plugin (e.g., "my-plugin").
-        *   `name` (Required): Human-readable name.
-        *   `version` (Required): Semantic version string.
-        *   `description` (Optional): Short description of what the plugin does.
-        *   `author` (Optional): Author name or email.
-        *   `toggle` (Optional): Boolean. If `true`, the plugin is disabled by default when installed.
-    *   `callback`: Function that receives an `api` object with the following methods:
-        *   `api.send(text, tag?)`: Send a command to the server. `tag` defaults to the plugin's `id`.
-        *   `api.inject(text, tag?)`: Inject a command from the server. `tag` defaults to the plugin's `id`.
-        *   `api.notify(text, tag?)`: Display a client-side message in the chat area. The text is HTML-escaped and prefixed with the plugin name.
-        *   `api.rawNotify(text, tag?)`: Display a client-side message in the chat area without escaping or prefixing.
-        *   `api.enable()`: Enable the plugin programmatically.
-        *   `api.disable()`: Disable the plugin programmatically.
-        *   `api.isLoggedIn`: Boolean property. True if the user is logged in.
-        *   `api.isConnected`: Boolean property. True if the WebSocket is connected.
-        *   `api.playerPosition`: Read-only property. Returns `{ x, y }` or `null`. The last known map coordinates of the player.
-        *   `api.onIncoming(callback, priority?)`: Intercept incoming messages. Callback receives `(text, sourceId, tag)`. `priority` is an optional number (default 0). Higher priority handlers run first.
-        *   `api.onOutgoing(callback, priority?)`: Intercept outgoing messages. Callback receives `(text, sourceId, tag)`. `priority` is an optional number (default 0). Higher priority handlers run first.
-        *   `api.onConnected(callback)`: Called when the WebSocket connection is established.
-        *   `api.onDisconnected(callback)`: Called when the WebSocket connection is closed.
-        *   `api.onLoggedIn(callback)`: Called when login succeeds. Callback receives `(name)`.
-        *   `api.onPause(callback)`: Called when plugin is enabled/disabled. Callback receives `(paused)`.
-        *   `api.onLoad(callback)`: Called immediately after registration with the initial enabled state. Callback receives `(enabled)`.
-        *   `api.onUnload(callback)`: Called when the plugin is removed or reloaded. Use this to clean up intervals, event listeners, or UI elements.
-        *   `api.onConfigure(callback)`: Called when the user clicks the configure button in the plugin manager.
-        *   `api.onReady(callback)`: Called when all plugins have been loaded. Use this to safely access services exposed by other plugins.
-        *   `api.reconnect()`: Triggers the game client's native reconnect sequence. Useful for auto-reconnect logic.
-        *   `api.openModal(options)`: Opens a modal dialog.
-            *   `options`: Object containing:
-                *   `title`: String title of the modal.
-                *   `body`: HTML string content of the modal body.
-                *   `onClose`: Optional callback function when the modal is closed.
-                *   `width`: Optional CSS width string (e.g., "500px").
-                *   `height`: Optional CSS height string (e.g., "auto").
-        *   `api.closeModal()`: Closes the currently open modal.
-        *   `api.getModalPluginId()`: Returns the ID of the plugin that opened the current modal, or `null` if no modal is open.
-        *   `api.setGameInput(enabled)`: Enable or disable keyboard input to the game client. Useful when showing custom UI elements.
-        *   `api.saveData(key, value)`: Save a JSON-serializable value to local storage, namespaced to the plugin.
-        *   `api.loadData(key)`: Load a saved value from local storage. Returns `null` if not found.
-        *   `api.expose(service)`: Expose an API object to other plugins. `service` must have `name` and `version` properties.
-        *   `api.use(name)`: Retrieve a service exposed by another plugin. Returns `null` if not found.
-
-*   `Furnarchy.utils`
-    *   `escape(str)`: Escapes HTML special characters and converts Unicode characters to HTML entities.
-    *   `unescape(str)`: Unescapes HTML entities back to their character representation.
-    *   `base95Encode(val, length?)`: Encodes a number to Base95 string.
-    *   `base95Decode(str)`: Decodes a Base95 string to a number.
-    *   `base220Encode(val, length?)`: Encodes a number to Base220 string.
-    *   `base220Decode(str)`: Decodes a Base220 string to a number.
-    *   `getShortname(name)`: Converts a Furcadia name to its "shortname" format (lowercase, no spaces, no special characters).
-    *   `parseServerCommand(line)`: Parses a raw server command string into a structured object.
-        *   Returns a `ServerProtocolCommand` object with a `type` property (e.g., `'chat'`, `'move-avatar'`, `'set-user-info'`) and relevant data fields.
-        *   Example: `parseServerCommand("(Hello")` -> `{ type: 'chat', text: 'Hello' }`
-    *   `parseClientCommand(line)`: Parses a raw client command string into a structured object.
-        *   Returns a `ClientProtocolCommand` object with a `type` property (e.g., `'move'`, `'speech'`, `'look'`) and relevant data fields.
-        *   Example: `parseClientCommand("m 1")` -> `{ type: 'move', direction: 1 }`
-    *   `createServerCommand(cmd)`: Converts a structured `ServerProtocolCommand` object back into a raw server command string.
-        *   Example: `createServerCommand({ type: 'chat', text: 'Hello' })` -> `"(Hello"`
-    *   `createClientCommand(cmd)`: Converts a structured `ClientProtocolCommand` object back into a raw client command string.
-        *   Example: `createClientCommand({ type: 'move', direction: 1 })` -> `"m 1"`
+You can find examples for plugins by browsing the [bundled plugins](app/static/plugins).
 
 ### Hosting Plugins
 Since Furnarchy Zero runs in the browser, plugins must be hosted on a web server accessible via HTTPS (or HTTP if running locally).

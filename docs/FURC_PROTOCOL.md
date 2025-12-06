@@ -215,6 +215,7 @@ Chat messages are sent with simple HTML-like tagging.
   * `'error'`: System error.
   * `'success'`: Success message.
   * `'myspeech'`: Echo of user's own speech.
+  * `'roll'`: Roll command result.
 * `<img src='url' />`: Inline image.
 * `<a href='url'>...</a>`: Hyperlink.
 * `<b>`, `<i>`, `<u>`: Standard styling.
