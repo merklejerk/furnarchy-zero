@@ -2,7 +2,7 @@ Furnarchy.register({
     id: "wire-shrek-f3a66d300de24038",
     name: "Wire Shrek",
     description: "Network traffic inspector. Opens a popout window to view raw traffic.",
-    version: "1.4.0",
+    version: "1.4.1",
     author: "me@merklejerk.com",
     toggle: true
 }, (api) => {
@@ -15,7 +15,7 @@ Furnarchy.register({
 
             const div = popup.document.createElement('div');
             div.className = 'log-entry';
-            if (sourceId) {
+            if (sourceId && sourceId !== api.metadata.id) {
                 div.classList.add('self');
             }
             div.style.backgroundColor = type === 'IN' ? '#e6ffe6' : '#ffe6e6';

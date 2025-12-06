@@ -2,7 +2,7 @@ Furnarchy.register({
     id: "modal-showcase-dev",
     name: "Modal Showcase",
     description: "Demonstrates the modal capabilities of Furnarchy Zero.",
-    version: "1.1.2",
+    version: "1.1.3",
     author: "me@merklejerk.com"
 }, (api) => {
     
@@ -20,6 +20,16 @@ Furnarchy.register({
                         <button class="btn-primary" onclick="alert('Primary clicked!')">Primary</button>
                         <button class="btn-danger" onclick="alert('Danger clicked!')">Danger</button>
                         <button class="btn-info" onclick="alert('Info clicked!')">Info</button>
+                    </div>
+                    <div style="margin-top: 20px; text-align: left;">
+                        <label style="display: block; margin-bottom: 5px;">List Box:</label>
+                        <div class="list-box" style="height: 120px;">
+                            <div class="list-row">Item 1</div>
+                            <div class="list-row">Item 2</div>
+                            <div class="list-row">Item 3</div>
+                            <div class="list-row">Item 4</div>
+                            <div class="list-row">Item 5</div>
+                        </div>
                     </div>
                     <div style="margin-top: 20px; text-align: left;">
                         <label style="display: block; margin-bottom: 5px;">Styled Input:</label>

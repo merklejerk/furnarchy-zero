@@ -1,8 +1,8 @@
 Furnarchy.register({
-    id: "fly-cam-control",
+    id: "fly-cam-dc131583002",
     name: "Fly",
     description: "Fly the camera freely with WASD or Arrow keys.",
-    version: "1.1.1",
+    version: "1.1.2",
     author: "me@merklejerk.com",
     toggle: true,
 }, (api) => {
@@ -58,11 +58,19 @@ Furnarchy.register({
         if (status && btn) {
             const getStatusText = () => active ? "Active (Flying)" : "Inactive (Idle)";
             const getBtnText = () => active ? "Stop Flying" : "Start Flying";
-            const getStatusColor = () => active ? "#4caf50" : "#9e9e9e";
+            const getStatusColor = () => active ? "#0f0" : "#888";
             
             status.textContent = getStatusText();
             status.style.color = getStatusColor();
             btn.textContent = getBtnText();
+
+            if (active) {
+                btn.classList.remove('btn-primary');
+                btn.classList.add('btn-danger');
+            } else {
+                btn.classList.remove('btn-danger');
+                btn.classList.add('btn-primary');
+            }
         }
     }
 
@@ -74,7 +82,8 @@ Furnarchy.register({
 
         const getStatusText = () => active ? "Active (Flying)" : "Inactive (Idle)";
         const getBtnText = () => active ? "Stop Flying" : "Start Flying";
-        const getStatusColor = () => active ? "#4caf50" : "#9e9e9e";
+        const getStatusColor = () => active ? "#0f0" : "#888";
+        const getBtnClass = () => active ? "btn-danger" : "btn-primary";
 
         api.openModal({
             title: "Fly Control",
@@ -87,12 +96,12 @@ Furnarchy.register({
                         </span>
                     </div>
                     
-                    <button id="${btnId}" class="full-width" style="margin-bottom: 20px; padding: 10px; font-size: 1.1em; cursor: pointer;">
+                    <button id="${btnId}" class="full-width ${getBtnClass()}" style="margin-bottom: 20px;">
                         ${getBtnText()}
                     </button>
 
-                    <div style="text-align: left; background: rgba(0,0,0,0.1); padding: 10px; border-radius: 5px;">
-                        <div style="font-weight: bold; margin-bottom: 5px; border-bottom: 1px solid #ccc;">Controls</div>
+                    <div style="text-align: left; background: rgba(0,0,0,0.3); padding: 10px; border: 2px solid #555;">
+                        <div style="font-weight: bold; margin-bottom: 5px; border-bottom: 2px solid #555;">Controls</div>
                         <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 5px; font-size: 0.9em;">
                             <div><strong>WASD / Arrows</strong></div><div>Pan Camera</div>
                             <div><strong>Shift</strong></div><div>Move Faster</div>
@@ -102,7 +111,7 @@ Furnarchy.register({
                     </div>
 
                     <div style="margin-top: 15px;">
-                        <button id="${closeId}" style="width: 100%; cursor: pointer;">Close</button>
+                        <button id="${closeId}" class="full-width">Close</button>
                     </div>
                 </div>
             `,
