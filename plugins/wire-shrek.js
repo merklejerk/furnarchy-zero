@@ -2,7 +2,7 @@ Furnarchy.register({
     id: "wire-shrek-f3a66d300de24038",
     name: "Wire Shrek",
     description: "Network traffic inspector. Opens a popout window to view raw traffic.",
-    version: "1.3.0",
+    version: "1.4.0",
     author: "me@merklejerk.com",
     toggle: true
 }, (api) => {
@@ -171,11 +171,13 @@ Furnarchy.register({
     }
 
     api.onIncoming((text, sourceId, tag) => {
+        if (!api.enabled) return text;
         log('IN', text, sourceId, tag);
         return text;
     }, 1000); // High priority: capture raw server data before other plugins
 
     api.onOutgoing((text, sourceId, tag) => {
+        if (!api.enabled) return text;
         log('OUT', text, sourceId, tag);
         return text;
     }, -1000); // Low priority: capture final data sent to server (after other plugins)

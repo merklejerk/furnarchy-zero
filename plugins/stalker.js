@@ -1,7 +1,7 @@
 Furnarchy.register({
     id: "stalker-plugin-b9307b7cdc558",
     name: "Stalker",
-    version: "1.0.5",
+    version: "1.2.0",
     description: "Tracks online status of friends.",
     author: "me@merklejerk.com"
 }, (api) => {
@@ -209,6 +209,7 @@ Furnarchy.register({
     }
 
     api.onIncoming((line) => {
+        if (!api.enabled) return line;
         const cmd = utils.parseServerCommand(line);
 
         if (cmd.type === 'online-status') {
@@ -240,6 +241,7 @@ Furnarchy.register({
     });
 
     api.onOutgoing((line) => {
+        if (!api.enabled) return line;
         const args = line.split(' ');
         const cmd = args[0].toLowerCase();
 
@@ -343,6 +345,18 @@ Furnarchy.register({
             if (api.isLoggedIn && !pollTimer) {
                 pollTimer = setInterval(poll, pollInterval);
             }
+        }
+    });
+
+    // Expose service for other plugins
+    api.expose({
+        name: 'stalker',
+        version: '1.0.0',
+        getFriends: () => friends.map(f => ({ name: f.name, lastSeen: f.lastSeen, isOnline: f.isOnline })),
+        isFriend: (name) => {
+            if (!name) return false;
+            const short = utils.getShortname(name);
+            return friends.some(f => f.shortname === short);
         }
     });
 
