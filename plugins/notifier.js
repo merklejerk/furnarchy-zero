@@ -1,7 +1,7 @@
 Furnarchy.register({
     id: "notifier-744cfc59",
     name: "Notifier",
-    version: "1.0.1",
+    version: "1.0.2",
     description: "Sends browser notifications when specific words or patterns appear in chat.",
     author: "me@merklejerk.com",
     toggle: false
@@ -110,10 +110,7 @@ Furnarchy.register({
         let message = null;
         let sender = null;
 
-        if (cmd.type === 'chat') {
-            message = cmd.text;
-            sender = "System";
-        } else if (cmd.type === 'speech') {
+        if (cmd.type === 'speech') {
             message = cmd.message;
             sender = cmd.from || "You";
             if (cmd.isSelf) return line; 
