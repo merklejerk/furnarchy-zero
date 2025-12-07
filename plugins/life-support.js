@@ -2,15 +2,16 @@ Furnarchy.register({
     id: "life-support-afk-aeefd1e3",
     name: "Life Support",
     description: "Keeps you logged in and manages AFK status.",
-    version: "1.2.1",
+    version: "1.3.0",
     author: "me@merklejerk.com",
     toggle: false,
 }, (api) => {
+    const DEFAULT_REASON = "<a href=\"https://furnarchy.xyz\">Furnarchy Zero</a>";
     const utils = Furnarchy.utils;
 
     let config = {
         timeout: 10, // minutes
-        afkReason: "https://furnarchy.xyz",
+        afkReason: null,
         autoReconnect: true
     };
 
@@ -54,15 +55,15 @@ Furnarchy.register({
         if (!state.isIdle) return;
         const duration = Date.now() - state.afkStart;
         const timeStr = formatTime(duration);
-        const msg = [`[${timeStr}]`, state.currentReason].join(' ');
-        api.send(`afk ${utils.escape(msg)}`);
+        const msg = [`[${timeStr}]`, typeof(state.currentReason) === 'string' ? state.currentReason : DEFAULT_REASON].join(' ');
+        api.send(`afk ${msg}`);
     }
 
     function enableIdleMode(customReason) {
         const wasIdle = state.isIdle;
         state.isIdle = true;
         state.afkStart = Date.now();
-        state.currentReason = customReason || config.afkReason || "https://furnarchy.xyz";
+        state.currentReason = customReason || config.afkReason;
         api.notify("You are now idle.");
 
         api.send('unafk');
@@ -126,11 +127,8 @@ Furnarchy.register({
 
         // Load per-character AFK reason
         const charConfig = api.loadData(`config_${state.myShortname}`);
-        if (charConfig && charConfig.afkReason) {
+        if (charConfig && typeof(charConfig.afkReason) === 'string') {
             config.afkReason = charConfig.afkReason;
-        } else {
-            // No fallback to global default. Use hardcoded default.
-            config.afkReason = "https://furnarchy.xyz";
         }
 
         startIdleCheck();
@@ -223,7 +221,7 @@ Furnarchy.register({
                     </div>
                     <div>
                         <label for="${idReason}">AFK Reason:</label>
-                        <input id="${idReason}" type="text" class="full-width" value="${utils.escape(config.afkReason)}" />
+                        <input id="${idReason}" type="text" class="full-width" value="${utils.escape(typeof(config.afkReason) === 'string' ? config.afkReason : DEFAULT_REASON)}" />
                     </div>
                     <div style="display: flex; align-items: center; gap: 8px;">
                         <input id="${idReconnect}" type="checkbox" ${config.autoReconnect ? 'checked' : ''} />
@@ -249,7 +247,7 @@ Furnarchy.register({
                         const val = parseInt(inputTimeout.value, 10);
                         if (val > 0) {
                             config.timeout = val;
-                            config.afkReason = inputReason.value || "https://furnarchy.xyz";
+                            config.afkReason = inputReason.value || "";
                             config.autoReconnect = inputReconnect ? inputReconnect.checked : false;
                             
                             // Save shared settings to global config
