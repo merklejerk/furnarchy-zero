@@ -605,6 +605,7 @@ Downloads the binary map files (.map) and associated patches when entering a dre
   * `type`: Request type (typically 1).
 * **Notes:**
   * This URL is dynamically provided during the Game Auth phase via the `dream_url` field in the JSON response.
+  * When `dream_url` is a template it commonly contains a `{name}` placeholder — replace `{name}` with the exact map name the server provides (e.g. `pmeovanni`). Do not automatically add ".map"; use the name literally as given by the server.
   * Standard maps (Vinca, etc.) are often loaded from a static path: `[BaseURL]/maps/{name}`.
 
 ### 9.3 Dynamic Avatar (DA) API
