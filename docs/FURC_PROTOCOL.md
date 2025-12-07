@@ -25,15 +25,24 @@ Used primarily for **camera coordinates** and legacy systems.
 * **Decoding:** Big-endian (Most Significant Byte first).
 * **Algorithm:**
   ```javascript
+  // Decoding
   // Input: Uint8Array t, Offset i, Length s
   let value = 0, multiplier = 1;
   for (let h = i + s - 1; h >= i; h--) {
       value += (t[h] - 32) * multiplier;
       multiplier *= 95;
   }
+
+  // Encoding
+  // Input: Number value, Length s
+  // Output: Uint8Array buffer
+  for (let i = s - 1; i >= 0; i--) {
+      buffer[i] = (value % 95) + 32;
+      value = Math.floor(value / 95);
+  }
   ```
 
-### 1.2 Base-220 (Little-Endian)
+### 1.3 Base-220 (Little-Endian)
 
 The primary encoding for **Object IDs, Coordinates, Colors, and RLE**.
 
@@ -41,15 +50,24 @@ The primary encoding for **Object IDs, Coordinates, Colors, and RLE**.
 * **Decoding:** Little-endian (Least Significant Byte first).
 * **Algorithm:**
   ```javascript
+  // Decoding
   // Input: Uint8Array t, Offset i, Length s
   let value = 0, multiplier = 1;
   for (let h = i; h < i + s; h++) {
       value += (t[h] - 35) * multiplier;
       multiplier *= 220;
   }
+
+  // Encoding
+  // Input: Number value, Length s
+  // Output: Uint8Array buffer
+  for (let i = 0; i < s; i++) {
+      buffer[i] = (value % 220) + 35;
+      value = Math.floor(value / 220);
+  }
   ```
 
-### 1.3 Coordinate Systems
+### 1.4 Coordinate Systems
 
 * **Map Coordinates:** 0-based integers (0 to MapWidth-1).
 * **Avatar Directions (S2C):**
@@ -59,7 +77,7 @@ The primary encoding for **Object IDs, Coordinates, Colors, and RLE**.
   * 3: Northeast (Up-Right)
 * **Movement Directions (C2S):** See Section 15.2.
 
-### 1.4 Name Canonicalization (Shortnames)
+### 1.5 Name Canonicalization (Shortnames)
 
 The protocol uses a "shortname" format for identifying players in commands (e.g., `join`, `summon`, `wh`) to resolve ambiguities caused by spaces, punctuation, or HTML formatting in display names.
 
