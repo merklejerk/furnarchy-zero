@@ -1,7 +1,7 @@
 Furnarchy.register({
     id: "chat-enhance-58f3376e",
     name: "Chat Enhance",
-    version: "1.1.0",
+    version: "1.1.1",
     description: "Chat buffer enhancements.",
 }, (api) => {
     let observer = null;
@@ -269,8 +269,17 @@ Furnarchy.register({
                      node.setAttribute("data-che-hash", hash.slice(0, 10)); // Use first 10 chars of hash
                  });
 
+                 // Capture scroll state before modifying DOM
+                 const container = node.parentElement;
+                 const isAtBottom = (container.scrollHeight - container.scrollTop - container.clientHeight) < 20;
+
                  // Now process the reply tag (which might modify the DOM)
                  processReplyTag(node);
+
+                 // Restore scroll if we were at the bottom
+                 if (isAtBottom) {
+                     container.scrollTop = container.scrollHeight;
+                 }
 
                  const actions = node.ownerDocument.createElement("div");
                  actions.className = "che-msg-actions";
