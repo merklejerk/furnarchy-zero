@@ -125,8 +125,8 @@
 			them in-game via the Furnarchy menu.
 		</p>
 		<p class="desc warning">
-			<strong>Warning:</strong> Plugins have full access to your game session. Only install plugins
-			from trusted sources.
+			<strong>Warning:</strong> Plugins have full access to your game session. Only install plugins from
+			trusted sources.
 		</p>
 		<p class="desc">
 			See the <a href="https://github.com/merklejerk/furnarchy-zero" target="_blank" rel="noopener"

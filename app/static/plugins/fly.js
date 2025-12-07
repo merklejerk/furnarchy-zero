@@ -2,7 +2,7 @@ Furnarchy.register({
     id: "fly-cam-dc131583002",
     name: "Fly",
     description: "Fly the camera freely with WASD or Arrow keys.",
-    version: "1.1.3",
+    version: "1.2.0",
     author: "me@merklejerk.com",
     toggle: true,
 }, (api) => {
@@ -16,8 +16,8 @@ Furnarchy.register({
     let lastTeleport = null;
 
     // Try to get UID if already logged in (accessing core directly if available)
-    if (api.core && api.core.characterUid) {
-        myUid = parseInt(api.core.characterUid);
+    if (api.gameState && api.gameState.player) {
+        myUid = parseInt(api.gameState.player.uid);
     }
 
     api.onLoggedIn((name, uid) => {
@@ -160,7 +160,19 @@ Furnarchy.register({
         }
         
         const updatePos = () => {
-            const iframe = document.querySelector('.game-iframe');
+            // Try to get iframe from core if available, or fallback to query selector
+            let iframe = null;
+            if (api.getGameDocument) {
+                const doc = api.getGameDocument();
+                if (doc && doc.defaultView && doc.defaultView.frameElement) {
+                    iframe = doc.defaultView.frameElement;
+                }
+            }
+            
+            if (!iframe) {
+                iframe = document.querySelector('.game-iframe');
+            }
+
             if (iframe && el) {
                 const rect = iframe.getBoundingClientRect();
                 el.style.top = rect.top + 'px';
@@ -189,7 +201,7 @@ Furnarchy.register({
     function enableFly() {
         if (active) return;
         
-        const pos = api.playerPosition;
+        const pos = api.gameState.player ? { x: api.gameState.player.x, y: api.gameState.player.y } : null;
         if (!pos) {
             api.notify("Fly: Camera position unknown. Please move your character to sync first.");
             return;
@@ -206,9 +218,18 @@ Furnarchy.register({
         injectStyles();
         showBorderOverlay();
 
-        const iframe = document.querySelector('.game-iframe');
-        if (iframe && iframe.contentWindow) {
-            iframe.contentWindow.addEventListener('keydown', handleKey, { capture: true });
+        // Attach to game window if possible
+        if (api.getGameDocument) {
+            const doc = api.getGameDocument();
+            if (doc && doc.defaultView) {
+                doc.defaultView.addEventListener('keydown', handleKey, { capture: true });
+            }
+        } else {
+            // Fallback
+            const iframe = document.querySelector('.game-iframe');
+            if (iframe && iframe.contentWindow) {
+                iframe.contentWindow.addEventListener('keydown', handleKey, { capture: true });
+            }
         }
 
         api.setGameInput(false);
@@ -229,9 +250,17 @@ Furnarchy.register({
         
         removeBorderOverlay();
 
-        const iframe = document.querySelector('.game-iframe');
-        if (iframe && iframe.contentWindow) {
-            iframe.contentWindow.removeEventListener('keydown', handleKey, { capture: true });
+        // Detach from game window
+        if (api.getGameDocument) {
+            const doc = api.getGameDocument();
+            if (doc && doc.defaultView) {
+                doc.defaultView.removeEventListener('keydown', handleKey, { capture: true });
+            }
+        } else {
+            const iframe = document.querySelector('.game-iframe');
+            if (iframe && iframe.contentWindow) {
+                iframe.contentWindow.removeEventListener('keydown', handleKey, { capture: true });
+            }
         }
 
         api.setGameInput(true);
@@ -241,7 +270,7 @@ Furnarchy.register({
         updateModalUI();
         
         // Restore position
-        const pos = api.playerPosition;
+        const pos = api.gameState.player ? { x: api.gameState.player.x, y: api.gameState.player.y } : null;
         if (pos) {
             const cmd = { type: 'camera-sync', x: pos.x, y: pos.y };
             const raw = utils.createServerCommand(cmd);
@@ -411,8 +440,8 @@ Furnarchy.register({
         // Block teleport commands for our own avatar to prevent camera snap
         if (cmd.type === 'move-avatar' && cmd.moveType === 'teleport') {
             // Try to refresh UID if missing
-            if (myUid === null && api.core && api.core.characterUid) {
-                myUid = parseInt(api.core.characterUid);
+            if (myUid === null && api.gameState && api.gameState.player) {
+                myUid = parseInt(api.gameState.player.uid);
             }
 
             if (myUid !== null && cmd.uid === myUid) {
@@ -439,8 +468,22 @@ Furnarchy.register({
             if (sourceId) return line;
 
             const parsed = utils.parseClientCommand(line);
-            if (parsed.type === 'move' || parsed.type === 'rotate') {
+            if (parsed.type === 'move') {
+                // Map numeric direction to string direction
+                const dirMap = {
+                    1: 'SW',
+                    3: 'SE',
+                    7: 'NW',
+                    9: 'NE'
+                };
+                const dir = dirMap[parsed.direction];
+                if (dir) {
+                    moveOneStep(dir);
+                    updateCamera();
+                }
                 return null; // Block movement while flying
+            } else if (parsed.type === 'rotate') {
+                return null; // Block rotation while flying
             }
         }
 

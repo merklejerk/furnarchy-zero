@@ -43,8 +43,23 @@ The `api` object passed to your initialization function provides access to the c
     *   Read-only. Returns `true` if the user is logged into the game.
 *   **`api.isConnected: boolean`**
     *   Read-only. Returns `true` if the WebSocket connection is active.
-*   **`api.playerPosition: { x: number, y: number } | null`**
-    *   Read-only. Returns the player's current map coordinates, or `null` if unknown.
+*   **`api.gameState: GameState`**
+    *   Read-only. Returns the current game state.
+    *   Structure:
+        ```typescript
+        interface GameState {
+            camera: { x: number; y: number } | null;
+            player: {
+                name: string;
+                uid: string;
+                x: number;
+                y: number;
+                colorCode: string;
+            } | null;
+            mapName: string | null;
+            avatars: Map<number, { name: string; x: number; y: number; colorCode: string }>;
+        }
+        ```
 
 ### Network Interception
 

@@ -1,7 +1,7 @@
 Furnarchy.register({
     id: "color-copy-b5bb9d80",
     name: "Color Copy",
-    version: "1.1.0",
+    version: "1.2.0",
     description: "Copy a furre's colors.",
     author: "Furnarchy Zero"
 }, (api) => {
@@ -104,9 +104,9 @@ Furnarchy.register({
     });
 
     // Initialize if already logged in (e.g. plugin reload)
-    if (api.isLoggedIn) {
-        myName = api.name;
-        myUid = parseInt(api.uid, 10);
+    if (api.isLoggedIn && api.gameState.player) {
+        myName = api.gameState.player.name;
+        myUid = parseInt(api.gameState.player.uid, 10);
         loadHistory();
         waitingForDream = false; // We are already in, trust incoming colors
         lastAppliedColor = null;

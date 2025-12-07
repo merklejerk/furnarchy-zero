@@ -19,8 +19,6 @@ export const utils = {
 			.replace(/&amp;/g, '&')
 			.replace(/&lt;/g, '<')
 			.replace(/&gt;/g, '>')
-			.replace(/&quot;/g, '"')
-			.replace(/&#39;/g, "'")
 			.replace(/&#(\d+);/g, (_, code) => String.fromCharCode(parseInt(code, 10)));
 	},
 	escape: (str: string) => {
@@ -32,10 +30,6 @@ export const utils = {
 					return '&lt;';
 				case '>':
 					return '&gt;';
-				case '"':
-					return '&quot;';
-				case "'":
-					return '&#39;';
 				default:
 					return '&#' + c.charCodeAt(0) + ';';
 			}

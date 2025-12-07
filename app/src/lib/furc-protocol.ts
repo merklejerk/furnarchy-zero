@@ -296,7 +296,8 @@ const INCOMING_WHISPER_REGEX =
 const SELF_SPEECH_REGEX = /^<font color='myspeech'>You say, "(.*)"<\/font>$/;
 const OTHER_SPEECH_REGEX = /^<name shortname='([^']+)'>([^<]+)<\/name>: (.*)$/;
 const EMOTE_REGEX = /^<font color='emote'><name shortname='([^']+)'>([^<]+)<\/name> (.*)<\/font>$/;
-const ROLL_REGEX = /^<font color='roll'>.*?<name shortname='([^']+)'>([^<]+)<\/name> rolls (.*)<\/font>$/;
+const ROLL_REGEX =
+	/^<font color='roll'>.*?<name shortname='([^']+)'>([^<]+)<\/name> rolls (.*)<\/font>$/;
 const DESCRIPTION_REGEX = /^<desc shortname='([^']+)' \/>&gt; (.*)$/;
 
 export function parseServerCommand(line: string): ServerProtocolCommand {
@@ -365,7 +366,12 @@ export function parseServerCommand(line: string): ServerProtocolCommand {
 		// Format: ]f<16-char-code><name>
 		const colorCode = line.substring(2, 18);
 		const name = line.substring(18).replace(/\|/g, ' ');
-		return { type: 'set-character-info', name, colorCode, colorCodeParsed: parseColorCode(colorCode) };
+		return {
+			type: 'set-character-info',
+			name,
+			colorCode,
+			colorCodeParsed: parseColorCode(colorCode)
+		};
 	} else if (line.startsWith(']&')) {
 		// Format: ]&<uid>
 		const uid = parseInt(line.substring(2), 10);
@@ -395,7 +401,7 @@ export function parseServerCommand(line: string): ServerProtocolCommand {
 			regionThreshold
 		};
 	} else if (line.startsWith(']q')) {
-		const parts = line.substring(2).split(' ');
+		const parts = line.substring(3).split(' ');
 		const map = parts[0] || '';
 		const patch = parts[1] || '';
 		const modern = line.endsWith(' modern');

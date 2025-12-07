@@ -193,7 +193,7 @@
 			.list-row {
 				border-bottom: 1px solid $color-border-dim;
 				padding: 8px;
-				
+
 				&:last-child {
 					border-bottom: none;
 				}

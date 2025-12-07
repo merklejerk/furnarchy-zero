@@ -102,9 +102,7 @@ export async function loadFurcadiaScript(targetWindow: Window, scriptUrl: string
 
 				console.log('[Furc Loader] Installed client hooks:', extWindow.__CLIENT_HOOKS);
 			} else {
-				console.warn(
-					'[Furc Loader] Warning: Could not establish any client hooks.'
-				);
+				console.warn('[Furc Loader] Warning: Could not establish any client hooks.');
 			}
 		};
 	}
