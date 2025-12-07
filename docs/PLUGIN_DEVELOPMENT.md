@@ -18,7 +18,11 @@ interface PluginMetadata {
     toggle?: boolean;    // If true, the plugin starts disabled and must be toggled on
 }
 
-version: "1.0.0",
+// Example registration
+Furnarchy.register({
+    id: "my-plugin-123",
+    name: "My Plugin",
+    version: "1.0.0",
     description: "A brief description of what this plugin does.",
     author: "Your Name",
     toggle: true
@@ -44,22 +48,37 @@ The `api` object passed to your initialization function provides access to the c
 *   **`api.isConnected: boolean`**
     *   Read-only. Returns `true` if the WebSocket connection is active.
 *   **`api.gameState: GameState`**
-    *   Read-only. Returns the current game state.
-    *   Structure:
-        ```typescript
+    *   Read-only. Returns the current in-memory game state maintained by the core runtime. This state is updated by the core after plugin handlers run (low-priority internal updater), so plugins have a chance to intercept messages first.
+    *   Structure (TypeScript):
+        ```ts
         interface GameState {
+            // Camera coordinates (if the camera is active/known)
+        ### Working with `api.gameState`
+
+        *   `gameState.avatars` is a JavaScript Map — it is not serializable via JSON.stringify directly. If you need to persist a snapshot, convert the Map into an array or object first (e.g., `Array.from(api.gameState.avatars.entries())`).
+        *   `api.gameState` is a live, in-core snapshot maintained by the runtime. Prefer reading values from it rather than trying to reconstruct the world state from protocol parsing unless you have a strong reason.
+
             camera: { x: number; y: number } | null;
+
+            // Player info (null until logged in)
             player: {
-                name: string;
-                uid: string;
-                x: number;
-                y: number;
+                name: string;    // raw display name
+                uid: string;     // unique user id
+                x: number;       // player x coordinate
+                y: number;       // player y coordinate
                 colorCode: string;
             } | null;
+
+            // Current map identifier / name (null if unknown)
             mapName: string | null;
+
+            // Live avatar table keyed by uid (number) → info
             avatars: Map<number, { name: string; x: number; y: number; colorCode: string }>;
         }
         ```
+
+*   **`api.getGameDocument(): Document | null`**
+    *   When the game client runs inside an iframe, DOM access is otherwise ambiguous across frames. Use `api.getGameDocument()` to obtain the client document object (or `null` if not available). This lets plugins attach listeners or modify the in-game DOM safely when executing inside the page.
 
 ### Network Interception
 
