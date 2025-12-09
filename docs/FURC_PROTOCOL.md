@@ -664,11 +664,8 @@ This specification allows for the implementation of a DS Virtual Machine (VM), t
 
 ### 10.1 Bytecode Container Format
 
-DragonSpeak logic is often embedded in .fox files or downloaded as binary blobs.
-
-* **Magic Header:** `0x44533231` ("DS21") or `0x31325344` ("12SD") depending on version.
-* **Decryption:** Binary data is typically XOR-scrambled with a rotating key.
-* **Instruction Stream:** Array of 16-bit Unsigned Integers (Uint16).
+DragonSpeak logic is downloaded as binary blobs (DSB).
+For the detailed binary file specification, see **Section 11 (DSB File Format)**.
 
 ### 10.2 Instruction Line Structure
 
@@ -752,59 +749,7 @@ PhoenixSpeak (PS) is the database layer. In the standard client protocol, there 
     *   `510-512`: Floor Checks.
     *   `530-532`: Object Checks.
 
-## 11. Cryptography & Obfuscation
-
-While the network stream uses standard TLS (WSS), the asset files (.map, .fox) use two distinct custom encryption/scrambling schemes to prevent tampering.
-
-### 11.1 FOX5 Container Encryption (Stream Cipher)
-
-FOX5 files (Avatars, Patches) are encrypted using a custom stream cipher variant (similar to RC4).
-
-**Implementation Reference:** `ai.nh` method in source.
-
-**Key Generation Logic:**
-
-The encryption key (`e`, 16 bytes) is constructed from a seed (`s`, 16 bytes) and hardcoded masks selected based on the data length (`n`).
-
-1. First 8 Bytes (`Key[0-7]`):
-   * **Condition:** `(length & 4) == 0` (Bit 2 is unset).
-   * **If True:** Uses Mask A1: `[105, 40, 235, 230, 43, 37, 195, 170]`.
-   * **If False:** Uses Mask A2: `[255, 119, 78, 57, 138, 24, 255, 219]`.
-   * **Operation:** `Key[i] = Mask[i] ^ Seed[i]`.
-2. Last 8 Bytes (`Key[8-15]`):
-   * **Condition:** `(length & 8) == 0` (Bit 3 is unset).
-   * **If True:** Uses Mask B1: `[102, 85, 15, 188, 102, 201, 182, 111]`.
-   * **If False:** Uses Mask B2: `[50, 186, 189, 187, 234, 79, 158, 6]`.
-   * **Operation:** `Key[8+i] = Mask[i] ^ Seed[8+i]`.
-3. **Key Permutation:**
-   *   **Value:** The **Uncompressed Size** (32-bit Little-Endian) of the data block.
-       *   *File Level:* Read from the footer at `FileLength - 12`.
-       *   *Image Level:* Calculated as `Width * Height * (IsRGBA ? 4 : 1)`.
-   *   **Operation:** `Key[4..7] ^= Value` (Byte-wise XOR).
-       *   `Key[4] ^= (Value >> 24) & 0xFF`
-       *   `Key[5] ^= (Value >> 16) & 0xFF`
-       *   `Key[6] ^= (Value >> 8) & 0xFF`
-       *   `Key[7] ^= Value & 0xFF`
-
-### 11.2 Map & Asset Obfuscation (CRC-XOR)
-
-Binary Map files and some legacy assets use a simpler XOR scheme based on a CRC32 polynomial.
-
-**Implementation Reference:** `ri` function in source.
-
-**Polynomial:** `0xEDB88320` (Standard CRC32 reversed/little-endian).
-
-**Logic:**
-
-1. **Table Generation:** A standard CRC32 lookup table `ei` (256 entries) is generated using the polynomial.
-2. **Permutation Tables:** Two hardcoded 16-byte tables `ni` and `hi` define byte shuffling orders.
-3. **XOR Decryption:**
-   * Iterates through the data in 16-byte blocks.
-   * Maintains a rolling state variable initialized with a magic value.
-   * **Initial State Value:** `0x00FFFFFF ^ CRC_TABLE[0xFF ^ FIRST_BYTE_OF_DATA]`.
-   * **Note:** The "magic value" is technically `0x00FFFFFF` (16777215), but it is immediately modified by the first byte of the payload.
-
-### 11.3 Random Number Generation (Game Logic)
+### 10.8 Random Number Generation (Game Logic)
 
 The client uses a Linear Congruential Generator (LCG) for deterministic game logic (dice rolls, animations).
 
@@ -1077,3 +1022,272 @@ The web client does **not** use a mathematical inverse function for mouse-to-map
    * `ID = (x << 12) | y` (Packed Coordinate)
 3. **Read Pixel:** On `mousedown`, the client reads the pixel color at the mouse coordinates (`gl.readPixels`).
 4. **Decode:** The color is converted back to the ID, which is then unpacked to `(x, y)`.
+
+## 12. File Formats
+
+### 12.1 FR01 Archive Format
+
+The FR01 format is a simple linear container used to bundle map files and assets. It is typically used for `.map` files downloaded from the server, which often contain the map data itself plus associated scripts (`.dsb`) or patches (`.fox`).
+
+*   **Endianness:** Little-Endian.
+*   **Magic Signature:** `FR01` (0x46 0x52 0x30 0x31) at offset 0.
+
+**Structure:**
+
+1.  **Global Header (28 bytes):**
+    *   `0x00`: Magic `FR01` (4 bytes).
+    *   `0x04`: Padding/Reserved (24 bytes). Typically ignored.
+
+2.  **File Entries (Repeated until EOF):**
+    Each entry describes one file and is immediately followed by its data.
+    *   `0x00`: Entry Signature `FZ` (0x46 0x5A) (2 bytes).
+    *   `0x02`: Filename (40 bytes). Null-terminated string.
+    *   `0x2A`: Unknown Int 1 (4 bytes).
+    *   `0x2E`: Unknown Int 2 (4 bytes).
+    *   `0x32`: **Data Size** (4 bytes). Length of the file data.
+    *   `0x36`: Unknown Int 3 (4 bytes).
+    *   `0x3A`: **Compression Type** (4 bytes).
+    *   `0x3E`: **File Data** (Variable length, defined by Data Size).
+
+**Compression Types:**
+*   **1:** **XOR Inversion**. Each byte is XORed with 0xFF (inverted).
+*   **2:** **Bzip2**. Standard Bzip2 compression.
+*   **3:** **Raw / Stored**. No compression.
+*   **4:** **LZMA**. Standard LZMA1 compression.
+
+### 12.2 Map File Format (.map)
+
+The map file consists of a text header followed by a binary body containing layer data.
+
+**1. Text Header:**
+*   Consists of lines of ASCII text.
+*   **First Line:** `MAP Vxx.xx Furcadia` (e.g., `MAP V01.50 Furcadia`).
+    *   The version number is parsed as `Major * 100 + Minor` (e.g., 1.50 -> 150).
+*   **Properties:** `key=value` pairs.
+    *   `width`, `height`: Map dimensions (Integer).
+    *   `name`: Map name.
+    *   `revision`: Revision number.
+    *   `encoded`: `0` or `1`. If `1`, the binary body may be encrypted or obfuscated.
+    *   `noload`: `0` or `1`. Used in conjunction with `encoded` to trigger encryption.
+*   **Terminator:** The header ends with the line `BODY`.
+
+**2. Binary Body:**
+*   Starts immediately after the newline following the `BODY` tag.
+*   **Encryption:** If `encoded=1` and `noload=1`, the entire binary body is encrypted using a custom stream cipher.
+    *   **Algorithm:** Modified CRC32 with block permutation.
+    *   **Key:** Initialized from the first byte of the body.
+    *   **Block Size:** 16 bytes. Bytes within each block are permuted using a fixed table `[1, 12, 4, 8, 15, 0, 11, 2, 14, 7, 6, 9, 13, 3, 10, 5]`.
+
+**3. Layers:**
+The body contains sequential arrays of tile data. Each layer has a size of `Width * Height` tiles.
+
+| Order | Layer | Data Type | Bytes/Tile | Notes |
+| :--- | :--- | :--- | :--- | :--- |
+| 1 | **Floors** | `Uint16` | 2 | |
+| 2 | **Objects** | `Uint16` | 2 | |
+| 3 | **Walls** | `Uint8` x 2 | 2 | See Wall Encoding below. |
+| 4 | **Regions** | `Uint16` | 2 | Present if Version > 1.30. |
+| 5 | **Effects** | `Uint16` | 2 | Present if Version > 1.30. |
+| 6 | **Lighting** | `Uint16` | 2 | Present if Version >= 1.50. |
+| 7 | **Ambience** | `Uint16` | 2 | Present if Version >= 1.50. |
+
+**Wall Layer Encoding:**
+The Walls layer requires special handling depending on the map version and encoding flag.
+*   **Standard:** Row-Major order (Top-Left to Bottom-Right).
+*   **Obfuscated:** If `encoded=1` and `Version >= 1.20`:
+    *   The data is stored in **Column-Major** order (Column by Column).
+    *   The Y-axis is **flipped** (Bottom-to-Top).
+    *   *Parser Logic:* To normalize, read column-by-column from the source, but write to `(Height - 1 - y)` in the destination row-major array.
+
+## 10. FOX5 File Format
+
+The `.fox` (FOX5) format is a container for game objects, shapes, frames, and sprites. It uses a **Footer-based** architecture with a tag-based command hierarchy.
+
+### 10.1 File Structure
+
+The file consists of three main sections, read in the following order:
+1.  **Footer** (Last 20 bytes + optional Seed)
+2.  **Command Block** (Hierarchy of Objects/Shapes/Frames)
+3.  **Pixel Data** (Raw compressed sprite data)
+
+### 10.2 Footer & Encryption
+
+The entry point is the **last 20 bytes** of the file.
+
+| Offset (from End) | Type | Value | Description |
+| :--- | :--- | :--- | :--- |
+| -20 | `uint8` | `2` | Version Check (Usually 2) |
+| -19 | `uint8` | `0` or `1` | **Encryption Flag**. 1 = Encrypted. |
+| -18 | `uint16` | - | Reserved / Unused |
+| -16 | `uint32` | *Variable* | **Data Size**. Length of the Command Block. |
+| -12 | `uint32` | *Variable* | **Header Size** / Reserved. |
+| -8 | `uint32` | `0x464F5835` | Magic: **"FOX5"** (Checked as Big-Endian) |
+| -4 | `uint32` | `0x2E313131` | Version: **".111"** |
+
+**Encryption:**
+If the Encryption Flag is `1`, the Command Block is encrypted using a modified RC4 stream cipher.
+
+**1. Inputs:**
+*   **Seed (16 bytes):** Located at `FileSize - 36`.
+*   **Modifier (uint32):** Located at `Footer + 8` (Little-Endian).
+*   **Data Length:** The size of the encrypted block.
+
+**2. Key Derivation:**
+The 16-byte RC4 key is derived by XORing the Seed with hardcoded Salt tables, selected based on the Data Length bits.
+
+*   **Salts:**
+    *   `SALT_A1`: `[105, 40, 235, 230, 43, 37, 195, 170]`
+    *   `SALT_A2`: `[255, 119, 78, 57, 138, 24, 255, 219]`
+    *   `SALT_B1`: `[102, 85, 15, 188, 102, 201, 182, 111]`
+    *   `SALT_B2`: `[50, 186, 189, 187, 234, 79, 158, 6]`
+
+*   **Selection Logic:**
+    *   `SaltA = (DataLength & 4) == 0 ? SALT_A1 : SALT_A2`
+    *   `SaltB = (DataLength & 8) == 0 ? SALT_B1 : SALT_B2`
+
+*   **Key Construction:**
+    *   `Key[0..7] = Seed[0..7] ^ SaltA`
+    *   `Key[8..15] = Seed[8..15] ^ SaltB`
+    *   `Key[4..7] ^= Modifier` (The modifier is XORed into bytes 4-7 of the key).
+
+**3. Stream Cipher:**
+*   **KSA:** Standard RC4 Key Scheduling Algorithm using the derived 16-byte Key.
+*   **PRGA:** Standard RC4 Pseudo-Random Generation Algorithm.
+*   The output keystream is XORed with the encrypted data.
+
+**Compression:**
+The decrypted Command Block is **LZMA Compressed**. It must be decompressed before parsing.
+
+### 10.3 Command Block Hierarchy
+
+The Command Block is a recursive tag-based structure. It strictly follows this hierarchy:
+
+`File (Level 0)` -> `Object (Level 1)` -> `Shape (Level 2)` -> `Frame (Level 3)` -> `Sprite Layer (Level 4)`
+
+**Lists:**
+Lists are defined by the `L` (76) tag.
+*   Structure: `[76] [Level: uint8] [Count: uint32]`
+*   Items in the list are read sequentially until the count is reached.
+*   Each item block ends with the `<` (60) tag.
+
+**Implicit Levels:**
+*   **Implicit Shape:** If a Level 3 (Frame) list is encountered directly inside an Object (Level 1), a default Shape is created to wrap the frames.
+
+### 10.4 Tag Reference
+
+All multi-byte integers are **Little-Endian** unless specified otherwise.
+
+| Tag | Char | Type | Context | Description |
+| :--- | :--- | :--- | :--- | :--- |
+| 76 | `L` | List | All | Start of a list. Followed by `Level` (u8) and `Count` (u32). |
+| 60 | `<` | End | All | End of the current item block. |
+| 83 | `S` | Table | File | **Sprite Table**. Defines dimensions/offsets for raw pixel data. |
+| 105 | `i` | int32 | Object | **Object ID**. If missing, defaults to `LastID + 1`. |
+| 110 | `n` | String | Object | Name. |
+| 100 | `d` | String | Object | Description. |
+| 33 | `!` | uint8 | Object | Flags. |
+| 63 | `?` | uint32 | Object | More Flags. |
+| 70 | `F` | u8, u8 | Object | FX Filter (Layer, Mode). |
+| 112 | `p` | uint8 | Shape | Purpose. |
+| 115 | `s` | uint8 | Shape | State. |
+| 68 | `D` | uint8 | Shape | Direction. |
+| 82 | `R` | u8, u8 | Shape | Ratio (Numerator, Denominator). |
+| 111 | `o` | i16, i16 | Frame | Frame Offset (X, Y). |
+| 102 | `f` | i16, i16 | Frame | Furre Offset (X, Y). |
+| 67 | `C` | uint16 | Layer | Layer Purpose. |
+| 99 | `c` | uint16 | Layer | **Image ID**. 1-based index into Sprite Table. 0 = None. |
+| 79 | `O` | u16, u16 | Layer | Layer Offset (X, Y). |
+
+### 10.5 Sprite Table & Pixel Data
+
+The `S` (83) tag defines the Sprite Table.
+*   Structure: `[83] [Count: uint32] [Entry 1] [Entry 2] ...`
+*   **Entry Structure** (9 bytes):
+    *   `Size` (uint32): Size of the compressed pixel data chunk.
+    *   `Width` (uint16): Image width.
+    *   `Height` (uint16): Image height.
+    *   `Flags` (uint8): `1` = Has Alpha.
+
+**Pixel Data Extraction:**
+1.  The Pixel Data block starts immediately after the Command Block (at `offset = DataSize`).
+2.  Each sprite's data is located at `DataStart + AccumulativeOffset`.
+3.  **Decryption (if File Encrypted):**
+    *   If the file encryption flag is set, the sprite chunk is encrypted using the same RC4-like algorithm.
+    *   **Seed:** Same 16-byte seed from the file footer.
+    *   **Modifier:** `Width * Height * BPP`.
+        *   `BPP = 4` if `Flags & 1` (Has Alpha).
+        *   `BPP = 1` otherwise.
+    *   The chunk is decrypted *before* decompression.
+4.  **Decompression:** The data (decrypted or raw) is **LZMA Compressed**.
+5.  **Image ID Resolution:**
+    *   The `c` tag in a Sprite Layer provides a 1-based ID.
+    *   `ID 0` = No Sprite.
+    *   `ID 1` = Sprite Table Index 0.
+    *   `ID N` = Sprite Table Index `N-1`.
+
+## 11. DSB File Format
+
+The `.dsb` (DragonSpeak Binary) format stores compiled DragonSpeak scripts. It is typically found inside FR01 containers (e.g., `default.dsb`).
+
+### 11.1 Header
+
+The file begins with a **21-byte header**.
+
+| Offset | Type | Value | Description |
+| :--- | :--- | :--- | :--- |
+| 0 | `uint32` | `0x44534231` | Magic: **"DSB1"** (ASCII). |
+| 4 | `uint8` | `0x30` | Magic Suffix: **'0'** (ASCII). |
+| 5 | `uint32` | *Variable* | **Line Count**. Total number of DSB lines. (Little-Endian) |
+| 9 | `uint32` | *Variable* | **Encryption Mode**. (Little-Endian) |
+| 13 | `bytes` | - | **Padding** (8 bytes). Ignored. |
+
+### 11.2 Encryption Modes
+
+The `Encryption Mode` field determines both the decryption algorithm and the endianness of the data body.
+
+| Mode | Description | Endianness | Table Used |
+| :--- | :--- | :--- | :--- |
+| `0` | Unencrypted | Little-Endian | None |
+| `1` | Encrypted | Little-Endian | Table A |
+| `2` | Encrypted | **Big-Endian** | Table B |
+
+### 11.3 Decryption Algorithm
+
+If `Mode >= 1`, the data body (starting at offset 21) is encrypted using a custom stream cipher based on CRC32 and a permutation table.
+
+**1. Permutation Tables:**
+*   **Table A (Mode 1):** `[1, 12, 4, 8, 15, 0, 11, 2, 14, 7, 6, 9, 13, 3, 10, 5]`
+*   **Table B (Mode 2):** `[1, 15, 8, 12, 5, 11, 7, 4, 0, 14, 10, 2, 6, 3, 9, 13]`
+
+**2. Initialization:**
+*   **Seed:** The first byte of the data body (`Data[0]`) acts as the seed.
+*   **Key:** `Key = 0x00FFFFFF ^ CRC32_Table[255 ^ Seed]`
+*   The first byte is left **unencrypted** in the output.
+
+**3. Decryption Loop:**
+The data is processed in **16-byte blocks** starting from the second byte (`Data[1]`).
+For each block:
+1.  **Shuffle:** Read byte at `BlockStart + Permutation[i]`.
+2.  **Decrypt:** `Plain = (ShuffledByte - Key) & 0xFF`.
+3.  **Update Key:** `Key = (Key >>> 8) ^ CRC32_Table[(Key & 0xFF) ^ Plain]`.
+
+*Note: The CRC32 polynomial used is standard reverse `0xEDB88320`.*
+
+### 11.4 Data Structure
+
+The data body consists of `Line Count` lines. Each line is exactly **20 bytes** long.
+
+**Line Format:**
+*   **Size:** 10 x `uint16` integers.
+*   **Endianness:** Determined by Encryption Mode (Big-Endian for Mode 2, Little-Endian otherwise).
+
+| Index | Description |
+| :--- | :--- |
+| 0 | **Type** (Command Type) |
+| 1 | **Subtype** (Command ID / Sub-category) |
+| 2-9 | **Parameters** (8 arguments) |
+
+**Common Types (Inferred):**
+*   `0`: No-op / Spacer?
+*   `3`: Triggers / Conditions (Causes).
+*   `5`: Effects / Actions (Responses).
