@@ -1,5 +1,8 @@
 # Furcadia Technical Protocol Specification
 
+> [!CAUTION]
+> **Disclaimer:** This document is highly speculative and predominantly AI-generated, using the obfuscated web client and manual testing as a ground-truth. While it aims for accuracy based on observed behavior and reverse-engineering, it should be taken with a grain of salt and verified against official sources or actual client implementations where possible.
+
 **Status:** Unofficial / Reverse Engineered
 **Target Client:** Furcadia Web Client (v32+)
 **Transport:** WebSocket (Subprotocol: `binary`) & HTTP/1.1
@@ -658,6 +661,29 @@ Initial handshake to get the WebSocket token.
   }
   ```
 
+### 9.6 Default Asset Manifest
+
+The web client bootstraps its asset cache by fetching a manifest file containing the baseline game assets (common FOX files, shaders, etc.).
+
+* **Endpoint:** `/web/manifest.json` (Relative to the web client root, e.g., `https://play.furcadia.com/web/manifest.json`)
+* **Method:** GET
+* **Response (JSON):**
+  ```json
+  {
+      "files": {
+          "common/brth.fox": {
+              "hash": "81a97d696c7e5c5fd503f340e0672d31482f10cd577d1c18dc853629c6a3aa13",
+              "size": 113753
+          },
+          // ... other files
+      }
+  }
+  ```
+* **Asset Download:**
+  * Assets are downloaded using the path specified as the key in the `files` object.
+  * **URL:** `[BaseURL]/{Key}?{Hash}`
+  * **Example:** `https://play.furcadia.com/common/brth.fox?81a97d...`
+
 ## 10. DragonSpeak (DS) & PhoenixSpeak (PS) Engine
 
 This specification allows for the implementation of a DS Virtual Machine (VM), typically found in the client (`As` class) and server.
@@ -882,8 +908,8 @@ Once a character is selected, the client requests a one-time token for the WebSo
 
 **Sequence:**
 
-1. **Client:** Downloads `.map` and `.fox` files from `dream_url`.
-2. **Client:** Parses map and patches.
+1. **Client:** Downloads the map bundle/archive (FR01) file from `dream_url`.
+2. **Client:** Extracts and parses map file and patch files.
 3. **Client:** `vascodagama` (Text frame via WebSocket).
    * *Meaning:* "I have loaded the map. Send me the world state."
 4. **Server:** Sends initial world state.
@@ -1072,32 +1098,35 @@ The map file consists of a text header followed by a binary body containing laye
 *   **Terminator:** The header ends with the line `BODY`.
 
 **2. Binary Body:**
-*   Starts immediately after the newline following the `BODY` tag.
-*   **Encryption:** If `encoded=1` and `noload=1`, the entire binary body is encrypted using a custom stream cipher.
+*   Starts immediately after the newline (or `\r\n`) following the `BODY` tag.
+*   **Encryption:** If `encoded=1` and `noload=1`, the binary body is encrypted using a custom stream cipher.
     *   **Algorithm:** Modified CRC32 with block permutation.
-    *   **Key:** Initialized from the first byte of the body.
-    *   **Block Size:** 16 bytes. Bytes within each block are permuted using a fixed table `[1, 12, 4, 8, 15, 0, 11, 2, 14, 7, 6, 9, 13, 3, 10, 5]`.
+    *   **Seed:** The first byte of the body is the cipher seed.
+    *   **Permutation Tables:**
+        *   **Table A (< v1.20):** `[1, 12, 4, 8, 15, 0, 11, 2, 14, 7, 6, 9, 13, 3, 10, 5]`
+        *   **Table B (>= v1.20):** `[1, 15, 8, 12, 5, 11, 7, 4, 0, 14, 10, 2, 6, 3, 9, 13]`
+    *   **Modern Gotcha (Shifted View):** For version 1.20+ encrypted maps, the **seed byte** is included in the logical data view. This shifts every 16-bit layer value by 1 byte relative to the physical binary alignment.
 
 **3. Layers:**
 The body contains sequential arrays of tile data. Each layer has a size of `Width * Height` tiles.
+*   **Storage Order:** Column-Major (X-axis first).
+*   **Vertical Direction:** Bottom-to-Top ($Y_{max}$ down to $0$).
+*   **Endianness:**
+    *   **Legacy/Unencrypted:** Little-Endian.
+    *   **Modern Encrypted (>= v1.20):** **Big-Endian**.
 
-| Order | Layer | Data Type | Bytes/Tile | Notes |
-| :--- | :--- | :--- | :--- | :--- |
-| 1 | **Floors** | `Uint16` | 2 | |
-| 2 | **Objects** | `Uint16` | 2 | |
-| 3 | **Walls** | `Uint8` x 2 | 2 | See Wall Encoding below. |
-| 4 | **Regions** | `Uint16` | 2 | Present if Version > 1.30. |
-| 5 | **Effects** | `Uint16` | 2 | Present if Version > 1.30. |
-| 6 | **Lighting** | `Uint16` | 2 | Present if Version >= 1.50. |
-| 7 | **Ambience** | `Uint16` | 2 | Present if Version >= 1.50. |
+| Order | Layer | Data Type | Bytes/Tile | Version | Description |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| 1 | **Floors** | `Uint16` | 2 | All | Asset ID = Value - 1. (0/1 -> 0) |
+| 2 | **Objects** | `Uint16` | 2 | All | Asset ID = Value - 1. (0 -> empty) |
+| 3 | **Walls** | `Uint8` x 2 | 2 | All | Byte 0 (Left), Byte 1 (Right). |
+| 4 | **Regions** | `Uint16` | 2 | > v1.30 | |
+| 5 | **Effects** | `Uint16` | 2 | > v1.30 | |
+| 6 | **Lighting** | `Uint16` | 2 | >= v1.50 | |
+| 7 | **Ambience** | `Uint16` | 2 | >= v1.50 | |
 
 **Wall Layer Encoding:**
-The Walls layer requires special handling depending on the map version and encoding flag.
-*   **Standard:** Row-Major order (Top-Left to Bottom-Right).
-*   **Obfuscated:** If `encoded=1` and `Version >= 1.20`:
-    *   The data is stored in **Column-Major** order (Column by Column).
-    *   The Y-axis is **flipped** (Bottom-to-Top).
-    *   *Parser Logic:* To normalize, read column-by-column from the source, but write to `(Height - 1 - y)` in the destination row-major array.
+While most layers are multi-byte integers, the Wall layer is composed of two independent byte values per tile. These bytes are **not** affected by the Big-Endian shift used in modern encrypted maps, but they **are** shifted by 1 byte in the logical data view (like all other data in modern encrypted maps).
 
 ## 10. FOX5 File Format
 
