@@ -1,7 +1,7 @@
 Furnarchy.register({
     id: "stalker-plugin-b9307b7cdc558",
     name: "Stalker",
-    version: "1.3.0",
+    version: "1.3.1",
     description: "Tracks online status of friends.",
     author: "me@merklejerk.com"
 }, (api) => {
@@ -308,7 +308,7 @@ Furnarchy.register({
                 notify("--- Stalk List ---");
                 friends.forEach(f => {
                     if (f.isOnline) {
-                        api.notify(`${utils.escape(f.name)}: "<font color='success'>Online</font>"`);
+                        notify(`${utils.escape(f.name)}: 🟢`);
                     }
                 });
             }

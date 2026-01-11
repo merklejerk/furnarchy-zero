@@ -8,7 +8,8 @@ export const DEFAULT_PLUGINS = [
 	'/plugins/notifier.js',
 	'/plugins/markdown-chat.js',
 	'/plugins/color-copy.js',
-	'/plugins/chat-enhance.js'
+	'/plugins/chat-enhance.js',
+	'/plugins/roll-troll.js'
 ];
 
 export const DEFAULT_DEV_PLUGINS = ['/plugins/modal-showcase.js'];
