@@ -394,7 +394,7 @@ let realID = idLow + 220 * (idHigh >> 1);
 let hopEnabled = (idHigh & 1) === 1;
 
 // 3. Calculate HTTP Download ID
-// The HTTP server expects IDs shifted by 135 (e.g. DPlayer1.fox corresponds to ID 136)
+// The HTTP server expects IDs shifted by 135 (e.g. DPlayer1.fox corresponds to SpeciesID 136)
 let downloadID = realID - 135;
 ```
 
@@ -410,7 +410,7 @@ These commands work together to display character information and load the portr
 
 *   **Load Portrait (`]&`)**:
     *   **Header:** `]&` (2 bytes).
-    *   **User ID:** ASCII Integer (Base 10).
+    *   **User ID:** ASCII Integer (Base 10). This can be a Classic ID (1-255) or a Custom ID (1,000,000+).
     *   **Action:** Triggers an HTTP request to fetch the portrait image using the ID from this packet and the Name from the preceding `]f` packet.
     *   **URL:** `https://apollo.furcadia.com/portrait/get.php?id={ID}&user={Name}`.
 
@@ -591,9 +591,13 @@ Interaction with game assets (maps, portraits, audio) occurs over standard **HTT
 
 ### 9.1 Portrait API
 
-Fetches the visual portrait image for a specific user ID.
+Fetches the visual portrait image (the large character graphic) for a specific user.
 
-* **Endpoint:** `/portrait/get.php`
+**ID Ranges:**
+* **ID 1 - 255:** "Classic" portraits. These correspond to the frames in the default `port.fox`/`port.fsh` assets.
+* **ID 1,000,000+:** "Custom" portraits. These are unique, user-purchased graphics hosted on the server.
+
+* **Endpoint:** `https://apollo.furcadia.com/portrait/get.php?id={ID}&user={Name}`
 * **Method:** GET
 * **Parameters:**
   * `id`: The numeric Portrait ID.
@@ -621,14 +625,19 @@ Downloads the binary map files (.map) and associated patches when entering a dre
 
 Downloads "Dynamic Avatar" definitions (.fox format) which define species animations and logic.
 
-* **Endpoint:** `/species{dir}/DPlayer{id}.fox`
+**Species Ranges:**
+* **ID 1 - 135:** "Classic" species (Wolf, Cat, Dragon, etc.). Usually bundled in the baseline `patch.fox` or `default.fox`.
+* **ID 136+:** "Dynamic" species. Fetched on-demand from the server.
+
+* **Endpoint:** `https://apollo.furcadia.com/species{dir}/DPlayer{id}.fox`
 * **Parameters:**
   * `{dir}`: Environment selector.
     * `""` (Empty string) -> Live/Production.
     * `"1"` -> Test Server.
     * `"S"` -> Second Dreaming (SD).
-  * `{id}`: The **Offset ID** of the avatar.
-    * **Calculation:** `OffsetID = PacketID - 135` (Derived from the `]M` server packet).
+  * `{id}`: The **Download ID** of the avatar.
+    * **Calculation:** `DownloadID = SpeciesID - 135`.
+    * *Example:* Species #136 maps to `DPlayer1.fox`. Species #1001 maps to `DPlayer866.fox`.
 * **Response:** Binary FOX5 container format.
 
 ### 9.4 Audio Assets
