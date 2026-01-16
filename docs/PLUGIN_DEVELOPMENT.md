@@ -2,11 +2,23 @@
 
 Furnarchy Zero plugins are JavaScript files that run within the game client's context. They allow you to intercept network traffic, modify the user interface, automate tasks, and extend the game's functionality.
 
-## Getting Started
+## Development Workflows
 
-Plugins are registered using the global `Furnarchy.register` function. This function takes a metadata object and an initialization callback.
+### 1. Simple Plugins (Single File)
+For quick scripts, you can still drop a `.js` file directly into `app/static/plugins/`. Reference the [Basic Structure](#basic-structure) above.
 
-### Basic Structure
+### 2. Complex Plugins (Build System)
+For larger plugins that require NPM dependencies or TypeScript, use the integrated build system:
+
+1.  **Location**: Create a folder in `plugins/src/<your-plugin-name>/`.
+2.  **Entry Point**: Ensure it has an `index.ts` file.
+3.  **Dependencies**: Run `npm install <pkg>` inside the `/plugins` directory.
+4.  **Build**: Run `npm run build` in the `/plugins` directory to bundle your plugin into `app/static/plugins/`.
+5.  **Watch Mode**: Run `npm run dev` in `/plugins` to automatically rebuild on changes.
+
+---
+
+## Basic Structure
 
 ```typescript
 interface PluginMetadata {

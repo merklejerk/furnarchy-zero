@@ -197,7 +197,7 @@ export type ServerProtocolCommand =
 	/** Avatar Manifest. */
 	| { type: 'avatar-manifest'; records: { version: number; id: number; checksum: number }[] }
 	/** Chat Buffer. */
-	| { type: 'chat-buffer'; subType: string; content: string }
+	| { type: 'chat-badge'; subType: string; content: string }
 	/** Name Visibility. */
 	| { type: 'name-visibility'; visible: boolean }
 	/** Play Music. */
@@ -421,10 +421,10 @@ export function parseServerCommand(line: string): ServerProtocolCommand {
 			offset += 8;
 		}
 		return { type: 'avatar-manifest', records };
-	} else if (line.startsWith(']-') || line.startsWith(']P')) {
+	} else if (line.startsWith(']-')) {
 		const subType = line.substring(2, 4);
 		const content = line.substring(4);
-		return { type: 'chat-buffer', subType, content };
+		return { type: 'chat-badge', subType, content };
 	} else if (line.startsWith(']G')) {
 		return { type: 'name-visibility', visible: line[2] === '0' };
 	} else if (line.startsWith(']j')) {
@@ -695,7 +695,7 @@ export function createServerCommand(cmd: ServerProtocolCommand): string {
 			}
 			return res;
 		}
-		case 'chat-buffer':
+		case 'chat-badge':
 			return `]-${cmd.subType}${cmd.content}`;
 		case 'name-visibility':
 			return `]G${cmd.visible ? '0' : '1'}`;
