@@ -1,16 +1,19 @@
 import { ServerCommand } from "../furnarchy";
 
+export type RemoteServerCommand = ServerCommand | { type: "nearby-players"; players: string[] };
+
 export interface HistoryItem {
+	type: "msg";
 	id: number;
-	type: string;
-	text: string;
-	cmd: ServerCommand;
+	cmd: RemoteServerCommand;
+	timestamp: number;
 }
 
 export type RemotePacket =
-	| { type: "cmd"; text: string }
+	| { type: "cmd"; cmd: string }
 	| { type: "sync_req"; lastId?: number }
 	| { type: "sync_res"; lines: HistoryItem[] }
+	| { type: "nearby_req" }
 	| { type: "ping" }
 	| { type: "pong" }
 	| { type: "HANDSHAKE_ACK"; name: string }

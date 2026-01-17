@@ -98,7 +98,18 @@ describe('furc-protocol', () => {
 					type: 'whisper',
 					from: 'Sender',
 					fromShort: 'sender',
-					message: 'Secret message'
+					message: 'Secret message',
+					isSelf: false
+				}
+			},
+			{
+				name: 'whisper (self)',
+				cmd: {
+					type: 'whisper',
+					to: 'Target',
+					toShort: 'target',
+					message: 'My secret',
+					isSelf: true
 				}
 			},
 			{

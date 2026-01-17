@@ -2,8 +2,8 @@
 	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
-	import type { ServerProtocolCommand } from '$lib/furc-protocol';
-	import { SAS_WORDS } from '$lib/wordlist';
+	import type { ServerProtocolCommand, ClientProtocolCommand } from '$lib/furc-protocol';
+	import { SAS_WORDS } from '$lib/remote/wordlist';
 
 	function getHint(rawSecret: string): number {
 		let hash = 0;
@@ -45,7 +45,7 @@
 	}
 
 	type RemotePacket =
-		| { type: 'cmd'; text: string }
+		| { type: 'cmd'; cmd: ClientProtocolCommand }
 		| { type: 'sync_req' }
 		| { type: 'sync_res'; lines: HistoryItem[] }
 		| { type: 'sas'; words: string[] }

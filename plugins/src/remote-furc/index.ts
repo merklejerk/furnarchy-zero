@@ -1,6 +1,6 @@
 /// <reference path="../furnarchy.d.ts" />
 import * as QRCode from "qrcode";
-import { HistoryItem, HandshakePacket, RemoteFurcState } from "./types";
+import { HistoryItem, HandshakePacket, RemoteFurcState, RemotePacket } from "./types";
 import { getHint, encrypt, decrypt, deriveSAS } from "./crypto";
 import { loadSettings, saveSettings } from "./settings";
 
@@ -22,7 +22,8 @@ Furnarchy.register(
 			ACTIVE_DEVICE_TIMEOUT_MS: 120000, // For broadcasting
 			INDICATOR_STALE_MS: 45000, // For UI indicator
 			HISTORY_LIMIT: 64,
-			SYNC_SAVE_THRESHOLD: 10,
+			SAVE_INTERVAL_MS: 1000,
+			NEARBY_DISTANCE: { x: 5, y: 9 },
 			UI: {
 				PURPLE: "#50558b",
 				RED: "#8b5050",
@@ -47,16 +48,20 @@ Furnarchy.register(
 
 		const INDICATOR_ID = "rf-active-indicator";
 		let indicatorInterval: number | undefined;
+		let saveInterval: number | undefined;
+		let isDirty = false;
 		let configListener: ((e: MessageEvent) => void) | null = null;
 
 		const UI = {
-			btn: (color: string) => `padding: 10px; background: ${color}; color: white; border: 2px outset rgba(255,255,255,0.2); cursor: pointer; font-family: inherit; font-weight: bold; width: 100%; display: block; margin-bottom: 5px;`,
-			input: "width: 100%; padding: 8px; background: #000; border: 2px inset #444; color: #fff; font-family: inherit; box-sizing: border-box;",
+			btn: (color: string) =>
+				`padding: 10px; background: ${color}; color: white; border: 2px outset rgba(255,255,255,0.2); cursor: pointer; font-family: inherit; font-weight: bold; width: 100%; display: block; margin-bottom: 5px;`,
+			input:
+				"width: 100%; padding: 8px; background: #000; border: 2px inset #444; color: #fff; font-family: inherit; box-sizing: border-box;",
 			label: `font-size: 0.85rem; color: ${CONFIG.UI.YELLOW}; text-transform: uppercase; font-weight: bold; margin: 10px 0 5px 0; letter-spacing: 0.5px;`,
 			box: "background: #222; border: 1px solid #444; padding: 10px;",
 		};
 
-		async function sendToDevice(device: typeof state.devices[0], msg: any) {
+		async function sendToDevice(device: (typeof state.devices)[0], msg: RemotePacket) {
 			if (!state.ws || state.ws.readyState !== WebSocket.OPEN) return;
 			try {
 				const packet = await encrypt(msg, device.sharedKey, device.keyHint);
@@ -68,12 +73,15 @@ Furnarchy.register(
 			}
 		}
 
-		async function broadcastToActive(msg: any, timeoutMs = CONFIG.ACTIVE_DEVICE_TIMEOUT_MS) {
+		async function broadcastToActive(
+			msg: RemotePacket,
+			timeoutMs = CONFIG.ACTIVE_DEVICE_TIMEOUT_MS
+		) {
 			const now = Date.now();
 			const active = state.devices.filter((d) => now - d.lastSeen < timeoutMs);
 			for (const device of active) {
 				console.log(`[RemoteFurc] TX ${msg.type} -> ${device.name}`);
-				void sendToDevice(device, msg);
+				await sendToDevice(device, msg);
 			}
 		}
 
@@ -91,7 +99,9 @@ Furnarchy.register(
 
 			const now = Date.now();
 			// Only show devices seen recently
-			const activeDevices = state.devices.filter((d) => now - d.lastSeen < CONFIG.INDICATOR_STALE_MS);
+			const activeDevices = state.devices.filter(
+				(d) => now - d.lastSeen < CONFIG.INDICATOR_STALE_MS
+			);
 
 			if (activeDevices.length === 0) {
 				console.log("[RemoteFurc] Hiding indicator - no active devices");
@@ -149,6 +159,16 @@ Furnarchy.register(
 			el.title = `Active Devices: ${activeDevices.map((d) => d.name).join(", ")}`;
 		}
 
+		function startSaveTimer() {
+			if (saveInterval) window.clearInterval(saveInterval);
+			saveInterval = window.setInterval(() => {
+				if (isDirty && state.currentUser) {
+					void saveSettings(api, state);
+					isDirty = false;
+				}
+			}, CONFIG.SAVE_INTERVAL_MS);
+		}
+
 		async function resetSession() {
 			state.roomId = crypto.randomUUID();
 			state.devices = [];
@@ -204,12 +224,19 @@ Furnarchy.register(
 				if (state.heartbeatTimer) window.clearInterval(state.heartbeatTimer);
 				state.heartbeatTimer = undefined;
 				if (api.enabled) {
-					state.reconnectTimer = window.setTimeout(() => void connectToRelay(), CONFIG.RECONNECT_MS);
+					state.reconnectTimer = window.setTimeout(
+						() => void connectToRelay(),
+						CONFIG.RECONNECT_MS
+					);
 				}
 			};
 		}
 
 		function stopAllTimers() {
+			if (saveInterval) {
+				window.clearInterval(saveInterval);
+				saveInterval = undefined;
+			}
 			if (state.heartbeatTimer) {
 				window.clearInterval(state.heartbeatTimer);
 				state.heartbeatTimer = undefined;
@@ -231,7 +258,7 @@ Furnarchy.register(
 			if (!state.ws || state.ws.readyState !== WebSocket.OPEN) return;
 			// Generic ping to keep relay room alive and signal presence
 			// remotes will see this and reset their presence timeouts
-			void broadcastToActive({ type: "ping" }, Infinity);
+			await broadcastToActive({ type: "ping" }, Infinity);
 		}
 
 		async function handleHandshake(json: string) {
@@ -319,9 +346,9 @@ Furnarchy.register(
 				};
 				state.devices.push(device);
 
-				void sendToDevice(device, { 
-					type: "HANDSHAKE_ACK", 
-					name: api.gameState.player?.name || "Unknown Host" 
+				void sendToDevice(device, {
+					type: "HANDSHAKE_ACK",
+					name: api.gameState.player?.name || "Unknown Host",
 				});
 
 				state.isPairingMode = false;
@@ -348,14 +375,36 @@ Furnarchy.register(
 					console.log("[RemoteFurc] RX <-", device.name, msg);
 					device.lastSeen = Date.now();
 					updateIndicator();
-					if (msg.type === "cmd" && "text" in msg) {
-						api.send(msg.text);
+					if (msg.type === "cmd") {
+						api.send(msg.cmd);
 					} else if (msg.type === "sync_req") {
-						const lastId = (msg as any).lastId ?? 0;
+						const lastId = msg.lastId ?? 0;
 						const delta = state.history.filter((h) => h.id > lastId);
 
-						void sendToDevice(device, { type: "sync_res", lines: delta });
+						await sendToDevice(device, { type: "sync_res", lines: delta });
 						console.log("[RemoteFurc] Sync delta sent:", { count: delta.length });
+					} else if (msg.type === "nearby_req") {
+						const player = api.gameState.player;
+						if (player) {
+							const nearby: string[] = [];
+							for (const [, avatar] of api.gameState.avatars) {
+								const dx = Math.abs(avatar.x - player.x);
+								const dy = Math.abs(avatar.y - player.y);
+								if (dx <= CONFIG.NEARBY_DISTANCE.x && dy <= CONFIG.NEARBY_DISTANCE.y) {
+									nearby.push(avatar.name);
+								}
+							}
+							const historyItem: HistoryItem = {
+								type: "msg",
+								id: state.nextSyncId++,
+								cmd: { type: "nearby-players", players: nearby },
+								timestamp: Date.now(),
+							};
+							state.history.push(historyItem);
+							if (state.history.length > CONFIG.HISTORY_LIMIT) state.history.shift();
+							isDirty = true;
+							await sendToDevice(device, historyItem);
+						}
 					}
 					break;
 				}
@@ -369,19 +418,15 @@ Furnarchy.register(
 			const chatTypes = ["chat", "whisper", "speech", "emote", "roll", "dialog-box", "description"];
 
 			if (chatTypes.includes(cmd.type)) {
-				const historyItem: HistoryItem = { 
-					id: state.nextSyncId++, 
-					type: cmd.type, 
-					text: line, 
-					cmd 
+				const historyItem: HistoryItem = {
+					type: "msg",
+					id: state.nextSyncId++,
+					cmd,
+					timestamp: Date.now(),
 				};
 				state.history.push(historyItem);
 				if (state.history.length > CONFIG.HISTORY_LIMIT) state.history.shift();
-
-				// Save nextSyncId occasionally so we don't lose too much progress on crash
-				if (state.nextSyncId % CONFIG.SYNC_SAVE_THRESHOLD === 0) {
-					void saveSettings(api, state);
-				}
+				isDirty = true;
 
 				void broadcastToActive(historyItem);
 			}
@@ -391,6 +436,7 @@ Furnarchy.register(
 		async function handleLogin(name: string, uid: string) {
 			state.currentUser = { name, uid };
 			await loadSettings(api, state);
+			startSaveTimer();
 			if (api.enabled) void connectToRelay();
 		}
 
@@ -445,7 +491,10 @@ Furnarchy.register(
 					if (state.pendingPairing) {
 						if (!state.pendingPairing.isVerified) {
 							const words = state.pendingPairing.sasWords
-								.map(w => `<span style="font-size:1.2rem; font-weight:bold; color:${CONFIG.UI.YELLOW}; margin:0 8px; text-transform:uppercase;">${w}</span>`)
+								.map(
+									(w) =>
+										`<span style="font-size:1.2rem; font-weight:bold; color:${CONFIG.UI.YELLOW}; margin:0 8px; text-transform:uppercase;">${w}</span>`
+								)
 								.join("");
 
 							body = `
@@ -487,11 +536,17 @@ Furnarchy.register(
               </div>`;
 					}
 				} else {
-					const deviceRows = state.devices.map(d => `
+					const deviceRows =
+						state.devices
+							.map(
+								(d) => `
             <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px; border-bottom: 1px solid #444;">
               <span style="font-weight: bold; color:${CONFIG.UI.YELLOW}">${utils.escape(d.name)}</span>
               <button style="${UI.btn(CONFIG.UI.RED)} width: auto; padding: 4px 8px; margin: 0;" onclick="window.postMessage({type:'rf-del', id:'${d.id}'}, '*')">×</button>
-            </div>`).join("") || '<div style="padding: 20px; text-align: center; color:#666;">No paired devices.</div>';
+            </div>`
+							)
+							.join("") ||
+						'<div style="padding: 20px; text-align: center; color:#666;">No paired devices.</div>';
 
 					body = `
             <div style="padding: 5px;">
@@ -499,6 +554,9 @@ Furnarchy.register(
               <div style="${UI.label}">Paired Devices</div>
               <div style="${UI.box} max-height: 200px; overflow-y: auto; padding:0;">
                 ${deviceRows}
+              </div>
+              <div style="margin-top: 20px; border-top: 1px solid #333; padding-top: 12px; font-size: 0.8rem; color: #888; text-align: center; line-height: 1.4;">
+                To chat remotely, visit <span style="color: ${CONFIG.UI.YELLOW}">remote.furnarchy.xyz</span> on a paired device while logged in on your desktop here.
               </div>
             </div>`;
 				}
@@ -509,18 +567,20 @@ Furnarchy.register(
 			configListener = (e: MessageEvent) => {
 				const msg = e.data as { type?: string; id?: string; name?: string };
 				const refresh = () => void updateModal();
-				
+
 				if (msg.type === "rf-del") {
-					state.devices = state.devices.filter(d => d.id !== msg.id);
+					state.devices = state.devices.filter((d) => d.id !== msg.id);
 					void saveSettings(api, state).then(refresh);
 				} else if (msg.type === "rf-start-pair") {
 					state.isPairingMode = true;
 					state.pairingToken = crypto.randomUUID();
 					state.pendingPairing = null;
-					void crypto.subtle.generateKey({ name: "ECDH", namedCurve: "P-256" }, true, ["deriveKey"]).then(key => {
-						state.ephemeralKeyPair = key;
-						refresh();
-					});
+					void crypto.subtle
+						.generateKey({ name: "ECDH", namedCurve: "P-256" }, true, ["deriveKey"])
+						.then((key) => {
+							state.ephemeralKeyPair = key;
+							refresh();
+						});
 				} else if (msg.type === "rf-cancel") {
 					state.isPairingMode = false;
 					state.pairingToken = "";

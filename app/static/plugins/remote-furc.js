@@ -4110,7 +4110,8 @@
         INDICATOR_STALE_MS: 45e3,
         // For UI indicator
         HISTORY_LIMIT: 64,
-        SYNC_SAVE_THRESHOLD: 10,
+        SAVE_INTERVAL_MS: 1e3,
+        NEARBY_DISTANCE: { x: 5, y: 9 },
         UI: {
           PURPLE: "#50558b",
           RED: "#8b5050",
@@ -4133,6 +4134,8 @@
       };
       const INDICATOR_ID = "rf-active-indicator";
       let indicatorInterval;
+      let saveInterval;
+      let isDirty = false;
       let configListener = null;
       const UI = {
         btn: (color) => `padding: 10px; background: ${color}; color: white; border: 2px outset rgba(255,255,255,0.2); cursor: pointer; font-family: inherit; font-weight: bold; width: 100%; display: block; margin-bottom: 5px;`,
@@ -4156,7 +4159,7 @@
         const active = state.devices.filter((d) => now - d.lastSeen < timeoutMs);
         for (const device of active) {
           console.log(`[RemoteFurc] TX ${msg.type} -> ${device.name}`);
-          void sendToDevice(device, msg);
+          await sendToDevice(device, msg);
         }
       }
       function updateIndicator() {
@@ -4168,7 +4171,9 @@
           return;
         }
         const now = Date.now();
-        const activeDevices = state.devices.filter((d) => now - d.lastSeen < CONFIG.INDICATOR_STALE_MS);
+        const activeDevices = state.devices.filter(
+          (d) => now - d.lastSeen < CONFIG.INDICATOR_STALE_MS
+        );
         if (activeDevices.length === 0) {
           console.log("[RemoteFurc] Hiding indicator - no active devices");
           if (el) el.style.display = "none";
@@ -4215,6 +4220,15 @@
         }
         el.style.display = "flex";
         el.title = `Active Devices: ${activeDevices.map((d) => d.name).join(", ")}`;
+      }
+      function startSaveTimer() {
+        if (saveInterval) window.clearInterval(saveInterval);
+        saveInterval = window.setInterval(() => {
+          if (isDirty && state.currentUser) {
+            void saveSettings(api, state);
+            isDirty = false;
+          }
+        }, CONFIG.SAVE_INTERVAL_MS);
       }
       async function resetSession() {
         state.roomId = crypto.randomUUID();
@@ -4264,11 +4278,18 @@
           if (state.heartbeatTimer) window.clearInterval(state.heartbeatTimer);
           state.heartbeatTimer = void 0;
           if (api.enabled) {
-            state.reconnectTimer = window.setTimeout(() => void connectToRelay(), CONFIG.RECONNECT_MS);
+            state.reconnectTimer = window.setTimeout(
+              () => void connectToRelay(),
+              CONFIG.RECONNECT_MS
+            );
           }
         };
       }
       function stopAllTimers() {
+        if (saveInterval) {
+          window.clearInterval(saveInterval);
+          saveInterval = void 0;
+        }
         if (state.heartbeatTimer) {
           window.clearInterval(state.heartbeatTimer);
           state.heartbeatTimer = void 0;
@@ -4287,7 +4308,7 @@
       }
       async function broadcastPing() {
         if (!state.ws || state.ws.readyState !== WebSocket.OPEN) return;
-        void broadcastToActive({ type: "ping" }, Infinity);
+        await broadcastToActive({ type: "ping" }, Infinity);
       }
       async function handleHandshake(json) {
         try {
@@ -4379,13 +4400,35 @@
             console.log("[RemoteFurc] RX <-", device.name, msg);
             device.lastSeen = Date.now();
             updateIndicator();
-            if (msg.type === "cmd" && "text" in msg) {
-              api.send(msg.text);
+            if (msg.type === "cmd") {
+              api.send(msg.cmd);
             } else if (msg.type === "sync_req") {
               const lastId = msg.lastId ?? 0;
               const delta = state.history.filter((h) => h.id > lastId);
-              void sendToDevice(device, { type: "sync_res", lines: delta });
+              await sendToDevice(device, { type: "sync_res", lines: delta });
               console.log("[RemoteFurc] Sync delta sent:", { count: delta.length });
+            } else if (msg.type === "nearby_req") {
+              const player = api.gameState.player;
+              if (player) {
+                const nearby = [];
+                for (const [, avatar] of api.gameState.avatars) {
+                  const dx = Math.abs(avatar.x - player.x);
+                  const dy = Math.abs(avatar.y - player.y);
+                  if (dx <= CONFIG.NEARBY_DISTANCE.x && dy <= CONFIG.NEARBY_DISTANCE.y) {
+                    nearby.push(avatar.name);
+                  }
+                }
+                const historyItem = {
+                  type: "msg",
+                  id: state.nextSyncId++,
+                  cmd: { type: "nearby-players", players: nearby },
+                  timestamp: Date.now()
+                };
+                state.history.push(historyItem);
+                if (state.history.length > CONFIG.HISTORY_LIMIT) state.history.shift();
+                isDirty = true;
+                await sendToDevice(device, historyItem);
+              }
             }
             break;
           }
@@ -4397,16 +4440,14 @@
         const chatTypes = ["chat", "whisper", "speech", "emote", "roll", "dialog-box", "description"];
         if (chatTypes.includes(cmd.type)) {
           const historyItem = {
+            type: "msg",
             id: state.nextSyncId++,
-            type: cmd.type,
-            text: line,
-            cmd
+            cmd,
+            timestamp: Date.now()
           };
           state.history.push(historyItem);
           if (state.history.length > CONFIG.HISTORY_LIMIT) state.history.shift();
-          if (state.nextSyncId % CONFIG.SYNC_SAVE_THRESHOLD === 0) {
-            void saveSettings(api, state);
-          }
+          isDirty = true;
           void broadcastToActive(historyItem);
         }
         return line;
@@ -4414,6 +4455,7 @@
       async function handleLogin(name, uid) {
         state.currentUser = { name, uid };
         await loadSettings(api, state);
+        startSaveTimer();
         if (api.enabled) void connectToRelay();
       }
       api.onLoad(() => {
@@ -4460,7 +4502,9 @@
           if (state.isPairingMode) {
             if (state.pendingPairing) {
               if (!state.pendingPairing.isVerified) {
-                const words = state.pendingPairing.sasWords.map((w) => `<span style="font-size:1.2rem; font-weight:bold; color:${CONFIG.UI.YELLOW}; margin:0 8px; text-transform:uppercase;">${w}</span>`).join("");
+                const words = state.pendingPairing.sasWords.map(
+                  (w) => `<span style="font-size:1.2rem; font-weight:bold; color:${CONFIG.UI.YELLOW}; margin:0 8px; text-transform:uppercase;">${w}</span>`
+                ).join("");
                 body = `
                 <div style="text-align: center; padding: 10px;">
                   <h3 style="margin-top:0">Verify Device</h3>
@@ -4500,17 +4544,22 @@
               </div>`;
             }
           } else {
-            const deviceRows = state.devices.map((d) => `
+            const deviceRows = state.devices.map(
+              (d) => `
             <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px; border-bottom: 1px solid #444;">
               <span style="font-weight: bold; color:${CONFIG.UI.YELLOW}">${utils2.escape(d.name)}</span>
               <button style="${UI.btn(CONFIG.UI.RED)} width: auto; padding: 4px 8px; margin: 0;" onclick="window.postMessage({type:'rf-del', id:'${d.id}'}, '*')">×</button>
-            </div>`).join("") || '<div style="padding: 20px; text-align: center; color:#666;">No paired devices.</div>';
+            </div>`
+            ).join("") || '<div style="padding: 20px; text-align: center; color:#666;">No paired devices.</div>';
             body = `
             <div style="padding: 5px;">
               <button style="${UI.btn(CONFIG.UI.PURPLE)}" onclick="window.postMessage({type:'rf-start-pair'}, '*')">+ Pair New Device</button>
               <div style="${UI.label}">Paired Devices</div>
               <div style="${UI.box} max-height: 200px; overflow-y: auto; padding:0;">
                 ${deviceRows}
+              </div>
+              <div style="margin-top: 20px; border-top: 1px solid #333; padding-top: 12px; font-size: 0.8rem; color: #888; text-align: center; line-height: 1.4;">
+                To chat remotely, visit <span style="color: ${CONFIG.UI.YELLOW}">remote.furnarchy.xyz</span> on a paired device while logged in on your desktop here.
               </div>
             </div>`;
           }

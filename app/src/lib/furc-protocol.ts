@@ -114,8 +114,12 @@ export type ServerProtocolCommand =
 	| { type: 'set-user-info'; uid: number; name: string }
 	/** Standard chat message or system message. */
 	| { type: 'chat'; text: string }
+	/** Command indicating a buffered chat message. */
+	| { type: 'chat-buffer'; subType: string; content: string }
 	/** Private whisper message from another user. */
-	| { type: 'whisper'; from: string; fromShort: string; message: string }
+	| { type: 'whisper'; from: string; fromShort: string; message: string; isSelf: false }
+	/** Private whisper message sent by the user themselves. */
+	| { type: 'whisper'; to: string; toShort: string; message: string; isSelf: true }
 	/** Speech message from the user themselves. */
 	| { type: 'speech'; message: string; isSelf: true }
 	/** Speech message from another user. */
@@ -293,11 +297,13 @@ export type ClientProtocolCommand =
 
 const INCOMING_WHISPER_REGEX =
 	/^(?:<img [^>]+>)?<font color='whisper'>\[ <name shortname='([^']+)' src='whisper-from'>([^<]+)<\/name> whispers, "(.*)" to you\. \]<\/font>$/;
+const SELF_WHISPER_REGEX =
+	/^(?:<img [^>]+>)?<font color='whisper'>\[ You whisper "(.*)" to <name shortname='([^']+)'[^>]*>([^<]+)<\/name>\. \]<\/font>$/;
 const SELF_SPEECH_REGEX = /^<font color='myspeech'>You say, "(.*)"<\/font>$/;
 const OTHER_SPEECH_REGEX = /^<name shortname='([^']+)'>([^<]+)<\/name>: (.*)$/;
 const EMOTE_REGEX = /^<font color='emote'><name shortname='([^']+)'>([^<]+)<\/name> (.*)<\/font>$/;
 const ROLL_REGEX =
-	/^<font color='roll'>.*?<name shortname='([^']+)'>([^<]+)<\/name> rolls (.*)<\/font>$/;
+	/^<font color='roll'>.*?<name shortname='([^']+)'>([^<]+)<\/name> rolls (.*?)(<\/font>)?$/;
 const DESCRIPTION_REGEX = /^<desc shortname='([^']+)' \/>&gt; (.*)$/;
 
 export function parseServerCommand(line: string): ServerProtocolCommand {
@@ -318,7 +324,18 @@ export function parseServerCommand(line: string): ServerProtocolCommand {
 				type: 'whisper',
 				fromShort: whisperMatch[1],
 				from: whisperMatch[2],
-				message: whisperMatch[3]
+				message: whisperMatch[3],
+				isSelf: false
+			};
+		}
+		const selfWhisperMatch = content.match(SELF_WHISPER_REGEX);
+		if (selfWhisperMatch) {
+			return {
+				type: 'whisper',
+				message: selfWhisperMatch[1],
+				toShort: selfWhisperMatch[2],
+				to: selfWhisperMatch[3],
+				isSelf: true
 			};
 		}
 		const selfSpeechMatch = content.match(SELF_SPEECH_REGEX);
@@ -637,8 +654,14 @@ export function createServerCommand(cmd: ServerProtocolCommand): string {
 			return `]B${cmd.uid} ${cmd.name}`;
 		case 'chat':
 			return `(${cmd.text}`;
+		case 'chat-buffer':
+			return `${cmd.subType}${cmd.content}`;
 		case 'whisper':
-			return `(<font color='whisper'>[ <name shortname='${cmd.fromShort}' src='whisper-from'>${cmd.from}</name> whispers, "${cmd.message}" to you. ]</font>`;
+			if (cmd.isSelf) {
+				return `(<font color='whisper'>[ You whisper "${cmd.message}" to <name shortname='${cmd.toShort}' forced src='whisper-to'>${cmd.to}</name>. ]</font>`;
+			} else {
+				return `(<font color='whisper'>[ <name shortname='${cmd.fromShort}' src='whisper-from'>${cmd.from}</name> whispers, "${cmd.message}" to you. ]</font>`;
+			}
 		case 'speech':
 			if (cmd.isSelf) {
 				return `(<font color='myspeech'>You say, "${cmd.message}"</font>`;
