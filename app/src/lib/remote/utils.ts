@@ -54,7 +54,8 @@ const EMOJI_MAP: Record<string, string> = {
 	'#Sy': '✂️',
 	'#S1': '🪙',
 	'#S2': '🪙',
-	'#S3': '🪙'
+	'#S3': '🪙',
+	'#C6': '🍪',
 };
 
 // Reverse map for emojis to #Sx codes
