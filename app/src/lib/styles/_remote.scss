@@ -1,0 +1,49 @@
+// Furcadia Classic Aesthetic Colors
+$classic-purple: #50558b;
+$classic-purple-dark: #3a3e66;
+$classic-btn-bg: #404470;
+$classic-btn-border: #8085b0;
+$classic-tan: #e6d6bd;
+$classic-tan-dark: #b7b1a2;
+$classic-red: #8b5050;
+$classic-red-border: #b08080;
+$classic-orange: #d1661f;
+$classic-orange-border: #f4a261;
+$classic-whisper: #00008b;
+$classic-emote: #8b4513;
+$classic-roll: #006400;
+
+@mixin furc-button($bg: $classic-btn-bg, $border: $classic-btn-border) {
+	background: $bg;
+	color: #fff;
+	border: 4px outset $border;
+	border-radius: 10px;
+	cursor: pointer;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	font-family: 'Verdana', sans-serif;
+	font-weight: bold;
+
+	&:active:not(:disabled) {
+		border-style: inset;
+		padding-top: 2px;
+		padding-left: 2px;
+	}
+
+	&:disabled {
+		opacity: 0.6;
+		cursor: not-allowed;
+	}
+}
+
+@mixin furc-inset-panel {
+	background: #fff;
+	border: 2px inset $classic-tan-dark;
+}
+
+@mixin furc-outset-panel {
+	background: #fff;
+	border: 2px outset #fff;
+	box-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+}

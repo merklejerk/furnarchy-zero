@@ -44,7 +44,8 @@ export class PluginContext implements IPluginContext {
 		pause: [] as ((paused: boolean) => void)[],
 		load: [] as ((enabled: boolean) => void)[],
 		unload: [] as (() => void)[],
-		configure: [] as (() => void)[]
+		configure: [] as (() => void)[],
+		notify: [] as ((text: string, prefix: string) => void)[]
 	};
 	private _readyFired = false;
 
@@ -146,6 +147,10 @@ export class PluginContext implements IPluginContext {
 
 	onConfigure(cb: () => void): void {
 		this._handlers.configure.push(cb);
+	}
+
+	onNotify(cb: (text: string, prefix: string) => void): void {
+		this._handlers.notify.push(cb);
 	}
 
 	openModal(options: ModalOptions): void {
@@ -280,6 +285,17 @@ export class PluginContext implements IPluginContext {
 				cb();
 			} catch (e) {
 				console.error(`[${this.metadata.name}] Configure Error:`, e);
+			}
+		});
+	}
+
+	_notifyNotify(text: string, prefix: string): void {
+		if (!this.enabled) return;
+		this._handlers.notify.forEach((cb) => {
+			try {
+				cb(text, prefix);
+			} catch (e) {
+				console.error(`[${this.metadata.name}] Notify Error:`, e);
 			}
 		});
 	}

@@ -1,7 +1,7 @@
 Furnarchy.register({
     id: "markdown-chat-75197f979",
     name: "Markdown Chat",
-    version: "1.0.1",
+    version: "1.0.2",
     description: "Adds basic markdown support (*italic*, **bold**, _underline_, [text](link)) to chat.",
     author: "me@merklejerk.com",
 }, (api) => {
@@ -17,7 +17,7 @@ Furnarchy.register({
         });
 
         // Underline: _text_ -> <u>text</u>
-        processed = processed.replace(/_([^_]+)_/g, '<u>$1</u>');
+        processed = processed.replace(/\b_([^_]+)_\b/g, '<u>$1</u>');
 
         // Bold: **text** -> <b>text</b>
         processed = processed.replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>');

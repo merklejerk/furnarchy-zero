@@ -288,7 +288,14 @@
 	<button class="fab" on:click={toggle} title="Plugin Manager"> ⚙️ </button>
 
 	{#if isOpen}
-		<div class="modal-backdrop" on:click={toggle}></div>
+		<div
+			class="modal-backdrop"
+			on:click={toggle}
+			on:keydown={(e) => (e.key === 'Enter' || e.key === ' ') && toggle()}
+			role="button"
+			tabindex="-1"
+			aria-label="Close modal"
+		></div>
 		<div class="modal retro-theme">
 			<div class="header-row">
 				<h2>Game Menu</h2>
