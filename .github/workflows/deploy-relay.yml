@@ -54,4 +54,4 @@ jobs:
           script: |
             cd ${{ secrets.RELAY_INSTALL_PATH }}
             npm ci --production
-            pm2 restart remote-furc-relay || pm2 start dist/index.js --name remote-furc-relay
+            SSL_KEY_PATH=/etc/ssl/keys/remote-furc-relay-cf.pem SSL_CERT_PATH=/etc/ssl/certs/remote-furc-relay-cf.pem pm2 restart remote-furc-relay || pm2 start dist/index.js --name remote-furc-relay
