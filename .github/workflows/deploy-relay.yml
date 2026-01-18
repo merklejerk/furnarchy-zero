@@ -54,4 +54,9 @@ jobs:
           script: |
             cd ${{ secrets.RELAY_INSTALL_PATH }}
             npm ci --production
-            SSL_KEY_PATH=/etc/ssl/keys/remote-furc-relay-cf.pem SSL_CERT_PATH=/etc/ssl/certs/remote-furc-relay-cf.pem pm2 PM2_HOME="${{ secrets.RELAY_INSTALL_PATH }}" restart relay
+            sudo \
+              SSL_KEY_PATH=/etc/ssl/keys/remote-furc-relay-cf.pem \
+              SSL_CERT_PATH=/etc/ssl/certs/remote-furc-relay-cf.pem \
+              PM2_HOME="${{ secrets.RELAY_INSTALL_PATH }}/.pm2" \
+              su relay -c \
+              'pm2 restart relay || pm2 start dist/index.js --name relay'
