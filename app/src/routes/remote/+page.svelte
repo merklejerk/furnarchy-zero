@@ -410,8 +410,8 @@
 	.remote-app {
 		display: flex;
 		flex-direction: column;
-		height: 100vh;
-		width: 100%;
+		height: 100dvh;
+		width: 100dvw;
 		background: $classic-purple;
 		box-sizing: border-box;
 		overflow: hidden;
