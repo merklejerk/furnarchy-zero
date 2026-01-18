@@ -4099,6 +4099,7 @@
     },
     (api) => {
       const utils2 = Furnarchy.utils;
+      const REMOTE_URL = `${window.location.origin}/remote`;
       const CONFIG = {
         HEARTBEAT_MS: 15e3,
         RECONNECT_MS: 5e3,
@@ -4245,6 +4246,14 @@
           state.reconnectTimer = void 0;
         }
         if (!state.currentUser) return;
+        if (state.devices.length === 0 && !state.isPairingMode) {
+          if (state.heartbeatTimer) {
+            window.clearInterval(state.heartbeatTimer);
+            state.heartbeatTimer = void 0;
+          }
+          console.log("[RemoteFurc] No devices and not in pairing mode. Staying disconnected.");
+          return;
+        }
         if (!state.roomId) {
           await resetSession();
           return;
@@ -4252,7 +4261,7 @@
         state.ws = new WebSocket(`${"wss://rf-relay.furnarchy.xyz/v1/connect"}?room=${state.roomId}&role=host`);
         state.ws.binaryType = "arraybuffer";
         state.ws.onopen = () => {
-          api.notify("Remote Furc active.");
+          api.notify(`Remote Furc active. Visit ${REMOTE_URL} on a paired device.`);
           if (state.heartbeatTimer) window.clearInterval(state.heartbeatTimer);
           void broadcastPing();
           state.heartbeatTimer = window.setInterval(() => {
@@ -4282,7 +4291,7 @@
           }
         };
       }
-      function stopAllTimers() {
+      function cleanup() {
         if (saveInterval) {
           window.clearInterval(saveInterval);
           saveInterval = void 0;
@@ -4486,11 +4495,11 @@
       api.onDisconnected(() => {
         void saveSettings(api, state);
         state.currentUser = null;
-        stopAllTimers();
+        cleanup();
       });
       api.onUnload(() => {
         void saveSettings(api, state);
-        stopAllTimers();
+        cleanup();
         if (indicatorInterval) window.clearInterval(indicatorInterval);
         window.removeEventListener("resize", updateIndicator);
         const el = document.getElementById(INDICATOR_ID);
@@ -4498,7 +4507,7 @@
       });
       api.onPause((paused) => {
         if (paused) {
-          stopAllTimers();
+          cleanup();
         } else if (api.enabled && state.currentUser) {
           void connectToRelay();
         }
@@ -4544,7 +4553,7 @@
             } else {
               const pub = await crypto.subtle.exportKey("spki", state.ephemeralKeyPair.publicKey);
               const pubB64 = btoa(String.fromCharCode(...new Uint8Array(pub)));
-              const url = `${window.location.origin}/remote/pair?room=${state.roomId}&token=${state.pairingToken}&pub=${encodeURIComponent(pubB64)}&relay=${encodeURIComponent("wss://rf-relay.furnarchy.xyz/v1/connect")}`;
+              const url = `${REMOTE_URL}/pair?room=${state.roomId}&token=${state.pairingToken}&pub=${encodeURIComponent(pubB64)}&relay=${encodeURIComponent("wss://rf-relay.furnarchy.xyz/v1/connect")}`;
               const qr = await toDataURL(url, { margin: 2, scale: 4 });
               body = `
               <div style="text-align: center;">
@@ -4574,7 +4583,7 @@
                 ${deviceRows}
               </div>
               <div style="margin-top: 20px; border-top: 1px solid #333; padding-top: 12px; font-size: 0.8rem; color: #888; text-align: center; line-height: 1.4;">
-                To chat remotely, visit <span style="color: ${CONFIG.UI.YELLOW}">remote.furnarchy.xyz</span> on a paired device while logged in on your desktop here. Device pairings are per-character.
+                To chat remotely, visit <a href="${REMOTE_URL}" target="_blank" style="color: ${CONFIG.UI.YELLOW}">${REMOTE_URL}</a> on a paired device while logged in on your desktop here. Device pairings are per-character.
               </div>
             </div>`;
           }
@@ -4586,11 +4595,15 @@
           const refresh = () => void updateModal();
           if (msg.type === "rf-del") {
             state.devices = state.devices.filter((d) => d.id !== msg.id);
+            if (state.devices.length === 0 && !state.isPairingMode) {
+              cleanup();
+            }
             void saveSettings(api, state).then(refresh);
           } else if (msg.type === "rf-start-pair") {
             state.isPairingMode = true;
             state.pairingToken = crypto.randomUUID();
             state.pendingPairing = null;
+            void connectToRelay();
             void crypto.subtle.generateKey({ name: "ECDH", namedCurve: "P-256" }, true, ["deriveKey"]).then((key) => {
               state.ephemeralKeyPair = key;
               refresh();
@@ -4600,6 +4613,9 @@
             state.pairingToken = "";
             state.ephemeralKeyPair = null;
             state.pendingPairing = null;
+            if (state.devices.length === 0) {
+              cleanup();
+            }
             refresh();
           } else if (msg.type === "rf-verify") {
             verifySAS();
