@@ -10,6 +10,7 @@
 ## Project Structure
 
 *   `app/`: The main SvelteKit frontend application.
+*   `app/static/plugins`: Pure JS Furnarchy plugins.
 *   `plugins/`: TypeScript source code for bundled Furnarchy plugins.
 *   `remote-furc-relay/`: A lightweight binary relay for RemoteFurc E2EE communication.
 *   `gcloud/serverless/terra/`: The Google Cloud Function that acts as the authentication proxy.
