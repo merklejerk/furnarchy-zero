@@ -8,14 +8,12 @@ export async function loadSettings(api: PluginContext, state: RemoteFurcState) {
 
 	const settings =
 		api.loadData<{
-			relayAddress?: string;
 			roomId?: string;
 			keyPair?: { publicKey: string; privateKey: string };
 			devices?: { id: string; name: string; sharedSecret: string; keyHint?: number }[];
 			nextSyncId?: number;
 		}>(key) || {};
 
-	state.relayAddress = settings.relayAddress || state.relayAddress;
 	state.roomId = settings.roomId || null;
 	state.nextSyncId = settings.nextSyncId || 1;
 	state.devices = [];
@@ -56,7 +54,6 @@ export async function saveSettings(api: PluginContext, state: RemoteFurcState) {
 
 	await Promise.resolve();
 	api.saveData(key, {
-		relayAddress: state.relayAddress,
 		roomId: state.roomId,
 		devices: exportedDevices,
 		nextSyncId: state.nextSyncId,

@@ -38,7 +38,6 @@ Furnarchy.register(
 			ws: null,
 			devices: [],
 			history: [],
-			relayAddress: __RELAY_ADDRESS__,
 			isPairingMode: false,
 			pairingToken: "",
 			ephemeralKeyPair: null,
@@ -193,7 +192,7 @@ Furnarchy.register(
 				return;
 			}
 
-			state.ws = new WebSocket(`${state.relayAddress}?room=${state.roomId}&role=host`);
+			state.ws = new WebSocket(`${__RELAY_ADDRESS__}?room=${state.roomId}&role=host`);
 			state.ws.binaryType = "arraybuffer";
 
 			state.ws.onopen = () => {
@@ -542,7 +541,7 @@ Furnarchy.register(
 					} else {
 						const pub = await crypto.subtle.exportKey("spki", state.ephemeralKeyPair!.publicKey);
 						const pubB64 = btoa(String.fromCharCode(...new Uint8Array(pub)));
-						const url = `${window.location.origin}/remote/pair?room=${state.roomId}&token=${state.pairingToken}&pub=${encodeURIComponent(pubB64)}&relay=${encodeURIComponent(state.relayAddress)}`;
+						const url = `${window.location.origin}/remote/pair?room=${state.roomId}&token=${state.pairingToken}&pub=${encodeURIComponent(pubB64)}&relay=${encodeURIComponent(__RELAY_ADDRESS__)}`;
 						const qr = await QRCode.toDataURL(url, { margin: 2, scale: 4 });
 						body = `
               <div style="text-align: center;">

@@ -4048,7 +4048,6 @@
     const key = state.currentUser ? `settings_${state.currentUser.uid}` : null;
     if (!key) return;
     const settings = api.loadData(key) || {};
-    state.relayAddress = settings.relayAddress || state.relayAddress;
     state.roomId = settings.roomId || null;
     state.nextSyncId = settings.nextSyncId || 1;
     state.devices = [];
@@ -4085,7 +4084,6 @@
     }));
     await Promise.resolve();
     api.saveData(key, {
-      relayAddress: state.relayAddress,
       roomId: state.roomId,
       devices: exportedDevices,
       nextSyncId: state.nextSyncId
@@ -4125,7 +4123,6 @@
         ws: null,
         devices: [],
         history: [],
-        relayAddress: "ws://localhost:3088/v1/connect",
         isPairingMode: false,
         pairingToken: "",
         ephemeralKeyPair: null,
@@ -4252,7 +4249,7 @@
           await resetSession();
           return;
         }
-        state.ws = new WebSocket(`${state.relayAddress}?room=${state.roomId}&role=host`);
+        state.ws = new WebSocket(`${"wss://rf-relay.furnarchy.xyz/v1/connect"}?room=${state.roomId}&role=host`);
         state.ws.binaryType = "arraybuffer";
         state.ws.onopen = () => {
           api.notify("Remote Furc active.");
@@ -4547,7 +4544,7 @@
             } else {
               const pub = await crypto.subtle.exportKey("spki", state.ephemeralKeyPair.publicKey);
               const pubB64 = btoa(String.fromCharCode(...new Uint8Array(pub)));
-              const url = `${window.location.origin}/remote/pair?room=${state.roomId}&token=${state.pairingToken}&pub=${encodeURIComponent(pubB64)}&relay=${encodeURIComponent(state.relayAddress)}`;
+              const url = `${window.location.origin}/remote/pair?room=${state.roomId}&token=${state.pairingToken}&pub=${encodeURIComponent(pubB64)}&relay=${encodeURIComponent("wss://rf-relay.furnarchy.xyz/v1/connect")}`;
               const qr = await toDataURL(url, { margin: 2, scale: 4 });
               body = `
               <div style="text-align: center;">

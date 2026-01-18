@@ -1,13 +1,11 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
-	import { fade } from 'svelte/transition';
 	import { browser } from '$app/environment';
 	import ChatView from '$lib/components/remote/ChatView.svelte';
 	import SessionTab from '$lib/components/remote/SessionTab.svelte';
 	import SessionPicker from '$lib/components/remote/SessionPicker.svelte';
 	import { encrypt, decrypt } from '$lib/remote/utils';
 	import {
-		type ServerProtocolCommand,
 		type ClientProtocolCommand,
 		createClientCommand
 	} from '$lib/furc-protocol';

@@ -62,9 +62,9 @@
 		const roomId = $page.url.searchParams.get('room');
 		const token = $page.url.searchParams.get('token');
 		const hostPubB64 = $page.url.searchParams.get('pub');
-		const relayAddr = $page.url.searchParams.get('relay') || 'ws://localhost:3088/v1/connect';
+		const relayAddr = $page.url.searchParams.get('relay');
 
-		if (!roomId || !token || !hostPubB64) {
+		if (!roomId || !token || !hostPubB64 || !relayAddr) {
 			error = 'Invalid pairing link. Missing required parameters.';
 			return;
 		}

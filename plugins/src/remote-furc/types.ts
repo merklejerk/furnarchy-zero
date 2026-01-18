@@ -53,7 +53,6 @@ export interface RemoteFurcState {
 	ws: WebSocket | null;
 	devices: Device[];
 	history: HistoryItem[];
-	relayAddress: string;
 	isPairingMode: boolean;
 	pairingToken: string;
 	ephemeralKeyPair: CryptoKeyPair | null;
