@@ -57,5 +57,5 @@ jobs:
             PM2_HOME=${{ secrets.RELAY_INSTALL_PATH }}/.pm2
             SSL_KEY_PATH=/etc/ssl/private/remote-furc-relay-cf.key
             SSL_CERT_PATH=/etc/ssl/certs/remote-furc-relay-cf.pem
-            sudo -u relay PM2_HOME="$PM2_HOME" SSL_KEY_PATH="$SSL_KEY_PATH" SSL_CERT_PATH="$SSL_CERT_PATH" pm2 restart relay || \
+            sudo -u relay PM2_HOME="$PM2_HOME" SSL_KEY_PATH="$SSL_KEY_PATH" SSL_CERT_PATH="$SSL_CERT_PATH" pm2 restart --update-env relay || \
             sudo -u relay PM2_HOME="$PM2_HOME" SSL_KEY_PATH="$SSL_KEY_PATH" SSL_CERT_PATH="$SSL_CERT_PATH" pm2 start dist/index.js --name relay
