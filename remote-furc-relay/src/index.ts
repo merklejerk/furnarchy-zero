@@ -51,8 +51,8 @@ const ipConnections = new Map<string, number>();
 const rooms = new Map<string, { host?: Client; remotes: Set<Client> }>();
 
 server.on('upgrade', (request, socket, head) => {
+	console.log('[Relay] Upgrade request for', request.url);
 	const { pathname, query } = parse(request.url || '', true);
-	console.log('[Relay] Upgrade request for', pathname);
 
 	if (pathname === '/v1/connect') {
 		const room = query.room as string;
