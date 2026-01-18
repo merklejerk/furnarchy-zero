@@ -4390,6 +4390,7 @@
         }
       }
       async function handleRemoteMessage(buffer) {
+        var _a;
         if (buffer.byteLength < 4) return;
         const hintView = new DataView(buffer);
         const hint = hintView.getInt32(0);
@@ -4402,6 +4403,9 @@
             updateIndicator();
             if (msg.type === "cmd") {
               api.send(msg.cmd);
+              if (msg.cmd.startsWith('"') || msg.cmd.startsWith("say ")) {
+                (_a = api.use("life-support")) == null ? void 0 : _a.touch();
+              }
             } else if (msg.type === "sync_req") {
               const lastId = msg.lastId ?? 0;
               const delta = state.history.filter((h) => h.id > lastId);
@@ -4451,6 +4455,20 @@
           void broadcastToActive(historyItem);
         }
         return line;
+      });
+      api.onNotify((text, prefix) => {
+        if (!api.enabled || !state.ws || state.ws.readyState !== WebSocket.OPEN) return;
+        const fullText = prefix ? `${prefix} ${text}` : text;
+        const historyItem = {
+          type: "msg",
+          id: state.nextSyncId++,
+          cmd: { type: "notify", text: fullText },
+          timestamp: Date.now()
+        };
+        state.history.push(historyItem);
+        if (state.history.length > CONFIG.HISTORY_LIMIT) state.history.shift();
+        isDirty = true;
+        void broadcastToActive(historyItem);
       });
       async function handleLogin(name, uid) {
         state.currentUser = { name, uid };
@@ -4536,7 +4554,7 @@
                 <div style="${UI.box} margin-bottom: 10px;">
                   <a href="${url}" target="_blank" style="display:block; cursor:pointer; text-decoration:none;">
                     <img src="${qr}" style="width: 170px; display:block; margin: 0 auto; border:none;" />
-                    <small style="display:block; margin-top:5px; color:${CONFIG.UI.YELLOW};">Scan or click to open link</small>
+                    <small style="display:block; margin-top:5px; color:${CONFIG.UI.YELLOW};">Scan with your mobile device to link.</small>
                   </a>
                 </div>
                 <p style="font-size: 0.85rem; color:#ccc;">Waiting for device connection...</p>
@@ -4559,7 +4577,7 @@
                 ${deviceRows}
               </div>
               <div style="margin-top: 20px; border-top: 1px solid #333; padding-top: 12px; font-size: 0.8rem; color: #888; text-align: center; line-height: 1.4;">
-                To chat remotely, visit <span style="color: ${CONFIG.UI.YELLOW}">remote.furnarchy.xyz</span> on a paired device while logged in on your desktop here.
+                To chat remotely, visit <span style="color: ${CONFIG.UI.YELLOW}">remote.furnarchy.xyz</span> on a paired device while logged in on your desktop here. Device pairings are per-character.
               </div>
             </div>`;
           }

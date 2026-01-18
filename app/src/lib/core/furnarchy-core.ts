@@ -436,6 +436,8 @@ export class FurnarchyCore implements IFurnarchyCore {
 		} else {
 			this.inject(`(${this.utils.escape(prefix)} ${text}`, sourceId, tag);
 		}
+
+		this.plugins.forEach((p) => p._notifyNotify(text, prefix));
 	}
 
 	notifyLoggedIn(name: string, uid: string): void {

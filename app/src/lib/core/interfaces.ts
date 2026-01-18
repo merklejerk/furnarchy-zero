@@ -48,6 +48,7 @@ export interface IPluginContext {
 		load: ((enabled: boolean) => void)[];
 		unload: (() => void)[];
 		configure: (() => void)[];
+		notify: ((text: string, prefix: string) => void)[];
 	};
 
 	_notifyLoggedIn(name: string, uid: string): void;
@@ -57,6 +58,7 @@ export interface IPluginContext {
 	_notifyLoad(): void;
 	_notifyUnload(): void;
 	_notifyConfigure(): void;
+	_notifyNotify(text: string, prefix: string): void;
 	_setEnabled(enabled: boolean): void;
 	getGameDocument(): Document | null;
 }

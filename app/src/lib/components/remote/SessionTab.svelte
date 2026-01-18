@@ -78,9 +78,8 @@
 		}
 
 		&.unread .name {
-			animation: throb 2s infinite ease-in-out;
-			color: #ffcc00;
-			text-shadow: 0 0 4px rgba(255, 204, 0, 0.4);
+			animation: throb 1s infinite ease-in-out;
+			text-shadow: 0 0 4px color-mix(in srgb, currentColor 50%, transparent 50%);
 		}
 
 		.tab-content {
@@ -128,12 +127,10 @@
 	@keyframes throb {
 		0%,
 		100% {
-			opacity: 1;
 			transform: scale(1);
 		}
 		50% {
-			opacity: 0.7;
-			transform: scale(0.98);
+			transform: scale(1.1);
 		}
 	}
 </style>

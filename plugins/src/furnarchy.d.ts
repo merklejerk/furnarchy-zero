@@ -56,6 +56,7 @@ export interface PluginContext {
 	onUnload(cb: () => void): void;
 	onPause(cb: (paused: boolean) => void): void;
 	onConfigure(cb: () => void): void;
+	onNotify(cb: (text: string, prefix: string) => void): void;
 
 	saveData<T>(key: string, value: T): void;
 	loadData<T>(key: string): T | null;
@@ -63,6 +64,9 @@ export interface PluginContext {
 	openModal(options: ModalOptions): void;
 	closeModal(): void;
 	setGameInput(enabled: boolean): void;
+
+	expose<T>(service: T): void;
+	use<T>(name: string): T | null;
 }
 
 export interface ColorCode {

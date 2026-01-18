@@ -2,7 +2,7 @@ Furnarchy.register({
     id: "life-support-afk-aeefd1e3",
     name: "Life Support",
     description: "Keeps you logged in and manages AFK status.",
-    version: "1.3.0",
+    version: "1.4.0",
     author: "me@merklejerk.com",
     toggle: false,
 }, (api) => {
@@ -273,8 +273,14 @@ Furnarchy.register({
     // Expose API
     api.expose({
         name: "life-support",
-        version: "1.1.1",
+        version: "1.2.0",
         isIdle: () => state.isIdle,
+        touch: () => {
+            state.lastActivity = Date.now();
+            if (state.isIdle) {
+                exitIdleMode();
+            }
+        },
         onModeChange: (cb) => {
             listeners.push(cb);
         }

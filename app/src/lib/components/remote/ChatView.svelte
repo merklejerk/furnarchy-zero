@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount, onDestroy } from 'svelte';
+	import { onMount, onDestroy, untrack } from 'svelte';
 	import type { Message } from '$lib/remote/types';
 	import { formatMessageText, formatDisplayName, preprocessOutgoingText } from '$lib/remote/utils';
 	import { utils } from '$lib/utils';
@@ -7,15 +7,19 @@
 	import { formatDistance } from 'date-fns';
 
 	let {
+		id,
 		messages,
 		status,
 		myCharacterName,
-		onSendMessage
+		onSendMessage,
+		onUnreadChange
 	}: {
+		id: string;
 		messages: Message[];
 		status: string;
 		myCharacterName: string;
 		onSendMessage: (input: string | ClientProtocolCommand | { type: 'nearby_req' }) => void;
+		onUnreadChange: (unread: boolean) => void;
 	} = $props();
 
 	let chatEl: HTMLDivElement | undefined = $state();
@@ -29,7 +33,16 @@
 	});
 	let now = $state(Date.now());
 	let timer: ReturnType<typeof setInterval>;
-	let menuState = $state<{ sn: string; x: number; y: number; side: 'top' | 'bottom' } | null>(null);
+	let menuState = $state<{
+		sn: string;
+		x: number;
+		y: number;
+		side: 'top' | 'bottom';
+		arrowOffset: number;
+	} | null>(null);
+	let isAtBottom = $state(true);
+	let prevMessages: Message[] = [];
+	let lastId = '';
 
 	function clickOutside(node: HTMLElement, callback: () => void) {
 		const handleClick = (event: MouseEvent) => {
@@ -74,12 +87,35 @@
 		onSendMessage(out);
 		inputVal = '';
 		if (textareaEl) textareaEl.style.height = 'auto';
+
+		// Force scroll to bottom when sending
+		if (chatEl) {
+			chatEl.scrollTop = chatEl.scrollHeight;
+			isAtBottom = true;
+			onUnreadChange(false);
+		}
 	}
 
 	function autoResize() {
 		if (!textareaEl) return;
 		textareaEl.style.height = 'auto';
 		textareaEl.style.height = textareaEl.scrollHeight + 'px';
+	}
+
+	function handleScroll() {
+		if (!chatEl) return;
+		const threshold = 15;
+		const bottomedOut =
+			Math.abs(chatEl.scrollHeight - chatEl.scrollTop - chatEl.clientHeight) < threshold;
+
+		if (bottomedOut) {
+			if (!isAtBottom) {
+				isAtBottom = true;
+				onUnreadChange(false);
+			}
+		} else if (isAtBottom) {
+			isAtBottom = false;
+		}
 	}
 
 	function requestNearby() {
@@ -89,9 +125,31 @@
 	}
 
 	$effect(() => {
-		if (messages && chatEl) {
-			chatEl.scrollTop = chatEl.scrollHeight;
-		}
+		const currentId = id;
+		const currentMessages = messages;
+		if (!chatEl) return;
+		const el = chatEl;
+
+		untrack(() => {
+			const tabSwitched = currentId !== lastId;
+			const messagesChanged = currentMessages !== prevMessages;
+
+			lastId = currentId;
+			prevMessages = currentMessages;
+
+			if (tabSwitched) {
+				// Tab switched: always scroll to bottom
+				el.scrollTop = el.scrollHeight;
+				isAtBottom = true;
+				onUnreadChange(false);
+			} else if (messagesChanged) {
+				if (isAtBottom) {
+					el.scrollTop = el.scrollHeight;
+				} else {
+					onUnreadChange(true);
+				}
+			}
+		});
 	});
 
 	function closeMenu() {
@@ -108,12 +166,22 @@
 				const chatRect = chatEl.getBoundingClientRect();
 				const topSpace = rect.top - chatRect.top;
 				const side = topSpace < 60 ? 'bottom' : 'top';
+				const targetX = rect.left - chatRect.left + chatEl.scrollLeft + rect.width / 2;
+
+				// Keep menu within chat bounds (approx 120px wide)
+				const menuWidth = 110;
+				const margin = 10;
+				const minX = chatEl.scrollLeft + menuWidth / 2 + margin;
+				const maxX = chatEl.scrollLeft + chatRect.width - menuWidth / 2 - margin;
+				const x = Math.max(minX, Math.min(maxX, targetX));
+				const arrowOffset = targetX - x;
 
 				menuState = {
 					sn,
 					side,
-					x: rect.left - chatRect.left + chatEl.scrollLeft + rect.width / 2,
-					y: (side === 'top' ? rect.top : rect.bottom) - chatRect.top + chatEl.scrollTop
+					x,
+					y: (side === 'top' ? rect.top : rect.bottom) - chatRect.top + chatEl.scrollTop,
+					arrowOffset
 				};
 			}
 		} else {
@@ -133,12 +201,22 @@
 					const chatRect = chatEl.getBoundingClientRect();
 					const topSpace = rect.top - chatRect.top;
 					const side = topSpace < 60 ? 'bottom' : 'top';
+					const targetX = rect.left - chatRect.left + chatEl.scrollLeft + rect.width / 2;
+
+					// Keep menu within chat bounds (approx 120px wide)
+					const menuWidth = 110;
+					const margin = 10;
+					const minX = chatEl.scrollLeft + menuWidth / 2 + margin;
+					const maxX = chatEl.scrollLeft + chatRect.width - menuWidth / 2 - margin;
+					const x = Math.max(minX, Math.min(maxX, targetX));
+					const arrowOffset = targetX - x;
 
 					menuState = {
 						sn,
 						side,
-						x: rect.left - chatRect.left + chatEl.scrollLeft + rect.width / 2,
-						y: (side === 'top' ? rect.top : rect.bottom) - chatRect.top + chatEl.scrollTop
+						x,
+						y: (side === 'top' ? rect.top : rect.bottom) - chatRect.top + chatEl.scrollTop,
+						arrowOffset
 					};
 				}
 			}
@@ -179,6 +257,7 @@
 		bind:this={chatEl}
 		onclick={handleChatClick}
 		onkeydown={handleChatKey}
+		onscroll={handleScroll}
 		role="log"
 		aria-live="polite"
 		tabindex="-1"
@@ -213,7 +292,7 @@
 					<button onclick={() => lookAt(menuState!.sn)}>Look</button>
 					<button onclick={() => whisperTo(menuState!.sn)}>Whisper</button>
 				</div>
-				<div class="menu-arrow"></div>
+				<div class="menu-arrow" style="left: calc(50% + {menuState.arrowOffset}px)"></div>
 			</div>
 		{/if}
 
@@ -261,16 +340,28 @@
 					</span>
 				{:else if msg.cmd.type === 'roll'}
 					{@const cmd = msg.cmd}
+					🎲
 					<button class="sender-btn name-link" data-shortname={cmd.fromShort}>
 						{formatDisplayName(cmd.from)}
 					</button>
 					<span class="text">rolls {@html formatMessageText(cmd.message)}</span>
 				{:else if msg.cmd.type === 'chat'}
-					<span class="text">{@html formatMessageText(msg.cmd.text)}</span>
+					<span class="text">
+						{#if /^<font\s+[^>]*color=['"](emit|bcast)['"]/i.test(msg.cmd.text)}
+							🔔
+						{:else if /^<font\s+[^>]*color=['"]dragonspeak['"]/i.test(msg.cmd.text)}
+							🤖
+						{:else if /^\(You see\s+/i.test(msg.cmd.text)}
+							👀
+						{:else}
+							ℹ️
+						{/if}
+						{@html formatMessageText(msg.cmd.text)}
+					</span>
 				{:else if msg.cmd.type === 'description'}
-					<span class="text">&gt; {@html formatMessageText(msg.cmd.description)}</span>
+					<span class="text">&nbsp;&nbsp;&gt; {@html formatMessageText(msg.cmd.description)}</span>
 				{:else if msg.cmd.type === 'dialog-box'}
-					<span class="sender">SYSTEM:</span>
+					<span class="sender">💬</span>
 					<span class="text">{@html formatMessageText(msg.cmd.content)}</span>
 				{:else if msg.cmd.type === 'nearby-players'}
 					{@const sortedPlayers = [...msg.cmd.players].sort((a, b) => a.localeCompare(b))}
@@ -285,6 +376,10 @@
 								</button>{#if i < sortedPlayers.length - 1},&nbsp;{/if}
 							{/each}
 						{/if}
+					</span>
+				{:else if msg.cmd.type === 'notify'}
+					<span class="text">
+						🧩 {@html formatMessageText(msg.cmd.text)}
 					</span>
 				{:else}
 					<span class="text">
@@ -378,7 +473,7 @@
 			word-wrap: break-word;
 			position: relative;
 			padding: 4px 8px 6px 8px;
-			background: rgba(255, 255, 255, 0.4);
+			background: rgba(255, 255, 255, 0.101);
 			border-radius: 6px;
 			align-self: flex-start;
 			box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);

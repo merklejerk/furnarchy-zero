@@ -1,6 +1,9 @@
 import { ServerCommand } from "../furnarchy";
 
-export type RemoteServerCommand = ServerCommand | { type: "nearby-players"; players: string[] };
+export type RemoteServerCommand =
+	| ServerCommand
+	| { type: "nearby-players"; players: string[] }
+	| { type: "notify"; text: string };
 
 export interface HistoryItem {
 	type: "msg";

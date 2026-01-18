@@ -2,7 +2,8 @@ import type { ServerProtocolCommand, ClientProtocolCommand } from '../furc-proto
 
 export type RemoteServerCommand =
 	| ServerProtocolCommand
-	| { type: 'nearby-players'; players: string[] };
+	| { type: 'nearby-players'; players: string[] }
+	| { type: 'notify'; text: string };
 
 export interface RemoteSession {
 	id: string;

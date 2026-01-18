@@ -1,6 +1,6 @@
 {
 	"name": "remote-furc-relay",
-	"version": "1.0.0",
+	"version": "1.0.1",
 	"description": "Blind binary relay for RemoteFurc",
 	"main": "dist/index.js",
 	"type": "module",

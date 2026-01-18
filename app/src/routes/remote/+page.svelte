@@ -384,10 +384,17 @@
 	<main class="workspace-main">
 		{#if currentTab}
 			<ChatView
+				id={currentTab.config.id}
 				messages={currentTab.messages}
 				status={currentTab.status}
 				myCharacterName={currentTab.config.name}
 				onSendMessage={handleSendMessage}
+				onUnreadChange={(unread) => {
+					if (currentTab) {
+						currentTab.unread = unread;
+						activeSessions = activeSessions;
+					}
+				}}
 			/>
 		{:else}
 			<SessionPicker
