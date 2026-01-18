@@ -354,6 +354,10 @@
 	}
 </script>
 
+<svelte:head>
+	<meta name="viewport" content="width=device-width, initial-scale=1, interactive-widget=resizes-content">
+</svelte:head>
+
 <div class="remote-app classic-theme">
 	<header class="workspace-header">
 		<div class="tab-scroller">
