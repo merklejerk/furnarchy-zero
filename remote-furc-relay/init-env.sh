@@ -82,7 +82,7 @@ echo "📜 Configuring sudoers for passwordless PM2 management..."
 SUDO_FILE="/etc/sudoers.d/90-blindrelay-deploy"
 cat <<EOF > "$SUDO_FILE"
 $DEPLOY_USER ALL=(root) NOPASSWD: /usr/bin/chown -R $APP_USER\:$APP_USER $APP_DIR
-$DEPLOY_USER ALL=($APP_USER) NOPASSWD: /usr/bin/pm2 *
+$DEPLOY_USER ALL=($APP_USER) NOPASSWD: SETENV: /usr/bin/pm2 *
 EOF
 chmod 440 "$SUDO_FILE"
 
