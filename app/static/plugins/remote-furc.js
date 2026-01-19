@@ -4094,7 +4094,7 @@
       id: "remote-furc",
       name: "Remote Furc",
       description: "Securely chat through your Furcadia client on mobile.",
-      version: "0.2.1",
+      version: "0.2.2",
       author: "me@merklejerk.com"
     },
     (api) => {
@@ -4120,6 +4120,7 @@
         devices: [],
         history: [],
         isPairingMode: false,
+        isResetConfirming: false,
         pairingToken: "",
         ephemeralKeyPair: null,
         pendingPairing: null,
@@ -4513,7 +4514,17 @@
         }
         const updateModal = async () => {
           let body = "";
-          if (state.isPairingMode) {
+          if (state.isResetConfirming) {
+            body = `
+            <div class="text-center">
+              <h3 style="margin-top:0" class="text-danger">Warning!</h3>
+              <p>This will permanently delete all paired devices and regenerate your session ID. You will need to re-pair any devices you want to use.</p>
+              <div style="margin: 25px 0;">
+                <button class="btn-danger btn-full" onclick="window.postMessage({type:'rf-reset-confirm'}, '*')">Yes, Reset Everything</button>
+              </div>
+              <button class="btn-primary btn-full" onclick="window.postMessage({type:'rf-reset-cancel'}, '*')">Cancel</button>
+            </div>`;
+          } else if (state.isPairingMode) {
             if (state.pendingPairing) {
               if (!state.pendingPairing.isVerified) {
                 const words = state.pendingPairing.sasWords.map((w) => `<span class="sas-word">${w}</span>`).join("");
@@ -4576,6 +4587,9 @@
               <div class="list-box" style="max-height: 200px; padding:0;">
                 ${deviceRows}
               </div>
+              <div style="margin-top: 15px;">
+                <button class="btn-danger btn-full btn-sm" onclick="window.postMessage({type:'rf-reset-prompt'}, '*')">Reset Session & Pairings</button>
+              </div>
               <div class="text-center text-dim text-small" style="margin-top: 20px; border-top: 1px solid #333; padding-top: 12px;">
                 To chat remotely, visit <a href="${REMOTE_URL}" target="_blank" class="text-gold">${REMOTE_URL}</a> on a paired device. Device pairings are per-character.
               </div>
@@ -4586,6 +4600,7 @@
             body,
             width: CONFIG.MODAL_WIDTH,
             onClose: () => {
+              state.isResetConfirming = false;
               if (modalInterval) {
                 window.clearInterval(modalInterval);
                 modalInterval = void 0;
@@ -4628,6 +4643,15 @@
             void finalizePairing(msg.name ?? "New Device").then(refresh);
           } else if (msg.type === "rf-pending-update") {
             refresh();
+          } else if (msg.type === "rf-reset-prompt") {
+            state.isResetConfirming = true;
+            refresh();
+          } else if (msg.type === "rf-reset-cancel") {
+            state.isResetConfirming = false;
+            refresh();
+          } else if (msg.type === "rf-reset-confirm") {
+            state.isResetConfirming = false;
+            void resetSession().then(refresh);
           }
         };
         window.addEventListener("message", configListener);

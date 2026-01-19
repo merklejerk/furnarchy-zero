@@ -54,6 +54,7 @@ export interface RemoteFurcState {
 	devices: Device[];
 	history: HistoryItem[];
 	isPairingMode: boolean;
+	isResetConfirming?: boolean;
 	pairingToken: string;
 	ephemeralKeyPair: CryptoKeyPair | null;
 	pendingPairing: PendingPairing | null;

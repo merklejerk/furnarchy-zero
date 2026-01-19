@@ -208,7 +208,7 @@
 				color: $color-text-gold;
 			}
 			.text-small {
-				font-size: 0.8rem;
+				font-size: 0.9rem;
 				line-height: 1.4;
 			}
 			.text-center {

@@ -137,6 +137,24 @@ Furnarchy.register({
 
 You can find examples for plugins by browsing the [bundled plugins](app/static/plugins).
 
+## Bundled Plugins
+
+Furnarchy Zero comes with several built-in plugins to enhance your experience:
+
+- **Remote Furc**: Securely chat through your Furcadia client on mobile. **[📚 Read the User Guide](guides/remote-furc.md)**
+- **Life Support**: Keeps you logged in and manages AFK status.
+- **Hush**: Ignore list manager. Blocks chat and shrinks avatars.
+- **Notifier**: Sends browser notifications for specific words or patterns.
+- **Markdown Chat**: Adds basic markdown support (*italic*, **bold**, etc.) to chat.
+- **Fly**: Fly the camera freely with WASD or Arrow keys.
+- **Stalker**: Tracks online status of friends.
+- **Seek**: Find the location of players on the map.
+- **Chat Enhance**: Chat buffer enhancements.
+- **Color Copy**: Copy a furre's colors easily.
+- **Auto Spinner**: Automatically spins your character.
+- **Roll Troll**: Lets you choose an outcome for roll commands.
+- **Wire Shrek**: Network traffic inspector for developers.
+
 ### Hosting Plugins
 Since Furnarchy Zero runs in the browser, plugins must be hosted on a web server accessible via HTTPS (or HTTP if running locally).
 *   **GitHub Gists**: You can host plugins as Gists. Use the "Raw" button to get the URL.
