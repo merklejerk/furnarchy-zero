@@ -5,10 +5,7 @@
 	import SessionTab from '$lib/components/remote/SessionTab.svelte';
 	import SessionPicker from '$lib/components/remote/SessionPicker.svelte';
 	import { encrypt, decrypt } from '$lib/remote/utils';
-	import {
-		type ClientProtocolCommand,
-		createClientCommand
-	} from '$lib/furc-protocol';
+	import { type ClientProtocolCommand, createClientCommand } from '$lib/furc-protocol';
 	import type { RemoteSession, Message, RemoteServerCommand } from '$lib/remote/types';
 
 	interface ActiveSession {
@@ -141,6 +138,17 @@
 		}
 	}
 
+	async function sendSyncRequest(active: ActiveSession) {
+		if (active.ws && active.ws.readyState === WebSocket.OPEN && active.sharedKey) {
+			const packet = await encrypt(
+				{ type: 'sync_req', lastId: active.maxReceivedId },
+				active.sharedKey,
+				active.config.keyHint
+			);
+			active.ws.send(packet);
+		}
+	}
+
 	function startWebSocket(active: ActiveSession) {
 		if (active.ws) active.ws.close();
 		if (active.reconnectTimer) clearTimeout(active.reconnectTimer);
@@ -151,22 +159,12 @@
 
 		ws.onopen = async () => {
 			active.status = 'Verifying...';
-			const packet = await encrypt(
-				{ type: 'sync_req', lastId: active.maxReceivedId },
-				active.sharedKey!,
-				active.config.keyHint
-			);
-			ws.send(packet);
+			await sendSyncRequest(active);
 
 			if (active.heartbeatTimer) clearInterval(active.heartbeatTimer);
 			active.heartbeatTimer = window.setInterval(async () => {
 				if (ws.readyState === WebSocket.OPEN) {
-					const pack = await encrypt(
-						{ type: 'sync_req', lastId: active.maxReceivedId },
-						active.sharedKey!,
-						active.config.keyHint
-					);
-					ws.send(pack);
+					await sendSyncRequest(active);
 				}
 			}, 15000);
 		};
@@ -355,7 +353,10 @@
 </script>
 
 <svelte:head>
-	<meta name="viewport" content="width=device-width, initial-scale=1, interactive-widget=resizes-content">
+	<meta
+		name="viewport"
+		content="width=device-width, initial-scale=1, interactive-widget=resizes-content"
+	/>
 </svelte:head>
 
 <div class="remote-app classic-theme">

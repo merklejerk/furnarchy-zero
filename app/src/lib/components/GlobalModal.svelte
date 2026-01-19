@@ -133,6 +133,15 @@
 				margin-right: 8px;
 				margin-bottom: 8px;
 
+				&.btn-full {
+					width: 100%;
+					display: block;
+					margin-right: 0;
+					margin-bottom: 10px;
+					padding-top: 10px;
+					padding-bottom: 10px;
+				}
+
 				&.btn-primary {
 					@include retro-button($color-primary, $color-primary-border, $color-primary-shadow);
 				}
@@ -153,6 +162,24 @@
 						rgba(0, 0, 0, 0.5),
 						$color-info-text
 					);
+				}
+
+				&.btn-secondary {
+					@include retro-button(#444, $color-border-light, #000);
+				}
+
+				&.btn-sm {
+					padding: 3px 8px;
+					font-size: 0.85rem;
+					margin: 0;
+					width: auto;
+					min-width: 0;
+					box-shadow: 2px 2px 0px #000;
+
+					&:active {
+						transform: translate(1px, 1px);
+						box-shadow: 1px 1px 0px #000;
+					}
 				}
 			}
 
@@ -180,6 +207,30 @@
 			.text-gold {
 				color: $color-text-gold;
 			}
+			.text-small {
+				font-size: 0.8rem;
+				line-height: 1.4;
+			}
+			.text-center {
+				text-align: center;
+			}
+			.modal-label {
+				font-size: 0.85rem;
+				color: $color-text-gold;
+				text-transform: uppercase;
+				font-weight: bold;
+				margin: 15px 0 8px 0;
+				letter-spacing: 0.5px;
+				display: block;
+			}
+			.sas-word {
+				font-size: 1.4rem;
+				font-weight: bold;
+				color: $color-text-gold;
+				margin: 0 10px;
+				text-transform: uppercase;
+				font-family: 'Verdana', sans-serif;
+			}
 
 			.list-box {
 				border: 2px solid $color-border-dim;
@@ -188,6 +239,12 @@
 				overflow-y: auto;
 				margin-bottom: 15px;
 				@include retro-scrollbar;
+			}
+
+			.modal-row {
+				display: flex;
+				justify-content: space-between;
+				align-items: center;
 			}
 
 			.list-row {

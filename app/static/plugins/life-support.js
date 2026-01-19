@@ -2,7 +2,7 @@ Furnarchy.register({
     id: "life-support-afk-aeefd1e3",
     name: "Life Support",
     description: "Keeps you logged in and manages AFK status.",
-    version: "1.4.0",
+    version: "1.4.1",
     author: "me@merklejerk.com",
     toggle: false,
 }, (api) => {
@@ -214,21 +214,21 @@ Furnarchy.register({
         api.openModal({
             title: "Life Support Settings",
             body: `
-                <div style="display: flex; flex-direction: column; gap: 10px;">
+                <div>
                     <div>
-                        <label for="${idTimeout}">Idle Timeout (minutes):</label>
+                        <label for="${idTimeout}" class="modal-label">Idle Timeout (minutes)</label>
                         <input id="${idTimeout}" type="number" class="full-width" value="${config.timeout}" min="1" />
                     </div>
                     <div>
-                        <label for="${idReason}">AFK Reason:</label>
+                        <label for="${idReason}" class="modal-label">AFK Reason</label>
                         <input id="${idReason}" type="text" class="full-width" value="${utils.escape(typeof(config.afkReason) === 'string' ? config.afkReason : DEFAULT_REASON)}" />
                     </div>
-                    <div style="display: flex; align-items: center; gap: 8px;">
-                        <input id="${idReconnect}" type="checkbox" ${config.autoReconnect ? 'checked' : ''} />
+                    <div style="display: flex; align-items: center; gap: 8px; margin: 15px 0;">
+                        <input id="${idReconnect}" type="checkbox" ${config.autoReconnect ? 'checked' : ''} style="margin:0" />
                         <label for="${idReconnect}">Auto Reconnect</label>
                     </div>
-                    <div style="display: flex; justify-content: flex-end;">
-                        <button class="btn-primary" id="${idSave}">Save</button>
+                    <div style="margin-top: 20px;">
+                        <button class="btn-primary btn-full" id="${idSave}">Save Settings</button>
                     </div>
                 </div>
             `,

@@ -123,7 +123,7 @@
 		.empty-state {
 			text-align: center;
 			padding: 40px;
-			color: $classic-tan-dark;
+			color: black;
 
 			.hint {
 				font-size: 0.9rem;

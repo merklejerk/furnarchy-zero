@@ -211,17 +211,17 @@ Furnarchy.register({
             body: `
                 <div class="text-dim">
                     <p>Type <span class="text-success">\`copy</span> in chat and click a furre to copy their colors.</p>
-                    <div style="margin: 10px 0; text-align: center;">
+                    <div class="text-center" style="margin: 15px 0;">
                         <button id="btn-start-copy" class="btn-primary" style="padding: 5px 20px;" ${startBtnDisabled}>Start Copying</button>
                     </div>
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
-                        <h3 class="text-gold" style="margin: 0;">History</h3>
-                        <button id="btn-clear-history" class="btn-secondary" style="${clearBtnStyle}">Clear</button>
+                    <div class="modal-row" style="margin-bottom: 5px;">
+                        <div class="modal-label" style="margin: 0;">History</div>
+                        <button id="btn-clear-history" class="btn-sm btn-secondary" style="${canInteract ? '' : 'display:none;'}">Clear</button>
                     </div>
-                    <div class="list-box" style="height: 200px; overflow-y: auto; margin-bottom: 10px;">
+                    <div class="list-box" style="height: 200px; margin-bottom: 10px;">
                         ${historyHtml}
                     </div>
-                    <p class="text-error" style="font-size: 0.8em;">Requires Silver Sponsorship+ for <code>chcol</code>.</p>
+                    <p class="text-error text-small">Requires Silver Sponsorship+ for <code>chcol</code>.</p>
                 </div>
             `,
             width: "400px"

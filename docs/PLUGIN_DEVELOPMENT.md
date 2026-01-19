@@ -187,10 +187,13 @@ interface ModalOptions {
 #### Standard CSS Classes
 Use these classes in your HTML to match the game's retro aesthetic:
 
-*   **Buttons**: `.btn-primary`, `.btn-danger`, `.btn-info`
+*   **Buttons**: `.btn-primary`, `.btn-danger`, `.btn-info`, `.btn-full` (full-width block)
 *   **Inputs**: `.full-width`
-*   **Lists**: `.list-box` (container), `.list-row` (item)
-*   **Text**: `.text-dim`, `.text-error`, `.text-success`, `.text-gold`
+*   **Lists**: `.list-box` (container), `.list-row` (item), `.modal-row` (flexbox row with space-between)
+*   **Text**: `.text-dim`, `.text-error`, `.text-success`, `.text-gold`, `.text-center`, `.text-small`
+*   **Layout Helpers**:
+    *   `.modal-label`: Gold uppercase labels for sections.
+    *   `.sas-word`: For displaying security codes/words (large gold text).
 
 ### Lifecycle Hooks
 
@@ -368,3 +371,18 @@ Furnarchy.register({
     });
 });
 ```
+
+### Modal Styling
+Plugins can use the following built-in CSS classes within their modal `body` HTML to maintain a consistent "Retro" look:
+
+- `.text-center`: Center-align text.
+- `.text-small`: Smaller font size (0.85rem).
+- `.modal-label`: Gold, bold header text for sections or form labels.
+- `.modal-row`: A flex container with `space-between` alignment, useful for list items or headers with actions.
+- `.list-box`: A styled container with a border and dark background for lists.
+- `.list-row`: A single item row within a `.list-box`, including a bottom border and padding.
+- `.sas-word`: Large, gold, bold font for Short Authentication String words (handshaking).
+- `.btn-full`: Makes a button span the full width of the modal.
+- `.btn-sm`: Small button with reduced padding and smaller font, ideal for actions within list rows.
+- `.btn-primary`, `.btn-secondary`, `.btn-danger`, `.btn-info`: Styled buttons for different intent (default is gray/secondary).
+- `.full-width`: Makes an `input`, `select`, or `textarea` span the full width of its container.

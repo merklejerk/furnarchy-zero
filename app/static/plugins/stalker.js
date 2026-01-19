@@ -1,7 +1,7 @@
 Furnarchy.register({
     id: "stalker-plugin-b9307b7cdc558",
     name: "Stalker",
-    version: "1.3.1",
+    version: "1.3.2",
     description: "Tracks online status of friends.",
     author: "me@merklejerk.com"
 }, (api) => {
@@ -47,15 +47,15 @@ Furnarchy.register({
             const statusEmoji = f.isOnline === true ? '🟢' : (f.isOnline === false ? '🔴' : '⚪');
             const statusText = f.isOnline === true ? 'Online' : (f.isOnline === false ? 'Offline' : 'Unknown');
             return `
-                <div class="list-row" style="display: flex; justify-content: space-between; align-items: center;">
+                <div class="list-row modal-row">
                     <div style="display: flex; align-items: center;">
                         <span id="status-icon-${f.shortname}" style="font-size: 1.2em; margin-right: 8px;">${statusEmoji}</span>
                         <div>
                             <strong id="name-${f.shortname}">${utils.escape(f.name)}</strong>
-                            <div id="status-text-${f.shortname}" class="text-dim" style="font-size: 0.8em;">${statusText}</div>
+                            <div id="status-text-${f.shortname}" class="text-dim text-small">${statusText}</div>
                         </div>
                     </div>
-                    <button class="btn-danger" data-short="${f.shortname}">Remove</button>
+                    <button class="btn-danger btn-sm" data-short="${f.shortname}">Remove</button>
                 </div>
             `;
         }).join('');
@@ -63,21 +63,21 @@ Furnarchy.register({
         const body = `
             <div style="min-width: 300px;">
                 <div style="margin-bottom: 15px; display: flex; gap: 10px;">
-                    <input type="text" id="stalker-add-input" placeholder="Character Name" style="flex: 1;" />
-                    <button id="stalker-add-btn" class="btn-primary">Add</button>
+                    <input type="text" id="stalker-add-input" placeholder="Character Name" style="flex: 1; margin:0;" />
+                    <button id="stalker-add-btn" class="btn-primary" style="margin:0;">Add</button>
                 </div>
                 <div class="list-box">
-                    ${friends.length ? listHtml : '<div class="text-dim" style="padding: 20px; text-align: center;">No friends added yet.</div>'}
+                    ${friends.length ? listHtml : '<div class="text-dim text-center" style="padding: 20px;">No friends added yet.</div>'}
                 </div>
-                <div class="text-dim" style="margin-top: 10px; display: flex; justify-content: flex-end; align-items: center; font-size: 0.8em;">
+                <div class="text-dim text-small" style="margin-top: 10px; display: flex; justify-content: flex-end; align-items: center;">
                     <label style="margin-right: 5px;">Poll Interval (s):</label>
-                    <input type="number" id="stalker-poll-interval" value="${pollInterval / 1000}" style="width: 60px;" min="0.1" step="0.1">
+                    <input type="number" id="stalker-poll-interval" value="${pollInterval / 1000}" style="width: 60px; margin:0;" min="0.1" step="0.1">
                 </div>
-                <div style="margin-top: 20px; padding-top: 15px; border-top: 2px solid #555;">
-                    <p style="margin-bottom: 5px; font-weight: bold;">Chat Commands:</p>
-                    <ul style="margin: 0; padding-left: 20px; font-size: 0.9em;" class="text-dim">
-                        <li><code>\`stalk [name]</code> - Add a friend (targets last viewed description if name omitted)</li>
-                        <li><code>\`unstalk [name]</code> - Remove a friend (targets last viewed description if name omitted)</li>
+                <div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #333;">
+                    <div class="modal-label">Chat Commands</div>
+                    <ul style="margin: 0; padding-left: 20px;" class="text-dim text-small">
+                        <li><code>\`stalk [name]</code> - Add a friend</li>
+                        <li><code>\`unstalk [name]</code> - Remove a friend</li>
                         <li><code>\`stalker</code> - View status in chat</li>
                     </ul>
                 </div>

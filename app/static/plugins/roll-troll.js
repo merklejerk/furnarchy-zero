@@ -1,7 +1,7 @@
 Furnarchy.register({
     id: "roll-troll-719218f83565d0bd",
     name: "Roll Troll",
-    version: "1.0.0",
+    version: "1.0.1",
     description: "Lets you choose an outcome for roll commands.",
     author: "me@merklerjerk.com",
     toggle: false
@@ -12,10 +12,10 @@ Furnarchy.register({
         api.openModal({
             title: "Roll Troll Instructions",
             body: `
-                <div class="p-2">
+                <div>
                     <p>Roll Troll lets you pick an outcome for your standard rolls.</p>
-                    <h5 class="text-gold">Example</h5>
-                    <p class="text-dim">Type: <code>roll 1d20=15 [optional message]</code></p>
+                    <div class="modal-label">Example</div>
+                    <p class="text-dim text-small">Type: <code>roll 1d20=15 [optional message]</code></p>
                     <p>The <code>=15</code> part specifies the outcome you want to "show". This can be any text (e.g., <code>=Critical!</code>).</p>
                 </div>
             `,

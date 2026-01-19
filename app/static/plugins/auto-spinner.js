@@ -37,20 +37,20 @@ Furnarchy.register({
         api.openModal({
             title: "Configure Auto Spinner",
             body: `
-                <div style="display: flex; flex-direction: column; gap: 10px;">
+                <div>
                     <div>
-                        <label for="${idDir}" style="display: block; margin-bottom: 5px;">Direction:</label>
+                        <label for="${idDir}" class="modal-label">Direction</label>
                         <select id="${idDir}" class="full-width">
                             <option value="<" ${config.direction === '<' ? 'selected' : ''}>Left (CCW)</option>
                             <option value=">" ${config.direction === '>' ? 'selected' : ''}>Right (CW)</option>
                         </select>
                     </div>
                     <div>
-                        <label for="${idFreq}" style="display: block; margin-bottom: 5px;">Frequency (seconds):</label>
+                        <label for="${idFreq}" class="modal-label">Frequency (seconds)</label>
                         <input id="${idFreq}" type="number" class="full-width" value="${config.frequency / 1000}" min="0.1" step="0.1" />
                     </div>
-                    <div style="margin-top: 10px; display: flex; justify-content: flex-end;">
-                        <button class="btn-primary" id="${idSave}">Save</button>
+                    <div style="margin-top: 20px;">
+                        <button class="btn-primary btn-full" id="${idSave}">Save Settings</button>
                     </div>
                 </div>
             `,
