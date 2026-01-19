@@ -34,7 +34,7 @@ In the Remote Furc Settings modal, click the **+ Pair New Device** button. A QR 
 The Remote Furc plugin and your device will then establish a secure communications channel. A set of **3 verification words** will appear on both your computer and your mobile device.
 
 1. Compare the words on both screens.
-2. If they match exactly, click **"They Match"** on your computer.
+2. If they match exactly, click **"They Match"** on your *computer* (not mobile device).
 3. Enter a name for your device (e.g., "My iPhone") and click **Finish Pairing**.
 
 ![Screenshot of the 3-word verification screen](./assets/remote-furc-verification.png)
