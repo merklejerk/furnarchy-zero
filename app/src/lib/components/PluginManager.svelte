@@ -10,6 +10,11 @@
 		type StoredPlugin
 	} from '$lib/storage';
 	import { verifyPlugin } from '$lib/plugin-sandbox';
+	import {
+		injectPlugin,
+		reloadPlugin as reloadPluginLoader,
+		loadAllPlugins
+	} from '$lib/plugin-loader';
 	import '$lib/retro.css';
 
 	let isOpen = false;
@@ -147,7 +152,7 @@
 				}
 			];
 			saveStoredPlugins(newPlugins);
-			injectPlugin(pluginUrl);
+			injectPlugin(core, pluginUrl);
 			pluginUrl = '';
 		} catch (e: any) {
 			alert(`Failed to verify plugin: ${e.message || e}`);
@@ -205,26 +210,7 @@
 	}
 
 	async function reloadPlugin(url: string) {
-		// 1. Find plugin ID to unload properly
-		let pluginId: string | null = null;
-		if (core && core.plugins) {
-			const p = core.plugins.find((p: any) => p.metadata.sourceUrl === url);
-			if (p) pluginId = p.metadata.id;
-		}
-
-		// 2. Unload from core
-		if (pluginId) {
-			core.unloadPlugin(pluginId);
-		}
-
-		// 3. Remove script tag
-		const existingScript = document.querySelector(`script[data-plugin-url="${url}"]`);
-		if (existingScript) {
-			existingScript.remove();
-		}
-
-		// 4. Re-inject
-		await injectPlugin(url);
+		await reloadPluginLoader(core, url);
 	}
 
 	function savePlugins() {
@@ -232,55 +218,7 @@
 	}
 
 	async function loadPlugins() {
-		await Promise.all($pluginStore.map((p) => injectPlugin(p.url)));
-		core.start();
-	}
-
-	async function injectPlugin(url: string) {
-		// Check if already injected
-		if (document.querySelector(`script[data-plugin-url="${url}"]`)) return;
-
-		try {
-			// Attempt to fetch the script content directly.
-			// This bypasses strict MIME type checking (ORB/CORB) which often blocks
-			// raw GitHub/Gist URLs (served as text/plain).
-			// This requires the server to support CORS (which GitHub does).
-			const response = await fetch(url);
-			if (!response.ok) throw new Error(`HTTP ${response.status}`);
-			const content = await response.text();
-
-			// Set context so register() knows which URL this is
-			core.loadingPluginUrl = url;
-
-			const script = document.createElement('script');
-			script.textContent = content;
-			script.dataset.pluginUrl = url;
-			document.body.appendChild(script);
-			console.log(`[PluginManager] Loaded via fetch: ${url}`);
-		} catch (e) {
-			console.warn(`[PluginManager] Fetch failed for ${url}, falling back to script tag.`, e);
-
-			// Fallback to standard script injection.
-			// This works for non-CORS servers but requires correct MIME types.
-			return new Promise<void>((resolve) => {
-				const script = document.createElement('script');
-				script.src = url;
-				script.async = true;
-				script.dataset.pluginUrl = url;
-				script.onload = () => {
-					console.log(`[PluginManager] Loaded via tag: ${url}`);
-					resolve();
-				};
-				script.onerror = () => {
-					console.error(`[PluginManager] Failed to load: ${url}`);
-					resolve();
-				};
-				document.body.appendChild(script);
-			});
-		} finally {
-			// Clear context
-			core.loadingPluginUrl = null;
-		}
+		await loadAllPlugins(core);
 	}
 </script>
 
