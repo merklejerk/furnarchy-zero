@@ -28,7 +28,7 @@ In the Remote Furc Settings modal, click the **+ Pair New Device** button. A QR 
 1. Open the camera on your phone and scan the QR code.
 2. Your mobile browser will open the Remote Furc interface.
 
-Note: If you want to instead use the same computer as the remote "device", you can just click the QR code to open it in a new tab and proceed as usual.
+*Note: If you want to instead use the same computer in lieu of a remote "device", you can just click the QR code to open it in a new tab and proceed as usual.*
 
 ### 5. Verify the Connection (Security Check)
 The Remote Furc plugin and your device will then establish a secure communications channel. A set of **3 verification words** will appear on both your computer and your mobile device.
