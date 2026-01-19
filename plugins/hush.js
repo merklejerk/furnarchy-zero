@@ -1,7 +1,7 @@
 Furnarchy.register({
     id: "hush-c8be8163869",
     name: "Hush",
-    version: "1.0.1",
+    version: "1.0.2",
     description: "Ignore list manager. Blocks chat and shrinks avatars.",
     author: "me@merklejerk.com"
 }, (api) => {
@@ -64,11 +64,11 @@ Furnarchy.register({
 
         const listHtml = ignored.map(short => {
             return `
-                <div class="list-row" style="display: flex; justify-content: space-between; align-items: center;">
+                <div class="list-row modal-row">
                     <div>
                         <strong>${utils.escape(short)}</strong>
                     </div>
-                    <button class="btn-danger" data-short="${short}">Unignore</button>
+                    <button class="btn-danger btn-sm" data-short="${short}">Unignore</button>
                 </div>
             `;
         }).join('');
@@ -76,18 +76,18 @@ Furnarchy.register({
         const body = `
             <div style="min-width: 300px;">
                 <div style="margin-bottom: 15px; display: flex; gap: 10px;">
-                    <input type="text" id="hush-add-input" placeholder="Character Name" style="flex: 1;" />
-                    <button id="hush-add-btn" class="btn-primary">Ignore</button>
+                    <input type="text" id="hush-add-input" placeholder="Character Name" style="flex: 1; margin: 0;" />
+                    <button id="hush-add-btn" class="btn-primary" style="margin: 0;">Ignore</button>
                 </div>
                 <div class="list-box">
-                    ${ignored.length ? listHtml : '<div class="text-dim" style="text-align: center; padding: 20px;">No one ignored.</div>'}
+                    ${ignored.length ? listHtml : '<div class="text-dim text-center" style="padding: 20px;">No one ignored.</div>'}
                 </div>
-                <div class="text-dim" style="font-size: 0.9em; font-style: italic;">
+                <div class="text-dim text-small">
                     Ignored players will be muted and their avatars shrunk to 50% size.
                 </div>
-                <div style="margin-top: 20px; padding-top: 15px; border-top: 2px solid #555;">
-                    <p style="margin-bottom: 5px; font-weight: bold;">Chat Commands:</p>
-                    <ul style="margin: 0; padding-left: 20px; font-size: 0.9em;" class="text-dim">
+                <div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #333;">
+                    <div class="modal-label">Chat Commands</div>
+                    <ul style="margin: 0; padding-left: 20px;" class="text-dim text-small">
                         <li><code>\`ignore [name]</code> - Toggle ignore</li>
                     </ul>
                 </div>

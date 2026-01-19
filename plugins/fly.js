@@ -2,7 +2,7 @@ Furnarchy.register({
     id: "fly-cam-dc131583002",
     name: "Fly",
     description: "Fly the camera freely with WASD or Arrow keys.",
-    version: "1.2.0",
+    version: "1.2.1",
     author: "me@merklejerk.com",
     toggle: true,
 }, (api) => {
@@ -99,20 +99,20 @@ Furnarchy.register({
         api.openModal({
             title: "Fly Control",
             body: `
-                <div id="${modalId}" style="text-align: center;">
+                <div id="${modalId}" class="text-center">
                     <div style="margin-bottom: 15px;">
                         <strong>Status:</strong> 
-                        <span id="${statusId}" style="color: ${getStatusColor()}; font-weight: bold;">
+                        <span id="${statusId}" class="text-gold" style="font-weight: bold;">
                             ${getStatusText()}
                         </span>
                     </div>
                     
-                    <button id="${btnId}" class="full-width ${getBtnClass()}" style="margin-bottom: 20px;">
+                    <button id="${btnId}" class="btn-full ${getBtnClass()}" style="margin-bottom: 20px;">
                         ${getBtnText()}
                     </button>
 
-                    <div style="text-align: left; background: rgba(0,0,0,0.3); padding: 10px; border: 2px solid #555;">
-                        <div style="font-weight: bold; margin-bottom: 5px; border-bottom: 2px solid #555;">Controls</div>
+                    <div class="list-box text-left" style="padding:10px;">
+                        <div class="modal-label" style="margin-top:0; border-bottom: 2px solid #555; padding-bottom: 5px; margin-bottom: 10px;">Controls</div>
                         <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 5px; font-size: 0.9em;">
                             <div><strong>WASD / Arrows</strong></div><div>Pan Camera</div>
                             <div><strong>Shift</strong></div><div>Move Faster</div>
@@ -122,7 +122,7 @@ Furnarchy.register({
                     </div>
 
                     <div style="margin-top: 15px;">
-                        <button id="${closeId}" class="full-width">Close</button>
+                        <button id="${closeId}" class="btn-full">Close</button>
                     </div>
                 </div>
             `,

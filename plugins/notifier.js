@@ -1,7 +1,7 @@
 Furnarchy.register({
     id: "notifier-744cfc59",
     name: "Notifier",
-    version: "1.0.2",
+    version: "1.0.3",
     description: "Sends browser notifications when specific words or patterns appear in chat.",
     author: "me@merklejerk.com",
     toggle: false
@@ -144,39 +144,40 @@ Furnarchy.register({
         const showPermButton = "Notification" in window && Notification.permission === "default";
 
         const listHtml = patterns.map((pat, idx) => `
-            <div class="list-row" style="display: flex; justify-content: space-between; align-items: center;">
+            <div class="list-row modal-row">
                 <code style="color: #e0e0e0;">${utils.escape(pat)}</code>
-                <button class="btn-danger" data-idx="${idx}" style="padding: 2px 6px; font-size: 0.8em;">Del</button>
+                <button class="btn-danger btn-sm" data-idx="${idx}">Del</button>
             </div>
         `).join('');
 
         const body = `
             <div>
                 ${showPermButton ? `
-                    <div style="margin-bottom: 15px; padding: 10px; background: rgba(200, 200, 0, 0.2); border: 1px solid #aa0; text-align: center;">
+                    <div style="margin-bottom: 20px; padding: 10px; background: rgba(170, 0, 0, 0.2); border: 2px solid #800;" class="text-center">
                         <p style="margin: 0 0 10px 0;">Browser notifications are not enabled.</p>
-                        <button id="notifier-perm-btn" class="btn-primary full-width">Enable Notifications</button>
+                        <button id="notifier-perm-btn" class="btn-primary btn-full">Enable Notifications</button>
                     </div>
                 ` : ''}
                 
                 <div style="margin-bottom: 10px;">
-                    <label class="text-dim" style="font-size: 0.9em;">Add Pattern (Text, Glob *, or /Regex/):</label>
+                    <label class="modal-label">Add Pattern</label>
+                    <div class="text-dim text-small" style="margin-bottom: 5px;">Matches text, globs (*), or /regex/.</div>
                     <div style="display: flex; gap: 5px; margin-top: 5px;">
-                        <input type="text" id="notifier-input" class="full-width" placeholder="e.g. hello, *pizza*, /foo/" />
-                        <button id="notifier-add-btn" class="btn-primary">Add</button>
+                        <input type="text" id="notifier-input" class="full-width" placeholder="e.g. hello, *pizza*, /foo/" style="flex: 1; margin: 0;" />
+                        <button id="notifier-add-btn" class="btn-primary" style="margin: 0;">Add</button>
                     </div>
                 </div>
 
                 <div class="list-box" style="height: 200px;">
-                    ${patterns.length ? listHtml : '<div class="text-dim" style="padding: 20px; text-align: center;">No patterns added.</div>'}
+                    ${patterns.length ? listHtml : '<div class="text-dim text-center" style="padding: 20px;">No patterns added.</div>'}
                 </div>
 
-                <div class="text-dim" style="font-size: 0.8em; margin-top: 10px;">
-                    <p><strong>Examples:</strong></p>
-                    <ul style="margin-top: 5px; padding-left: 20px;">
-                        <li><code>hello</code> - Matches the word "hello" (case-insensitive)</li>
-                        <li><code>*pizza*</code> - Matches anything containing "pizza"</li>
-                        <li><code>/b(oo|ee)p/</code> - Regex match for "boop" or "beep"</li>
+                <div class="text-dim text-small">
+                    <p class="modal-label" style="margin-top: 5px;">Examples</p>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><code>hello</code> - Exact word (case-insensitive)</li>
+                        <li><code>*pizza*</code> - Anything containing "pizza"</li>
+                        <li><code>/b(oo|ee)p/</code> - Regex for "boop" or "beep"</li>
                     </ul>
                 </div>
             </div>

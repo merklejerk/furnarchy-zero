@@ -1,7 +1,7 @@
 Furnarchy.register({
     id: "markdown-chat-75197f979",
     name: "Markdown Chat",
-    version: "1.0.2",
+    version: "1.0.3",
     description: "Adds basic markdown support (*italic*, **bold**, _underline_, [text](link)) to chat.",
     author: "me@merklejerk.com",
 }, (api) => {
@@ -32,29 +32,26 @@ Furnarchy.register({
         api.openModal({
             title: "Markdown Chat Help",
             body: `
-                <div class="text-dim" style="margin-bottom: 15px;">
+                <div class="text-dim text-small" style="margin-bottom: 15px;">
                     <p>This plugin allows you to use Markdown-like syntax when sending chat messages, whispers, emotes, and descriptions.</p>
                 </div>
                 <div class="list-box">
-                    <div class="list-row">
+                    <div class="list-row modal-row">
                         <strong>Bold</strong>
-                        <code style="float: right;">**text**</code>
+                        <code>**text**</code>
                     </div>
-                    <div class="list-row">
+                    <div class="list-row modal-row">
                         <em>Italic</em>
-                        <code style="float: right;">*text*</code>
+                        <code>*text*</code>
                     </div>
-                    <div class="list-row">
+                    <div class="list-row modal-row">
                         <u>Underline</u>
-                        <code style="float: right;">_text_</code>
+                        <code>_text_</code>
                     </div>
-                    <div class="list-row">
+                    <div class="list-row modal-row">
                         <a href="#" onclick="return false;">Link</a>
-                        <code style="float: right;">[text](url)</code>
+                        <code>[text](url)</code>
                     </div>
-                </div>
-                <div style="margin-top: 15px; text-align: center;">
-                    <button class="btn-primary full-width" onclick="Furnarchy.closeModal()">Close</button>
                 </div>
             `,
             width: "400px"

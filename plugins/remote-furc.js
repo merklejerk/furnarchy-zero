@@ -4094,7 +4094,7 @@
       id: "remote-furc",
       name: "Remote Furc",
       description: "Securely chat through your Furcadia client on mobile.",
-      version: "0.1.0",
+      version: "0.2.1",
       author: "me@merklejerk.com"
     },
     (api) => {
@@ -4111,12 +4111,7 @@
         HISTORY_LIMIT: 64,
         SAVE_INTERVAL_MS: 1e3,
         NEARBY_DISTANCE: { x: 5, y: 9 },
-        UI: {
-          PURPLE: "#50558b",
-          RED: "#8b5050",
-          YELLOW: "#ffcc00",
-          MODAL_WIDTH: "350px"
-        }
+        MODAL_WIDTH: "350px"
       };
       const state = {
         currentUser: null,
@@ -4135,12 +4130,7 @@
       let saveInterval;
       let isDirty = false;
       let configListener = null;
-      const UI = {
-        btn: (color) => `padding: 10px; background: ${color}; color: white; border: 2px outset rgba(255,255,255,0.2); cursor: pointer; font-family: inherit; font-weight: bold; width: 100%; display: block; margin-bottom: 5px;`,
-        input: "width: 100%; padding: 8px; background: #000; border: 2px inset #444; color: #fff; font-family: inherit; box-sizing: border-box;",
-        label: `font-size: 0.85rem; color: ${CONFIG.UI.YELLOW}; text-transform: uppercase; font-weight: bold; margin: 10px 0 5px 0; letter-spacing: 0.5px;`,
-        box: "background: #222; border: 1px solid #444; padding: 10px;"
-      };
+      let modalInterval;
       async function sendToDevice(device, msg) {
         if (!state.ws || state.ws.readyState !== WebSocket.OPEN) return;
         try {
@@ -4188,7 +4178,7 @@
           el.style.borderRadius = "12px";
           el.style.fontSize = "11px";
           el.style.fontFamily = "Verdana, sans-serif";
-          el.style.border = `1px solid ${CONFIG.UI.YELLOW}`;
+          el.style.border = "1px solid #ffcc00";
           el.style.boxShadow = "0 2px 4px rgba(0,0,0,0.5)";
           el.style.pointerEvents = "none";
           el.style.display = "flex";
@@ -4304,6 +4294,10 @@
           window.clearTimeout(state.reconnectTimer);
           state.reconnectTimer = void 0;
         }
+        if (modalInterval) {
+          window.clearInterval(modalInterval);
+          modalInterval = void 0;
+        }
         if (state.ws) {
           state.ws.onclose = null;
           state.ws.close();
@@ -4409,7 +4403,7 @@
             updateIndicator();
             if (msg.type === "cmd") {
               api.send(msg.cmd);
-              if (msg.cmd.startsWith('"') || msg.cmd.startsWith("say ")) {
+              if (msg.cmd.startsWith('"') || msg.cmd.startsWith(":")) {
                 (_a = api.use("life-support")) == null ? void 0 : _a.touch();
               }
             } else if (msg.type === "sync_req") {
@@ -4516,7 +4510,7 @@
         if (!state.currentUser) {
           void api.openModal({
             title: "Remote Furc",
-            body: `<div style='text-align:center;padding:20px;'>Please log in to configure Remote Furc.</div>`,
+            body: `<div class="text-center">Please log in to configure Remote Furc.</div>`,
             width: "300px"
           });
           return;
@@ -4526,28 +4520,26 @@
           if (state.isPairingMode) {
             if (state.pendingPairing) {
               if (!state.pendingPairing.isVerified) {
-                const words = state.pendingPairing.sasWords.map(
-                  (w) => `<span style="font-size:1.2rem; font-weight:bold; color:${CONFIG.UI.YELLOW}; margin:0 8px; text-transform:uppercase;">${w}</span>`
-                ).join("");
+                const words = state.pendingPairing.sasWords.map((w) => `<span class="sas-word">${w}</span>`).join("");
                 body = `
-                <div style="text-align: center; padding: 10px;">
+                <div class="text-center">
                   <h3 style="margin-top:0">Verify Device</h3>
                   <p>Confirm these 3 words match your mobile device:</p>
-                  <div style="margin: 25px 0; background: #000; padding: 15px; border-radius: 8px; border: 1px solid #444;">${words}</div>
-                  <button style="${UI.btn(CONFIG.UI.PURPLE)}" onclick="window.postMessage({type:'rf-verify'}, '*')">They Match</button>
-                  <p style="font-size:0.8rem; color:#888; margin-top: 15px;">If they don't match, the connection may be insecure. Cancel and try again.</p>
-                  <button style="${UI.btn(CONFIG.UI.RED)}" onclick="window.postMessage({type:'rf-cancel'}, '*')">Cancel</button>
+                  <div class="list-box" style="padding: 15px; margin: 25px 0;">${words}</div>
+                  <button class="btn-primary btn-full" onclick="window.postMessage({type:'rf-verify'}, '*')">They Match</button>
+                  <p class="text-dim text-small" style="margin-top: 15px;">If they don't match, the connection may be insecure. Cancel and try again.</p>
+                  <button class="btn-danger btn-full" onclick="window.postMessage({type:'rf-cancel'}, '*')">Cancel</button>
                 </div>`;
               } else {
                 body = `
-                <div style="text-align: center; padding: 10px;">
+                <div class="text-center">
                   <h3 style="margin-top:0">Success!</h3>
                   <p>Words verified. Enter a name for this device:</p>
                   <div style="margin: 15px 0;">
-                    <input type="text" id="rf-device-name" value="Mobile Device" style="${UI.input}" />
+                    <input type="text" id="rf-device-name" value="Mobile Device" class="full-width" />
                   </div>
-                  <button style="${UI.btn(CONFIG.UI.PURPLE)}" onclick="window.postMessage({type:'rf-confirm', name: document.getElementById('rf-device-name').value}, '*')">Finish Pairing</button>
-                  <button style="${UI.btn(CONFIG.UI.RED)}" onclick="window.postMessage({type:'rf-cancel'}, '*')">Cancel</button>
+                  <button class="btn-primary btn-full" onclick="window.postMessage({type:'rf-confirm', name: document.getElementById('rf-device-name').value}, '*')">Finish Pairing</button>
+                  <button class="btn-danger btn-full" onclick="window.postMessage({type:'rf-cancel'}, '*')">Cancel</button>
                 </div>`;
               }
             } else {
@@ -4556,38 +4548,54 @@
               const url = `${REMOTE_URL}/pair?room=${state.roomId}&token=${state.pairingToken}&pub=${encodeURIComponent(pubB64)}&relay=${encodeURIComponent("wss://rf-relay.furnarchy.xyz/v1/connect")}`;
               const qr = await toDataURL(url, { margin: 2, scale: 4 });
               body = `
-              <div style="text-align: center;">
-                <div style="${UI.box} margin-bottom: 10px;">
+              <div class="text-center">
+                <div class="list-box" style="padding: 10px; margin-bottom: 10px;">
                   <a href="${url}" target="_blank" style="display:block; cursor:pointer; text-decoration:none;">
                     <img src="${qr}" style="width: 170px; display:block; margin: 0 auto; border:none;" />
-                    <small style="display:block; margin-top:5px; color:${CONFIG.UI.YELLOW};">Scan with your mobile device to link.</small>
+                    <small class="text-gold" style="display:block; margin-top:5px;">Scan with your mobile device to link.</small>
                   </a>
                 </div>
-                <p style="font-size: 0.85rem; color:#ccc;">Waiting for device connection...</p>
-                <button style="${UI.btn(CONFIG.UI.RED)}" onclick="window.postMessage({type:'rf-cancel'}, '*')">Cancel Pairing</button>
+                <p class="text-dim text-small">Waiting for device connection...</p>
+                <button class="btn-danger btn-full" onclick="window.postMessage({type:'rf-cancel'}, '*')">Cancel Pairing</button>
               </div>`;
             }
           } else {
-            const deviceRows = state.devices.map(
-              (d) => `
-            <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px; border-bottom: 1px solid #444;">
-              <span style="font-weight: bold; color:${CONFIG.UI.YELLOW}">${utils2.escape(d.name)}</span>
-              <button style="${UI.btn(CONFIG.UI.RED)} width: auto; padding: 4px 8px; margin: 0;" onclick="window.postMessage({type:'rf-del', id:'${d.id}'}, '*')">×</button>
-            </div>`
-            ).join("") || '<div style="padding: 20px; text-align: center; color:#666;">No paired devices.</div>';
+            const now = Date.now();
+            const deviceRows = state.devices.map((d) => {
+              const isActive = now - d.lastSeen < CONFIG.INDICATOR_STALE_MS;
+              const statusDot = isActive ? '<span class="text-success text-small" style="margin-right:8px;" title="Connected">●</span>' : '<span class="text-dim text-small" style="margin-right:8px;" title="Offline">○</span>';
+              return `
+            <div class="list-row modal-row">
+              <div style="display: flex; align-items: center;">
+                ${statusDot}
+                <span class="text-gold" style="font-weight: bold;">${utils2.escape(d.name)}</span>
+              </div>
+              <button class="btn-danger btn-sm" onclick="window.postMessage({type:'rf-del', id:'${d.id}'}, '*')">×</button>
+            </div>`;
+            }).join("") || '<div class="text-center text-dim" style="padding: 20px;">No paired devices.</div>';
             body = `
-            <div style="padding: 5px;">
-              <button style="${UI.btn(CONFIG.UI.PURPLE)}" onclick="window.postMessage({type:'rf-start-pair'}, '*')">+ Pair New Device</button>
-              <div style="${UI.label}">Paired Devices</div>
-              <div style="${UI.box} max-height: 200px; overflow-y: auto; padding:0;">
+            <div>
+              <button class="btn-primary btn-full" onclick="window.postMessage({type:'rf-start-pair'}, '*')">+ Pair New Device</button>
+              <div class="modal-label">Paired Devices</div>
+              <div class="list-box" style="max-height: 200px; padding:0;">
                 ${deviceRows}
               </div>
-              <div style="margin-top: 20px; border-top: 1px solid #333; padding-top: 12px; font-size: 0.8rem; color: #888; text-align: center; line-height: 1.4;">
-                To chat remotely, visit <a href="${REMOTE_URL}" target="_blank" style="color: ${CONFIG.UI.YELLOW}">${REMOTE_URL}</a> on a paired device while logged in on your desktop here. Device pairings are per-character.
+              <div class="text-center text-dim text-small" style="margin-top: 20px; border-top: 1px solid #333; padding-top: 12px;">
+                To chat remotely, visit <a href="${REMOTE_URL}" target="_blank" class="text-gold">${REMOTE_URL}</a> on a paired device. Device pairings are per-character.
               </div>
             </div>`;
           }
-          void api.openModal({ title: "Remote Furc Settings", body, width: CONFIG.UI.MODAL_WIDTH });
+          void api.openModal({
+            title: "Remote Furc Settings",
+            body,
+            width: CONFIG.MODAL_WIDTH,
+            onClose: () => {
+              if (modalInterval) {
+                window.clearInterval(modalInterval);
+                modalInterval = void 0;
+              }
+            }
+          });
         };
         if (configListener) window.removeEventListener("message", configListener);
         configListener = (e) => {
@@ -4627,6 +4635,8 @@
           }
         };
         window.addEventListener("message", configListener);
+        if (modalInterval) window.clearInterval(modalInterval);
+        modalInterval = window.setInterval(() => void updateModal(), 5e3);
         void updateModal();
       });
     }
