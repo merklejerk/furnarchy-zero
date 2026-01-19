@@ -4146,7 +4146,6 @@
         const now = Date.now();
         const active = state.devices.filter((d) => now - d.lastSeen < timeoutMs);
         for (const device of active) {
-          console.log(`[RemoteFurc] TX ${msg.type} -> ${device.name}`);
           await sendToDevice(device, msg);
         }
       }
@@ -4154,7 +4153,6 @@
         if (typeof document === "undefined") return;
         let el = document.getElementById(INDICATOR_ID);
         if (!api.enabled || !state.ws || state.ws.readyState !== WebSocket.OPEN) {
-          console.log("[RemoteFurc] Hiding indicator - not connected");
           if (el) el.style.display = "none";
           return;
         }
@@ -4163,7 +4161,6 @@
           (d) => now - d.lastSeen < CONFIG.INDICATOR_STALE_MS
         );
         if (activeDevices.length === 0) {
-          console.log("[RemoteFurc] Hiding indicator - no active devices");
           if (el) el.style.display = "none";
           return;
         }
@@ -4398,7 +4395,6 @@
           if (device.keyHint !== hint) continue;
           const msg = await decrypt(buffer, device.sharedKey);
           if (msg) {
-            console.log("[RemoteFurc] RX <-", device.name, msg);
             device.lastSeen = Date.now();
             updateIndicator();
             if (msg.type === "cmd") {
