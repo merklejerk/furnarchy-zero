@@ -1,7 +1,7 @@
 Furnarchy.register({
     id: "seek-236132b",
     name: "Seek",
-    version: "1.0.1",
+    version: "1.0.2",
     description: "Find the location of players on the map.",
     toggle: false
 }, (api) => {
@@ -147,7 +147,10 @@ Furnarchy.register({
         if (cmd.type === 'camera-sync') {
             stopSeek();
         } else if (cmd.type === 'move-avatar' && api.gameState.player && cmd.uid.toString() === api.gameState.player.uid) {
-            stopSeek();
+            // Only stop if the position actually changed (ignore turns/pose changes)
+            if (cmd.x !== api.gameState.player.x || cmd.y !== api.gameState.player.y) {
+                stopSeek();
+            }
         }
         return line;
     });
