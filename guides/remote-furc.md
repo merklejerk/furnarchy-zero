@@ -9,8 +9,6 @@ Remote Furc allows you to securely access your Furcadia chat and send commands f
 - **Multi-Character Support:** Simple tabbed view to quickly cycle between active character chats.
 - **Secure Messaging:** All communication is encrypted end-to-end. No one (not even the relay server[[1]](#architecture)) can read your messages.
 
----
-
 ## Getting Started
 
 ### 1. Enable the Plugin
@@ -39,9 +37,7 @@ The Remote Furc plugin and your device will then establish a secure communicatio
 2. If they match exactly, click **"They Match"** on your computer.
 3. Enter a name for your device (e.g., "My iPhone") and click **Finish Pairing**.
 
-> ![Screenshot of the 3-word verification screen](./assets/remote-furc-verification.png)
-
----
+![Screenshot of the 3-word verification screen](./assets/remote-furc-verification.png)
 
 ## How to Use
 
