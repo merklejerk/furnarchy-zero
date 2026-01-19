@@ -53,7 +53,13 @@ export function installWebSocketPatch(targetWindow: Window) {
 	});
 
 	// Helper to inject messages into the socket (as if from server)
-	function injectIntoSocket(socket: WebSocket, text: string, sourceId?: string, tag?: string) {
+	function injectIntoSocket(
+		socket: WebSocket,
+		text: string,
+		sourceId?: string,
+		tag?: string,
+		bypass?: boolean
+	) {
 		if (!text.endsWith('\n')) {
 			text += '\n';
 		}
@@ -64,6 +70,7 @@ export function installWebSocketPatch(targetWindow: Window) {
 		});
 		(event as any).tag = tag;
 		(event as any).sourceId = sourceId;
+		(event as any).bypassPlugins = bypass;
 		socket.dispatchEvent(event);
 	}
 
@@ -110,8 +117,9 @@ export function installWebSocketPatch(targetWindow: Window) {
 					furnarchy.inject = (
 						text: string,
 						sourceId: string | undefined,
-						tag: string | undefined
-					) => injectIntoSocket(this as unknown as WebSocket, text, sourceId, tag);
+						tag: string | undefined,
+						bypass: boolean | undefined
+					) => injectIntoSocket(this as unknown as WebSocket, text, sourceId, tag, bypass);
 					console.log('[Furnarchy] Connected to Game Socket');
 				}
 
@@ -185,6 +193,7 @@ export function installWebSocketPatch(targetWindow: Window) {
 		private _hookMessageEvent(msgEvent: MessageEvent, callback: (evt: MessageEvent) => void) {
 			const tag = (msgEvent as any).tag;
 			const sourceId = (msgEvent as any).sourceId;
+			const bypass = (msgEvent as any).bypassPlugins;
 
 			// Queue the incoming message processing to preserve order
 			this._incomingQueue = this._incomingQueue
@@ -202,7 +211,7 @@ export function installWebSocketPatch(targetWindow: Window) {
 						// Run Furnarchy plugins
 						const furnarchy = furnarchyCore;
 
-						if (furnarchy) {
+						if (furnarchy && !bypass) {
 							const result = await furnarchy.processIncoming(line, sourceId, tag);
 							if (result === null || result === undefined) continue;
 							line = result;

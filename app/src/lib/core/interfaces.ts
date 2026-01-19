@@ -71,7 +71,7 @@ export interface IFurnarchyCore {
 	gameDocument: Document | null;
 
 	send(text: string, sourceId?: string, tag?: string): void;
-	inject(text: string, sourceId?: string, tag?: string): void;
+	inject(text: string, sourceId?: string, tag?: string, bypassPlugins?: boolean): void;
 	reconnect(): void;
 	notifyUpdate(plugin: IPluginContext): void;
 	notify(text: string, prefix?: string, sourceId?: string, tag?: string): void;

@@ -10,7 +10,8 @@ export const DEFAULT_PLUGINS = [
 	'/plugins/color-copy.js',
 	'/plugins/chat-enhance.js',
 	'/plugins/roll-troll.js',
-	'/plugins/remote-furc.js'
+	'/plugins/remote-furc.js',
+	'/plugins/seek.js'
 ];
 
 export const DEFAULT_DEV_PLUGINS = ['/plugins/modal-showcase.js'];

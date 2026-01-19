@@ -87,9 +87,8 @@ export class PluginContext implements IPluginContext {
 			console.log(`[${this.metadata.name}] ${text}`);
 			return;
 		}
-		const escaped = utils.escape(text);
 		const prefix = `[<b><i>f: ${utils.escape(this.metadata.name)}</i></b>]`;
-		this.core.notify(escaped, prefix, this.metadata.id, tag);
+		this.core.notify(text, prefix, this.metadata.id, tag);
 	}
 
 	rawNotify(text: string, tag?: string): void {

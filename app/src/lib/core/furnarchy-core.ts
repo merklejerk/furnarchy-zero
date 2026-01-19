@@ -144,8 +144,9 @@ export class FurnarchyCore implements IFurnarchyCore {
 	 * @param text The command to inject. A newline will be appended if missing.
 	 * @param sourceId Optional ID of the plugin injecting the command.
 	 * @param tag Optional tag to identify the source of the command.
+	 * @param bypassPlugins If true, the message will bypass all plugin handlers.
 	 */
-	inject(text: string, sourceId?: string, tag?: string): void {
+	inject(text: string, sourceId?: string, tag?: string, bypassPlugins?: boolean): void {
 		console.warn('[Furnarchy] inject() called before connection established', text);
 	}
 
@@ -431,12 +432,7 @@ export class FurnarchyCore implements IFurnarchyCore {
 		sourceId?: string,
 		tag?: string
 	): void {
-		if (this.clientHooks?.appendChat) {
-			this.clientHooks.appendChat(`${prefix ? `${prefix} ` : ''}${text}`);
-		} else {
-			this.inject(`(${this.utils.escape(prefix)} ${text}`, sourceId, tag);
-		}
-
+		this.inject(`(${prefix ? `${prefix} ` : ''}${text}`, sourceId, tag, true);
 		this.plugins.forEach((p) => p._notifyNotify(text, prefix));
 	}
 
