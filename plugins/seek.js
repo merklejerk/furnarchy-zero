@@ -1,7 +1,7 @@
 Furnarchy.register({
     id: "seek-236132b",
     name: "Seek",
-    version: "1.0.0",
+    version: "1.0.1",
     description: "Find the location of players on the map.",
     toggle: false
 }, (api) => {
@@ -160,11 +160,11 @@ Furnarchy.register({
                     <p class="modal-label">Commands</p>
                     <div class="list-box">
                         <div class="list-row">
-                            <code>seek <span class="text-gold">NAME</span></code>
+                            <code>\`seek <span class="text-gold">NAME</span></code>
                             <div class="text-dim">Search for player and move camera.</div>
                         </div>
                         <div class="list-row">
-                            <code>seek <span class="text-gold">%NAME</span></code>
+                            <code>\`seek <span class="text-gold">%NAME</span></code>
                             <div class="text-dim">Exact name search.</div>
                         </div>
                     </div>
