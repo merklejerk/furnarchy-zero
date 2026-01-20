@@ -1,7 +1,7 @@
 Furnarchy.register({
     id: "markdown-chat-75197f979",
     name: "Markdown Chat",
-    version: "1.0.3",
+    version: "1.0.4",
     description: "Adds basic markdown support (*italic*, **bold**, _underline_, [text](link)) to chat.",
     author: "me@merklejerk.com",
 }, (api) => {
@@ -60,10 +60,6 @@ Furnarchy.register({
 
     api.onOutgoing((line, sourceId) => {
         if (!api.enabled) return line;
-        
-        // Only process user input (sourceId is null)
-        if (sourceId) return line;
-
         const cmd = utils.parseClientCommand(line);
         let changed = false;
 
