@@ -1,0 +1,47 @@
+{
+	"name": "furc-lib",
+	"author": {
+		"email": "me@merklejerk.com",
+		"name": "Lawrence Forman"
+	},
+	"version": "0.1.0",
+	"description": "Furcadia utility library for file formats and protocols",
+	"type": "module",
+	"main": "./dist/index.js",
+	"module": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"import": "./dist/index.js"
+		}
+	},
+	"files": [
+		"dist",
+		"README.md"
+	],
+	"dependencies": {
+		"lzma": "^2.3.2",
+		"seek-bzip": "^2.0.0"
+	},
+	"devDependencies": {
+		"@eslint/js": "^9.0.0",
+		"@types/lzma": "^2.3.0",
+		"eslint": "^9.0.0",
+		"eslint-config-prettier": "^9.0.0",
+		"eslint-plugin-prettier": "^5.0.0",
+		"knip": "^5.0.0",
+		"prettier": "^3.0.0",
+		"typescript": "^5.0.0",
+		"typescript-eslint": "^8.0.0",
+		"vitest": "^1.0.0"
+	},
+	"scripts": {
+		"build": "tsc",
+		"test": "vitest",
+		"type-check": "tsc --noEmit",
+		"lint": "eslint .",
+		"format": "prettier --write .",
+		"knip": "knip"
+	}
+}
