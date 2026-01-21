@@ -9,7 +9,7 @@ export interface ModalOptions {
 	pluginId?: string;
 }
 
-export interface ModalState extends ModalOptions {
+interface ModalState extends ModalOptions {
 	isOpen: boolean;
 }
 

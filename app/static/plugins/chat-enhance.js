@@ -1,7 +1,7 @@
 Furnarchy.register({
     id: "chat-enhance-58f3376e",
     name: "Chat Enhance",
-    version: "1.1.1",
+    version: "1.2.0",
     description: "Chat buffer enhancements.",
 }, (api) => {
     let observer = null;
@@ -139,8 +139,78 @@ Furnarchy.register({
             .che-reply-indicator .che-reply-preview {
                 font-style: italic;
             }
+
+            .fs-success {
+                color: ;
+            }
+            .fs-error {
+            }
+            :root {
+                --che-override-chatbox-bg-color: #e4d8c5ff;
+                --che-override-chatinput-bg-color: #f0e9deff;
+                --che-override-chatbox-text-color: #1e1410ff;
+                --che-override-chatbox-select-bg-color: #453e61ff;
+                --che-override-chatbox-select-text-color: #f1f1f1ff;
+            }
+            /* Client styling overrides */
+            .chatSplitter {
+                background: #baac96;
+            }
+            #mainChatBox, .smileySelector, .urlInserter {
+                background: var(--che-override-chatbox-bg-color);
+                color: var(--che-override-chatbox-text-color);
+            }
+            #mainInput, #mainInput [style], .urlInserter input {
+                background: var(--che-override-chatinput-bg-color) !important;
+                color: var(--che-override-chatbox-text-color) !important;
+            }
+            #mainInput a, #mainInput a[style] {
+                color: var(--che-override-chatbox-text-color) !important;
+            }
+            #mainChatBox::selection, #mainInput::selection { background: var(--che-override-chatbox-select-bg-color); color: var(--che-override-chatbox-select-text-color); }
+                background: var(--che-override-chatbox-select-bg-color);
+                color: var(--che-override-chatbox-select-text-color);
+            }
+            #mainInput.placeholder:before { color: #cbc0ed99; }
+            #whisperWindow {
+                background: var(--che-override-chatbox-bg-color);
+                color: var(--che-override-chatbox-text-color);
+            }
+            #whisperWindow .chatInput {
+                background: var(--che-override-chatinput-bg-color);
+                color: var(--che-override-chatbox-text-color);
+            }
+            #whisperWindow .chatBuffer .f-whisper {
+                color: var(--che-override-chatbox-text-color);
+            }
+            #whisperWindow .chatBuffer .f-whisper::selection {
+                background: var(--che-override-chatbox-select-bg-color);
+                color: var(--che-override-chatbox-select-text-color);
+            }
+            .fs-history { color: #565262ff; }
+            .fs-warning { color: #a18016ff; }
+            .fs-error { color: #952b18ff; }
+            .fs-success { color: #256515ff; }
+            .fs-channel { color: #5b7158ff; }
+            .fs-whisper { color: #1c445eff; }
+            .fs-emote { color: #503c31ff; font-style: italic; }
+            .fs-emit { color: #0d552aff; }
+            .fs-myspeech { color: inherit; }
+            .fs-highlight { color: inherit; }
+            .fs-link { color: #0f6a81ff; text-decoration: underline; }
+            .fs-furclink { color: #511e64ff; }
+            .fs-input { color: inher; }
+            .fs-dragonspeak { color: #0d552aff; }
+            .fs-roll { color: #477710ff; }
+            .fs-shout { color: inherit; }
+            .fs-trade { color: inherit; }
+            .fs-notify { color: inherit; }
+            .fs-query { color: inherit; }
+            .fs-cmdlink { color: inherit; }
+            .fs-name { color: inherit; font-weight: bold; }
+            .fs-log { color: inherit; }
+            .fs-bcast { color: inherit; }
         `;
-        console.log(style);
         doc.head.appendChild(style);
     }
 

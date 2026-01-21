@@ -41,7 +41,7 @@ export function saveStoredZoomSettings(settings: ZoomSettings) {
 	localStorage.setItem(ZOOM_SETTINGS_KEY, JSON.stringify(settings));
 }
 
-export function getDeletedPluginIds(): string[] {
+function getDeletedPluginIds(): string[] {
 	if (typeof localStorage === 'undefined') return [];
 	const stored = localStorage.getItem(DELETED_PLUGINS_KEY);
 	if (!stored) return [];
@@ -120,12 +120,12 @@ export function saveStoredAuthUrl(url: string) {
 	localStorage.setItem(AUTH_URL_KEY, url);
 }
 
-export function getStoredVersion(): string | null {
+function getStoredVersion(): string | null {
 	if (typeof localStorage === 'undefined') return null;
 	return localStorage.getItem(VERSION_KEY);
 }
 
-export function saveStoredVersion(version: string) {
+function saveStoredVersion(version: string) {
 	if (typeof localStorage === 'undefined') return;
 	localStorage.setItem(VERSION_KEY, version);
 }

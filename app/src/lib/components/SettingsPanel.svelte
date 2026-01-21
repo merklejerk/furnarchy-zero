@@ -351,7 +351,7 @@
 
 	.plugin-details {
 		padding: 0 10px 10px 10px;
-		font-size: 0.85rem;
+		font-size: 0.9rem;
 		color: $color-text-main;
 		border-top: 1px dashed $color-border-dark;
 		margin-top: 5px;

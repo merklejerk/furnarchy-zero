@@ -373,9 +373,7 @@
 				{/if}
 			</ul>
 
-			<div class="footer">
-				<small>Plugins have full access to your game session.</small>
-			</div>
+			<div class="footer">Plugins have full access to your game session.</div>
 		</div>
 	{/if}
 </div>
